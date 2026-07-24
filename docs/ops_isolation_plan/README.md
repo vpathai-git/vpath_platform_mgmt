@@ -32,10 +32,12 @@ repos on 2026-07-24.
 | 12 | Connection-contract sensitivity | Split: architecture public, hosts/users gitignored + example stubs | 9/10 | [03](03_artifacts_targets_sensitivity.md) |
 | 13 | Tech stack | Python: FastAPI + Typer CLI + deliberately thin web | 8/10 | [04](04_stack_health_acceptance.md) |
 | 14 | Health verb design | Aggregate existing PhaseGate/health-check scripts + URL probes via Ops API | 8/10 | [04](04_stack_health_acceptance.md) |
-| 15 | Remote access / tunneling | WireGuard mesh overlay (NetBird on the VPS, wired to Keycloak); Tailscale fallback | 9/10 | [05](05_remote_access.md) |
+| 15 | Easy Access onboarding | Invite link + one-command `vpath join`; NetBird overlay underneath, Keycloak the only identity | 9/10 | [05](05_remote_access.md) |
 
 Acceptance criteria per delivery phase and the restated operator calls (with
-what each one blocks) are in [04](04_stack_health_acceptance.md).
+what each one blocks) are in [04](04_stack_health_acceptance.md). The MVP
+synthesizing all fifteen recommendations — architecture, surfaces, and
+milestones M0–M4 gated by tests T1–T3 — is sketched in [06](06_mvp.md).
 
 ## Deviations from the original request (require sign-off)
 
