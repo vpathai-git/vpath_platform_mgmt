@@ -1,55 +1,79 @@
-# Component 15 — Multi-User Remote Access / Tunneling
+# Component 15 — Easy Access: Self-Service Registration & Connection
 
-The NUC recommendation (component 11) stands or falls with reachability: the
-box sits on a LAN, remote Temakollegen do not. "Multi-user access" here has
-two layers that must not be conflated:
+The requirement (from the original prompt's EasyAccess ask): a Temakollege
+must be able to **register, get connected, and use the platform** — easily.
+The tunnel is not the product; the onboarding flow is. Success is measured
+in minutes-to-first-deploy, and the user never learns what WireGuard is.
 
-- **Authorization** is already decided: Keycloak OIDC (component 6) + Ops API
-  RBAC and locks (component 4). Nothing at the network layer may grant ops
-  rights.
-- **Reachability** is what tunneling solves: who can open a TCP connection to
-  which port. The tunnel is a doorbell, never a badge.
+## The target flow (invite → deployed app, under 10 minutes)
 
-What each role must be able to reach on the shared server:
+1. **Invite.** An Admin clicks "Invite teammate" in the console (or runs
+   `vpath invite --team <t> --role app-dev`). Out comes a single link, bound
+   to team, role, and an expiry.
+2. **Register.** The link opens Keycloak self-registration (or SSO). Because
+   the invite carries team + role, the account lands in the right groups
+   automatically — no admin follow-up, no ticket.
+3. **Connect.** The success page shows exactly one command:
+   `pipx install vpath && vpath join <code>`. The `join` command performs the
+   OIDC device-flow login, calls `POST /enroll` on the Ops API, receives a
+   **single-use, role-scoped tunnel enrollment key**, silently installs and
+   configures the overlay client, and verifies reachability. The user typed
+   one command; the tunnel happened to them.
+4. **Build & deploy.** The same terminal now works:
+   `vpath new my-app` scaffolds from the EasyAccess template,
+   `vpath deploy` ships it, and the command prints the console URL and the
+   app's HTTPS endpoint.
 
-| Role | Needs reachable | Never gets |
-|---|---|---|
-| App-Entwickler | Ops API/console (443), registry push (`REGISTRY_PORT`), platform HTTPS (`VPATH_PORT`) | SSH, kubectl |
-| Administrator | All of the above + SSH (22) | — |
-| Serverprojekt-Entwickler | HTTPS surfaces, read-only diagnostics | SSH except via time-boxed break-glass |
+Every step is revocable at one place: disable the Keycloak account and both
+the ops rights and the network path die with it.
 
-The airgapped claas-remote target is explicitly out of tunnel scope — it is
-reached by Admins on-site/enterprise-network only (components 8, 10).
+## Options for the onboarding UX
 
 | Option | Weight | Pros | Cons |
 |---|---|---|---|
-| **A. WireGuard mesh overlay — NetBird self-hosted on the vm5-class VPS, wired to the existing Keycloak realm; Tailscale SaaS as the managed fallback (recommended)** | **9/10** | No port forwarding or public exposure of the NUC (NAT traversal); one client covers HTTPS, registry push, and SSH; NetBird accepts any OIDC IdP, so login is the same VPath Keycloak account — one identity authority end-to-end; network ACL groups map 1:1 onto the three roles; control plane runs on infrastructure the team already owns | A client install on every device; self-hosting the coordination server is one more service to operate (mitigated: it lives on the VPS, not on the NUC, and Tailscale remains the zero-ops fallback) |
-| B. Identity-aware HTTPS publish — Cloudflare Tunnel + Access, or the NetBird reverse proxy / Pangolin on the VPS | 6/10 (7/10 as phase-2 addition) | Zero client install — browser-only access to console and API; only HTTP(S) surfaces ever leave the LAN | HTTP(S) only: SSH and kubectl need a second mechanism anyway; registry pushes break on free-tier body-size limits (~100 MB per upload) — large image layers fail; Cloudflare Access adds a second identity layer unless OIDC-federated back to Keycloak; a third party sits in the data path |
-| C. Classic WireGuard server + router port-forward | 4/10 | Zero third parties; minimal moving parts; cheap | Needs a stable public IP/port-forward on a home-grade LAN (CGNAT risk); manual key lifecycle — offboarding a teammate means touching the server, the exact multi-user weakness; no SSO tie-in |
-| D. SSH bastion / reverse tunnel via the vm5 VPS (`ssh -J`, autossh) | 3/10 as target, 6/10 as stopgap | Works today with existing assets and zero new software | Per-user SSH keys to shared boxes were already rejected in component 6 (no role separation, no audit, AV rules); long-lived reverse tunnels are fragile; every user gets network-level access far beyond their role |
+| **A. Invite link + one-command CLI join (`vpath join <code>`) (recommended)** | **9/10** | One command from zero to connected; tunnel enrollment fully automated via Ops-API-issued single-use keys; invite carries team/role so RBAC is set before first contact; same flow on every OS; auditable (who invited whom, when) | The CLI must handle per-OS overlay-client install; the `/enroll` endpoint and invite management are real MVP scope |
+| B. Web-portal onboarding with downloadable preconfigured installer | 6/10 | No CLI needed to start; friendly for non-terminal users | Per-OS installer bundles to build and keep current; more steps than one command; app work needs the CLI anyway, so the portal only delays it |
+| C. Documented manual onboarding (admin creates account, user installs VPN by hand) | 2/10 | Zero build cost | Exactly the friction being complained about; error-prone; every new teammate costs admin time; keys outlive people |
+| D. No tunnel at onboarding — expose console/API/registry publicly behind auth | 5/10 | Absolute simplest first contact: register, open URL, done; nothing to install | The platform becomes a public attack surface guarded only by app auth; registry push through public proxies hits body-size limits; SSH for Admins needs a second mechanism anyway; contradicts keeping the NUC unexposed |
 
-**Recommendation: A — with B as an optional phase-2 convenience, never as
-the primary path.** The reasoning: the decisive property is that the overlay
-carries *all three* protocols the roles need (HTTPS, registry, SSH) under
-*one* login, and that login can be the Keycloak account the platform already
-issues — no second identity system, which options B and C both smuggle in.
-NetBird self-hosted keeps the control plane on team infrastructure (the
-vm5-class VPS is already paid for) and its ACL groups become the network
-mirror of the role matrix: `role:app-dev` reaches 443 + `REGISTRY_PORT` +
-`VPATH_PORT`, `role:admin` additionally 22, `role:server-dev` HTTPS only
-with SSH granted via a time-boxed break-glass group. If operating the
-coordination server proves more friction than it is worth, Tailscale is the
-drop-in managed fallback (same WireGuard mesh, external control plane,
-per-user pricing beyond the small free tier). Option D may serve as the
-stopgap while the overlay is set up, and must be retired when phase 3's
-isolation criterion is measured.
+**Recommendation: A, with B's portal page as the invite landing page (it
+shows the one command), and D reconsidered later for console-read-only
+viewers.** The reasoning: the flow is only "easy" if registration and
+connectivity are **one** motion. Option A is the only one where the thing
+that makes tunnels painful — key exchange and client configuration — is
+executed by software holding a scoped, expiring credential, not by a human
+following a wiki page. B alone still ends in the CLI, so it adds a detour
+rather than removing one. C is the status quo this component exists to kill.
+D trades the team's security posture for a convenience A already delivers.
 
-DX contract (so tunneling is "easy", not just possible):
+## Transport underneath (implementation detail, not the product)
 
-- Onboarding is three steps in the EasyAccess doc: install client → log in
-  with the VPath account → `vpath status` confirms reachability.
+The enrollment-key mechanism decides the transport: it must support
+programmatic, single-use, group-scoped enrollment. Both candidates do —
+**NetBird self-hosted** (setup keys; OIDC against the existing Keycloak
+realm; control plane on the vm5-class VPS) or **Tailscale** (auth keys;
+managed control plane; per-user pricing). Preference: NetBird for the single
+identity authority and self-hosted control plane; Tailscale as the drop-in
+managed fallback. Role groups mirror the role matrix: `app-dev` reaches
+console/API (443), registry (`REGISTRY_PORT`), platform HTTPS
+(`VPATH_PORT`); `admin` additionally SSH (22); `server-dev` HTTPS with SSH
+only via a time-boxed break-glass group. The airgapped claas-remote target
+is out of tunnel scope entirely (components 8, 10). A tunnel grants
+reachability only — authorization stays in Keycloak + Ops API RBAC
+(components 4, 6); network access must never imply ops rights.
+
+## Ongoing ease (after day one)
+
 - `vpath doctor` checks the overlay first and prints the exact fix when the
-  server is unreachable, instead of failing deep in a deploy.
-- The CLI and console always address the server by its stable overlay DNS
-  name (e.g. `nuc.vpath.internal`), never by LAN IP — configs stay identical
-  for local and remote users.
+  server is unreachable, instead of failing deep inside a deploy.
+- CLI and console address the server by its stable overlay DNS name
+  (e.g. `nuc.vpath.internal`), never a LAN IP — identical config for local
+  and remote users.
+- Leaving is as clean as joining: `vpath leave` deregisters the device;
+  disabling the Keycloak account revokes everything else.
+
+## Acceptance criterion (sharpens phase 5)
+
+A Temakollege with a fresh laptop and an invite link reaches a deployed app
+on the shared server in **under 10 minutes**, with **no admin involvement
+after the invite** and **without ever editing a VPN or SSH config**.
