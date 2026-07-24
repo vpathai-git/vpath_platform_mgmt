@@ -1,0 +1,9 @@
+# Runtime dependencies — mirror of pyproject.toml [project.dependencies].
+# pyproject.toml is the source of truth; keep both in sync (see CLAUDE.md).
+# Dev tools (pytest, black, flake8, mypy) live in pyproject [dev] extras:
+#   pip install -e ".[dev]"
+python-dotenv>=1.0.0  # Used by config/settings.py for .env loading
+
+# Add your project dependencies here, for example:
+# requests>=2.31.0
+# click>=8.1.0  # For command-line interfaces

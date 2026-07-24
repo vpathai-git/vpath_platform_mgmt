@@ -1,0 +1,38 @@
+#!/bin/sh
+# Universal pre-push gate (axiom F9 — synchronous adoption).
+#
+# In any repo following MAIN_META_CONVENTION tier 2 (an orphan `meta` branch
+# carrying an OntoGate checker), the governance gate must pass against the
+# LOCAL branches before anything is pushed: a universal change and its
+# merges into every flavor branch travel in the same push set — propagation
+# is first-principle, not memory.
+#
+# In every other repo (every stamped project) there is no meta branch and
+# this hook is a silent no-op. Emergency bypass: git push --no-verify
+# (server-side protection is the layer that survives that).
+#
+# The gate run also revalidates dated skill assumptions (the fable-team
+# food chain): exit 1 = review recommended (push proceeds), >=2 = the
+# assumptions block is missing/malformed and the push is blocked.
+set -e
+if git show-ref --verify --quiet refs/heads/meta && \
+   git ls-tree -r --name-only meta | grep -q "^\.ontogate/check\.py$"; then
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  git archive meta .ontogate | tar -x -C "$tmp"
+  PY=$(git show meta:.ontogate/PYTHON 2>/dev/null || echo python3)
+  command -v "$PY" >/dev/null 2>&1 || PY=python3
+  echo "pre-push: running the governance gate (meta:.ontogate/check.py)..."
+  ONTOGATE_REPO="$(git rev-parse --show-toplevel)" "$PY" "$tmp/.ontogate/check.py"
+
+  top=$(git rev-parse --show-toplevel)
+  if [ -f "$top/scripts/check_skill_assumptions.py" ]; then
+    rc=0
+    "$PY" "$top/scripts/check_skill_assumptions.py" || rc=$?
+    # rc 1 = revalidation recommended: banner printed, push proceeds.
+    if [ "$rc" -ge 2 ]; then
+      echo "pre-push: skill assumptions block missing/malformed (exit $rc)" >&2
+      exit "$rc"
+    fi
+  fi
+fi

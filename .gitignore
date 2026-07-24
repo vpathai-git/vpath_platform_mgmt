@@ -1,0 +1,87 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+coverage.xml
+*.cover
+.hypothesis/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+
+# Project specific
+/data/raw/
+/data/processed/
+*.log
+.env
+secrets/
+*.db
+*.sqlite3
+
+# Documentation
+docs/_build/
+docs/_static/
+docs/_templates/
+# Ad-hoc UI exploration artifacts (see /verify-ui skill)
+ui_exploration/
+
+# Java / Gradle (flavor branches generate these when switching locally)
+build/
+.gradle/
+*.class
+
+# Claude agent memories are machine-local; committing them in the template
+# would propagate them into every derived project on sync
+.claude/agent-memory/

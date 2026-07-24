@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$(git rev-parse --show-toplevel)/scripts/assets/completion-chime.sh\"",
+            "timeout": 5,
+            "statusMessage": "Playing completion chime"
+          }
+        ]
+      }
+    ]
+  }
+}

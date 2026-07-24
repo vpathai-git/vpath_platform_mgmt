@@ -1,0 +1,88 @@
+# pyproject.toml - single source of project configuration (PEP 621)
+
+[build-system]
+requires = ["setuptools>=61", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "vpath-platform-mgmt"
+version = "0.1.0"
+description = "App build/deploy/health-check/uninstall pipeline and admin console for VPath server instances"
+readme = "README.md"
+requires-python = ">=3.10"
+authors = [
+    { name = "Andre Fischer", email = "andre.fischer@vpathai.com" },
+]
+license = { file = "LICENSE.TXT" }
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+]
+dependencies = [
+    # Add your runtime dependencies here, e.g. "requests>=2.31.0",
+    # Keep requirements.txt mirrored (see AGENTS.md, Dependency Management)
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-cov>=5.0.0",
+    "black>=24.0.0",
+    "flake8>=7.0.0",
+    "mypy>=1.10.0",
+]
+
+[project.scripts]
+vpath-platform-mgmt = "vpath_platform_mgmt:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.black]
+line-length = 88
+target-version = ["py310", "py311", "py312", "py313"]
+
+[tool.isort]
+profile = "black"
+line_length = 88
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-ra -q --strict-markers"
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "integration: marks tests as integration tests",
+]
+
+[tool.coverage.run]
+# Measure by package, not path: with a src-layout + editable install a path
+# filter ("src") collects no data. source_pkgs resolves the installed package.
+source_pkgs = ["vpath_platform_mgmt"]
+# __main__.py is a trivial `python -m` entry shim with no logic to regress.
+omit = ["*/tests/*", "*/test_*.py", "*/__main__.py"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "if self.debug:",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]

@@ -1,0 +1,26 @@
+#!/bin/sh
+# Universal pre-commit gate — identical on every template flavor because the
+# Makefile target NAMES are the cross-flavor contract (make check ≡ CI).
+# When the staged diff touches a dependency manifest, the CVE gate
+# (make scan) runs too — new libraries enter scanned, or not at all.
+# Activated by `make setup` / scripts/init_project.py via:
+#   git config core.hooksPath githooks
+# Emergency bypass (use sparingly, CI still gates): git commit --no-verify
+set -e
+# Hooks don't inherit an activated venv — put the project venv first so the
+# pinned dev tools run, not whatever an unrelated PATH entry offers.
+top=$(git rev-parse --show-toplevel)
+if [ -d "$top/venv/bin" ]; then
+  PATH="$top/venv/bin:$PATH"
+elif [ -d "$top/venv/Scripts" ]; then
+  PATH="$top/venv/Scripts:$PATH"
+fi
+export PATH
+echo "pre-commit: running the full quality gate (make check)..."
+make check
+
+manifests='requirements\.txt|pyproject\.toml|.*\.gradle(\.kts)?|gradle\.lockfile|Cargo\.(toml|lock)|conanfile\..*|vcpkg\.json'
+if git diff --cached --name-only | awk -F/ '{print $NF}' | grep -E -x -q "$manifests"; then
+  echo "pre-commit: dependency manifest staged - running CVE scan (make scan)..."
+  make scan
+fi
