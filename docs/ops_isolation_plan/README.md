@@ -2,11 +2,12 @@
 
 Builds out the v1 handoff bundle (`ops_isolation_brainstorm_753e62fe.plan.md`,
 main-repo root) into a complete, argued decision map. v1's six components are
-carried over unchanged; eight new components close the gaps found in review:
+carried over unchanged; nine new components close the gaps found in review:
 a silent requirement deviation, the first-time-install bootstrap hole, the
 repo-name mismatch, the missing artifact/registry contract, the deferred
-target choice, connection-contract sensitivity, the undecided tech stack, and
-the undesigned `health` verb — plus per-phase acceptance criteria.
+target choice, connection-contract sensitivity, the undecided tech stack, the
+undesigned `health` verb, and multi-user remote access over tunneling — plus
+per-phase acceptance criteria.
 
 Format everywhere: alternatives, weighted pros/cons, one recommendation with
 reasoning. Weights are /10 for fit with the design constraint ("no role must
@@ -31,6 +32,7 @@ repos on 2026-07-24.
 | 12 | Connection-contract sensitivity | Split: architecture public, hosts/users gitignored + example stubs | 9/10 | [03](03_artifacts_targets_sensitivity.md) |
 | 13 | Tech stack | Python: FastAPI + Typer CLI + deliberately thin web | 8/10 | [04](04_stack_health_acceptance.md) |
 | 14 | Health verb design | Aggregate existing PhaseGate/health-check scripts + URL probes via Ops API | 8/10 | [04](04_stack_health_acceptance.md) |
+| 15 | Remote access / tunneling | WireGuard mesh overlay (NetBird on the VPS, wired to Keycloak); Tailscale fallback | 9/10 | [05](05_remote_access.md) |
 
 Acceptance criteria per delivery phase and the restated operator calls (with
 what each one blocks) are in [04](04_stack_health_acceptance.md).
