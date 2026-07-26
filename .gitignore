@@ -85,3 +85,11 @@ build/
 # Claude agent memories are machine-local; committing them in the template
 # would propagate them into every derived project on sync
 .claude/agent-memory/
+
+# Instance credentials and access material — never commit
+# (see analysis/instance-management/)
+platform-admin-credentials*.zip
+*.pem
+*_key
+*_key.*
+instances.local.*
