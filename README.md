@@ -16,6 +16,50 @@ of the main server project into its own repository, and provides a console
 None of the first two roles should need to work from within the VPath server
 project itself, since that must stay stable.
 
+## Primary goals — the three axes (2026-07-27)
+
+Everything this console does hangs on three axes. This section is deliberately
+self-contained: it should make sense to a reader who sees only this repository.
+
+**Background in one paragraph.** A VPATH *platform instance* is one running
+installation of the VPATH server platform. Two platform types exist: **server**
+(a k3s cluster on a dedicated box or VM — e.g. the on-prem NUC boxes named
+`mercury8`/`venus10`, the Azure VM `terra`) and **standalone** (a local
+Electron-shell process, NATO-alphabet names `alpha`, `bravo`, …). Instance
+*data* (hosts, users, keys) is a gitignored local register; the *mechanism*
+around it is versioned here — see `src/vpath_platform_mgmt/instances/`
+(registry, selector, transport, probe) and `analysis/instance-management/`.
+
+### Axis 1 — Dualism: one view over both platform types
+
+We manage server AND standalone platforms. The console renders a **generic
+view** that both types share — status, apps, state, operations — plus the
+**type-specific panels** that only one side has (examples: stack status and
+load for servers; login and size-on-disk for standalones), plus an **OntoGate
+viewer link** per instance where a spine exists.
+
+### Axis 2 — Instances: CRUD + health
+
+Instances are created from **versioned type templates** — `nuc`, `standalone`,
+and `remote` (the win-claas variant: a customer-side Windows cluster) — while
+the resulting instance entries themselves stay gitignored payload. Every
+instance can be created, updated, health-checked; the console shows error
+logs, uptime, state and history. The register must answer, per instance:
+where does it live (host + filesystem)? where does its build process live?
+which source repositories does the build pull apps from? where do the
+container images live?
+
+### Axis 3 — Apps: CRUD + health
+
+Every app can be built, deployed, undeployed and updated (forcefully if
+needed). Apps have versions that may coexist side by side. **Iteration 1
+target:** an existing in-server app (e.g. the Explorer app) is manageable from
+here as an isolated app. The console offers manifest inspection and visibility
+for the app's frontend part, backend part, its workflow templates, and for
+**bundles** — app + workflow templates as one package.
+
+Derivation and open points: `analysis/mgmt-console/summary.md`.
+
 The full concept, roles, and open questions live in the Jira task — that is the
 source of truth:
 **[EIP-222 · Server Stabilisierung und Administration](https://vpathai-team-l8xgdmtm.atlassian.net/browse/EIP-222)**
