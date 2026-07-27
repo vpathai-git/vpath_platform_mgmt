@@ -1,5 +1,19 @@
 # Issue: Instanzregister aus dem Serverprojekt herauslösen
 
+> **ERLEDIGT 2026-07-27** (`aed0003` hier, `84607af10` im Server). Das Register
+> liegt als git-ignoriertes `instances.local.env` in diesem Projekt und trägt
+> alle fünf Instanzen, `KIND`-getragen. Migriert wurden **beide** Vorgänger —
+> `vpath_server_dev/.env.nucs` *und* das am 27.07. entstandene
+> `claas_demo/.env.instances`. Im Server zeigt jede eingecheckte Referenz auf
+> das neue Haus (`analysis/nuc-fleet-access/registry-retired.md`); das
+> Ignore-Muster bleibt dort stehen, damit eine liegengebliebene lokale Kopie
+> nicht doch noch eingecheckt wird. Der Zeiger-Inhalt für die lokale Datei
+> steht wörtlich in jener Datei — ein einmaliger Operator-Schritt, weil eine
+> git-ignorierte Datei nicht per Commit entfernt werden kann.
+> Erfolgskriterium 4 (`nuc-fleet-access` verweist hierher und ist auf seinen
+> Restumfang reduziert) ist erfüllt.
+
+
 **Status:** draft · **Priorität:** P1
 **Herkunft:** `raw/2026-07-26_2007_instanzverwaltung-signaletik.md`
 („die sind bisher im Serverprojekt selbst koordiniert worden. Die müssen da raus.")

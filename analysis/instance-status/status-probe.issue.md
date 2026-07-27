@@ -1,5 +1,31 @@
 # Issue: Status-Probe — ein Lauf über alle Instanzen
 
+> **ERLEDIGT 2026-07-27** (`aed0003`). `python -m
+> vpath_platform_mgmt.instances.probe` läuft über alle Registereinträge; kein
+> Instanzname steht im Code. Je Instanz eine Zeile pro Angabe **mit ihrer
+> Quelle** (Pfad oder Befehl), nach dem Vorbild des Pin-Werkzeugs. „Nicht
+> feststellbar" ist ein eigener Ausgang mit eigenem Exit-Code, nie „ungesund";
+> eine Instanz, die nicht antwortet, wird als nicht antwortend gemeldet und nie
+> übersprungen.
+>
+> **S5 entschieden:** die Probe führt `health-check-platform-ready.sh` **nicht**
+> aus. Nicht wegen der Kopplungsfrage, sondern wegen einer härteren: das Skript
+> berührt den Phase-Gate-Marker (`lib/pipeline/health-check-platform-ready.sh:27-30`),
+> und ein Statuswerkzeug darf seinen eigenen Messwert nicht verändern. Gelesen
+> werden stattdessen `/api/version`, der Marker (nur `stat`), das Image-Label
+> `vpath.git.sha` und die Deployment-Bereitschaft.
+>
+> **Ein Befund gegen die Annahme dieses Issues:** der Marker liegt **nicht**
+> unter `build/phase-gates/`, sondern unter `<CHECKOUT>/<TARGET_DIR>/phase-gates/`
+> — `TARGET_DIR` kommt aus dem Env-Profil der Box und ist pro Umgebung
+> verschieden (`infra_build_nuc` bzw. `infra_build_vm5`). Deshalb liest die
+> Probe das Profil zuerst und leitet den Pfad daraus ab, statt ihn zu raten.
+>
+> **S6 (Abruf/periodisch) und Parallelität:** nicht entschieden, nicht nötig —
+> die Probe läuft seriell mit Timeout je Instanz und braucht für die volle
+> Flotte weniger als eine Minute.
+
+
 **Status:** draft · **Priorität:** P1
 **Herkunft:** `raw/2026-07-26_2045_instanzstatus-und-konsole.md`
 („es muss ein zentrales Skript geben, dass die git-ignorierte Definition von

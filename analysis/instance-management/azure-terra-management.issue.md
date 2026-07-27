@@ -1,5 +1,27 @@
 # Issue: Azure-Instanz verwaltbar machen (heute nur erreichbar)
 
+> **ERLEDIGT / ÜBERHOLT 2026-07-27.** Die Kernannahme dieses Issues — *„der
+> Deploy-Weg fehlt vollständig"* — ist widerlegt. Der Weg existiert und ist
+> erprobt: Env-Overlay `config/dot_env/.env.vm5` (im Server committet),
+> `VPATH_INSTALL_MODE=nuc`, Aufruf `-Penv=vm5 deployPipeline` **auf der Box**,
+> Auslieferung per Delivery-Push vom Mac, GitOps/ArgoCD.
+> Beleg: `claas_demo/analysis/infrastructure-consolidation/reports/deploy-pass.md`.
+>
+> Die vier offenen Fragen sind damit beantwortet: (1) über den nuc-Modus mit
+> eigenem Profil; (2) die VM hat Internet, aber **kein** Git-Credential — der
+> Delivery-Push bleibt der einzige Weg; (3) ja, `/workspace` ist die
+> Repo-Kopie auf der Box; (4) ja, k3s v1.31.6+k3s1 im gleichen Zuschnitt.
+>
+> Die Instanz steht als `terra` im Register und ist über denselben Selektor
+> ansprechbar wie die NUCs — read-only belegt: der Selektor erreicht dort den
+> echten Gradle-Wrapper mit `-Penv=vm5`. **Nicht** über SOCKS: der Tunnel ist
+> für Browser; direkter SSH vom Mac funktioniert.
+>
+> Rest-Punkt, nicht Teil dieses Issues: die Box signiert mit einem fremden
+> Schlüsselpaar (Regel-8-Zustand, im Deploy-Pass gemeldet) — Freigabe beim
+> zentralen Koordinator.
+
+
 **Status:** draft · **Priorität:** P1
 **Herkunft:** `raw/2026-07-26_2007_instanzverwaltung-signaletik.md`
 („Dann haben wir eine Azure Instanz, die ist im ZIP-File beschrieben, wo die liegt.")

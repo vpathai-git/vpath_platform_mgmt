@@ -4,7 +4,9 @@
 
 Sprache: Deutsch (Dateinamen, Code, Bezeichner Englisch) · Angelegt: 2026-07-26 20:07
 Projekt: `/Users/drnorden/projects/vpath/vpath_platform_mgmt` (Workspace-Ordner `06 · platform mgmt`)
-Status: **Anforderung aufgenommen, Belege erhoben — noch nicht diskutiert, keine Umsetzung**
+Status: **umgesetzt 2026-07-27** — Register, Selektor und Probe stehen und
+sind gegen die echte Flotte belegt (Commit `aed0003`). Offen ist nur noch, was
+unten unter „Was bewusst offen bleibt" steht.
 
 Vorbereitet vom zuarbeitenden Agenten für den Hauptagenten. Was hier steht, ist
 belegt oder ausdrücklich als *nicht verifiziert* markiert. Nichts davon ist
@@ -111,26 +113,54 @@ git-ignorierten Set besteht. → `credentials-hygiene.issue.md`
 
 ---
 
+## Was gebaut wurde
+
+Alles in `vpath_platform_mgmt`, Commit `aed0003`:
+
+| Teil | Ort |
+|---|---|
+| Register (git-ignoriert) | `instances.local.env` — trägt alle fünf Instanzen |
+| Schema und Grenze | `docs/INSTANCES.md` |
+| Vorlage mit Platzhaltern | `instances.example.env` |
+| Mechanismus | `src/vpath_platform_mgmt/instances/` (Registry, Transport, Selektor, Probe) |
+| Tests | `tests/instances/` — 68 Tests, jede Prüfung mit Rot-Probe |
+
+**Die Grenze, die den Zuschnitt klein hält:** das Register sagt *wohin* und
+*von wo aus* — sonst nichts. Ports, Workspace-Pfade und `TARGET_DIR` stehen
+weiter in den committeten Env-Profilen des Servers und werden zur Laufzeit von
+dort gelesen. Deshalb hat kein Wert zwei Häuser, aus denen er auseinanderlaufen
+könnte, und die Feldliste einer Serverinstanz ist sechs Zeilen lang.
+
 ## Backlog
 
-### ~~P0~~ — **entsperrt 2026-07-27**
-- **[naming-collision-terra](naming-collision-terra.issue.md)** — **decided:**
-  Azure = `terra`, `terra12`-Reservierung fällt, nächste NUC = `mars`. Das
-  Register kann geschrieben werden.
+### Erledigt 2026-07-27
+- ~~**[naming-collision-terra](naming-collision-terra.issue.md)**~~ — Azure =
+  `terra`, `terra12` fällt, nächste NUC = `mars`.
+- ~~**[registry-migration](registry-migration.issue.md)**~~ — beide Vorgänger
+  (`.env.nucs` im Server, `.env.instances` im Workspace) sind migriert; im
+  Server ist jede eingecheckte Referenz umgezogen (Commit `84607af10` dort).
+- ~~**[instance-selector](instance-selector.issue.md)**~~ — gebaut und
+  read-only gegen die echte Flotte belegt.
+- ~~**[azure-terra-management](azure-terra-management.issue.md)**~~ — der
+  Deploy-Weg existiert und ist erprobt; die Annahme „kein Deploy-Weg" war
+  überholt.
 
-### P1 — der eigentliche Auftrag
-- **[registry-migration](registry-migration.issue.md)** — `.env.nucs` aus dem
-  Serverprojekt heraus, hierher, ohne zweite Variante entstehen zu lassen.
-- **[instance-selector](instance-selector.issue.md)** — eine Instanz wählen und
-  darauf installieren/deployen/redeployen, ohne Dateien zu kopieren.
-- **[azure-terra-management](azure-terra-management.issue.md)** — die Azure-VM ist
-  heute nur *erreichbar*, nicht *verwaltbar*. Der Deploy-Weg fehlt vollständig.
+### Offen
+- **[standalone-instances](standalone-instances.issue.md)** — Alpha steht im
+  Register, Bravo ist als `planned` deklariert und noch zu bauen.
+- **[credentials-hygiene](credentials-hygiene.issue.md)** — der vm5-Schlüssel
+  liegt jetzt materialisiert unter `~/.ssh/`; die Ablageform ist damit
+  faktisch gewählt, aber nicht entschieden und nicht gegatet.
 
-### P2
-- **[standalone-instances](standalone-instances.issue.md)** — Alpha bestimmen,
-  Bravo aufbauen, beide ins Register.
-- **[credentials-hygiene](credentials-hygiene.issue.md)** — Ablageform für
-  Zugangsmaterial festlegen; Gate dagegen.
+## Was bewusst offen bleibt
+
+- **Kein UI** — ausdrücklich zurückgestellt (Nutzeranweisung 2026-07-27).
+- **Kein Health-Endpoint** — erst die Probe, dann die Entscheidung. Was sie
+  ergeben hat, steht im Strang [instance-status](../instance-status/summary.md).
+- **Bravo ist nicht gebaut** — deklariert genügt fürs Erste; die Probe meldet
+  ihn als `PLANNED` und nicht als Fehler.
+- **Kein Deployment gefahren.** Der Selektor ist über read-only-Operationen
+  belegt; ein echter Redeploy ist eine Entscheidung des zentralen Koordinators.
 
 ---
 
@@ -175,3 +205,17 @@ git-ignorierten Set besteht. → `credentials-hygiene.issue.md`
   **Der Strang ist dispatchbar.** Beim Registerumzug den Serverstrang
   `nuc-fleet-access` nachziehen (terra12-Reservierung dort austragen, Fabrikat
   venus10 dokumentieren).
+- 27.07.: **Registerformat entschieden (I4): `.env`-Stil, nicht YAML.** Beide
+  Vorgänger waren `.env`, die Migration ist damit mechanisch, das Format
+  braucht keine Abhängigkeit, und `.gitignore` trug das Muster
+  `instances.local.*` schon. Heterogenität trägt das `KIND`-Feld, nicht die
+  Syntax.
+- 27.07.: **Die Probe führt `health-check-platform-ready.sh` NICHT aus.** Das
+  Skript ist ein Gradle-orchestriertes Gate und *berührt den Phase-Gate-Marker*
+  (`lib/pipeline/health-check-platform-ready.sh:27-30`). Ein Statuswerkzeug,
+  das seinen eigenen Messwert verändert, ist keines. Gelesen werden stattdessen
+  die Spuren, die die Plattform ohnehin erzeugt. Damit ist auch S5 beantwortet.
+- 27.07.: **Der Serverstrang ist nachgezogen** (`84607af10`): terra12
+  ausgetragen, venus10-Fabrikat dokumentiert, `nuc-switching.issue.md` als
+  abgelöst markiert statt offen gelassen — ein `-Pnuc=<name>` in `lib/vm.sh`
+  wäre der zweite Umschaltmechanismus, den Regel 8 verbietet.

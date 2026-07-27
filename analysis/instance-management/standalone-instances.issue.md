@@ -1,5 +1,20 @@
 # Issue: Electron-Standalones Alpha und Bravo
 
+> **TEILWEISE ERLEDIGT 2026-07-27** (`aed0003`). Alpha ist bestimmt und steht
+> im Register (`ALPHA_APP_ROOT` = das Blindrun-App-Repo, `ALPHA_HOME` = dessen
+> Standalone-Home); Bravo steht als `LIFECYCLE=planned` — deklariert, nicht
+> gebaut, und die Probe meldet ihn als `PLANNED` statt als Fehler. Das
+> Zwei-Klassen-Schema ist in beiden Strängen dokumentiert (hier und
+> `vpath_server_dev/analysis/nuc-fleet-access/registry-retired.md`).
+>
+> **Offen bleibt Erfolgskriterium 2 und 3:** Bravo aufbauen, und ein
+> definiertes Verfahren für „neu bauen / ersetzen". Letzteres hängt an einer
+> Erkenntnis der Probe: eine Standalone hat **keine feststehende Adresse** —
+> die Shell vergibt jeden Port über `allocatePort()` → `listen(0)`. Solange das
+> so ist, kann kein Werkzeug von außen sagen, welche Version dort *läuft*.
+> Siehe `../instance-status/health-endpoint-gap.issue.md`.
+
+
 **Status:** draft · **Priorität:** P2
 **Herkunft:** `raw/2026-07-26_2007_instanzverwaltung-signaletik.md`
 („zwei lokale Electron Based Standalone Instanzen … Eine gibt's schon, und eine

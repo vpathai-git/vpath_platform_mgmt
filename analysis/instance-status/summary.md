@@ -4,7 +4,9 @@
 
 Sprache: Deutsch (Dateinamen, Code, Bezeichner Englisch) · Angelegt: 2026-07-26 20:45
 Projekt: `/Users/drnorden/projects/vpath/vpath_platform_mgmt` (Workspace-Ordner `06`)
-Status: **Anforderung aufgenommen, Belege erhoben — noch nicht diskutiert, keine Umsetzung**
+Status: **Probe umgesetzt 2026-07-27** (`aed0003`), gegen die echte Flotte
+gelaufen. Health-Endpoint: nicht gebaut, Empfehlung steht. Konsolen-UI:
+zurückgestellt (Nutzeranweisung „not the ui").
 
 Vorbereitet vom zuarbeitenden Agenten. Jede Aussage belegt oder als *nicht
 verifiziert* markiert. Nichts entschieden.
@@ -25,9 +27,29 @@ Bauteile, in dieser Reihenfolge:
    Klick öffnet den Detailstatus. Uptime gehört dazu.
 
 **Voraussetzung:** das Register aus dem Strang
-[`instance-management`](../instance-management/summary.md) — dort beantragt, dort
-noch nicht gebaut, dort am Terra-Namenskonflikt blockiert. Dieser Strang kann ohne
-das Register nicht liefern.
+[`instance-management`](../instance-management/summary.md) — seit 2026-07-27
+gebaut. Die Blockade ist weg; Bauteil 1 steht, Bauteil 2 ist entschieden
+(nicht bauen, außer für Standalones), Bauteil 3 ist zurückgestellt.
+
+---
+
+## Was der Lauf ergeben hat (2026-07-27, echte Flotte)
+
+| Instanz | Verdikt | Version | Letzter Install |
+|---|---|---|---|
+| mercury8 | HEALTHY | `1a2c51dc7891` | 2026-07-26T04:52:25Z |
+| venus10 | HEALTHY | `1a2c51dc7891` | 2026-07-26T07:44:00Z |
+| terra | HEALTHY | `67598d8a9098` | 2026-07-27T04:28:04Z |
+| alpha | STOPPED | Kit `09ede4b209e4` (gebaut, nicht laufend) | — |
+| bravo | PLANNED | — | — |
+
+Exit 2 — und zwar **richtig so**: die einzige nicht feststellbare Tatsache im
+ganzen Lauf ist die Gesundheit und laufende Version der Standalone. Genau das
+ist der Beweis, der `health-endpoint-gap` begründet.
+
+Alle drei Server melden `53/53` Deployments bereit und tragen ein
+`vpath.git.sha`-Label, dessen SHA mit dem `build_id` der Box übereinstimmt.
+Kein Drift zwischen laufendem Stand und Box-Checkout.
 
 ---
 
@@ -62,7 +84,7 @@ Das ist der Punkt, an dem eine Entscheidung fällt und viel Arbeit hängt.
 
 ## Weitere Befunde
 
-### Das UI ist bereits beauftragt — als Admin-Konsole
+### Das UI ist bereits beauftragt — als Admin-Konsole (zurückgestellt)
 
 `vpath_platform_mgmt/pyproject.toml:10` und `README.md:3` beschreiben das Projekt
 wörtlich als *„App build/deploy/health-check/uninstall pipeline **and admin console**
@@ -107,13 +129,15 @@ gehört ins Entscheidungslog**, sonst wirkt es später wie ein Verstoß.
 ## Backlog
 
 ### P1 — der Kern
-- **[status-probe](status-probe.issue.md)** — das Skript. Liest das Register, fragt
-  jede Instanz ab, urteilt hart und unterscheidet „ungesund" von „nicht feststellbar".
+- ~~**[status-probe](status-probe.issue.md)**~~ — **erledigt.** Liest das
+  Register, fragt jede Instanz ab, urteilt hart und unterscheidet „ungesund"
+  von „nicht feststellbar".
 
 ### P1 — cross-repo, braucht Koordination
-- **[health-endpoint-gap](health-endpoint-gap.issue.md)** — wo die drei Quellen
-  fehlen (Standalones), muss die Instanz selbst Auskunft geben. Umsetzung im
-  Serverprojekt bzw. im App-Template. **Erst entscheiden, ob und für wen.**
+- **[health-endpoint-gap](health-endpoint-gap.issue.md)** — **bewiesen, wofür:**
+  nur für Standalones, und nicht als Endpoint, sondern als Adressproblem.
+  Empfehlung: **App-Template**, Statusdatei unter dem Home statt HTTP.
+  Entscheidung beim zentralen Koordinator, nichts gebaut.
 
 ### P2 — hängt an beidem
 - **[console-ui](console-ui.issue.md)** — die Oberfläche. Der Request beschreibt sie
@@ -157,3 +181,15 @@ Gebündelt.
   vier Uhren (S4 geschlossen). Track 17 ist zeitgleich entsperrt (Terra
   entschieden) — die Blockade dieses Strangs reduziert sich auf das noch zu
   bauende Register.
+- 27.07.: **Probe gebaut und gelaufen.** S5 entschieden: das Health-Skript wird
+  **nicht** ausgeführt, weil es den Phase-Gate-Marker berührt — ein
+  Statuswerkzeug darf seinen Messwert nicht verändern.
+- 27.07.: **Uptime ist noch nicht implementiert.** Die Probe meldet den letzten
+  Installiervorgang, nicht die vier Uhren. Das ist bewusst: die Uhren gehören
+  zur Detailansicht, und die Detailansicht ist das zurückgestellte UI. Der
+  Zugang dazu ist da (SSH, `uptime`, k3s-Node-Alter, Marker) — es fehlt der
+  Ort, an dem sie angezeigt würden.
+- 27.07.: **Ein Befund gegen die eigene Annahme:** der Phase-Gate-Marker liegt
+  nicht unter `build/`, sondern unter `<CHECKOUT>/<TARGET_DIR>/phase-gates/`,
+  und `TARGET_DIR` ist pro Umgebung verschieden. Die Probe leitet den Pfad aus
+  dem Env-Profil der Box ab.

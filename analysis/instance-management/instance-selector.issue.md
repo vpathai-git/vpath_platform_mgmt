@@ -1,5 +1,21 @@
 # Issue: Instanz-Selektor — die eigentliche Convenience
 
+> **ERLEDIGT 2026-07-27** (`aed0003`). `python -m
+> vpath_platform_mgmt.instances.selector` mit `list` / `show` / `exec` /
+> `gradle` / `deliver`. `gradle` löst auf zu genau einer Zeile auf der Box:
+> `cd <CHECKOUT> && ./gradlew -Penv=<ENV_PROFILE> <args>`. Die Pipeline wird
+> aufgerufen, nicht nachgebaut. Unbekannter Name → Abbruch mit Exit 2, kein
+> Default: read-only belegt mit
+> `error: unknown instance 'mars' -- ... declares mercury8, venus10, terra,
+> alpha, bravo`.
+> `deliver` ist der Delivery-Kanal aus dem Server-README (Use case 4b), Push und
+> `merge --ff-only` als **eine Kette** — ein fehlgeschlagener Push lässt den
+> Merge nicht laufen (Test: `test_a_failed_push_never_leaves_the_merge_to_run`).
+> **Nicht feldbelegt:** `deliver` und jeder verändernde `gradle`-Task. Beides
+> ist über `--print` bewiesen, nicht ausgeführt — ein echter Redeploy ist eine
+> Entscheidung des zentralen Koordinators.
+
+
 **Status:** draft · **Priorität:** P1
 **Herkunft:** `raw/2026-07-26_2007_instanzverwaltung-signaletik.md`
 („ansprechbar, verwaltbar, redeploybar … der Weg, wie wir jetzt Sachen installieren,
