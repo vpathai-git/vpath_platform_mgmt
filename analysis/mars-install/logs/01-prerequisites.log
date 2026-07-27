@@ -1,0 +1,26 @@
+=== P0 target identity guard + base tools  2026-07-27T23:25:57Z ===
+guard: host=mars12 user=nuc os=Ubuntu 24.04.4 LTS sudo=nopasswd
+--- internet reachability (apt + github) ---
+HTTP/2 200 
+--- apt metadata ---
+apt-update-exit=0
+--- missing package detection ---
+installing-missing: openjdk-21-jdk-headless python3.12-venv
+
+Running kernel seems to be up-to-date.
+
+The processor microcode seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+No user sessions are running outdated binaries.
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+--- versions ---
+openjdk version "21.0.11" 2026-04-21
+git version 2.43.0
+rsync  version 3.2.7  protocol version 31
+Python 3.12.3
+P0_EXIT=0

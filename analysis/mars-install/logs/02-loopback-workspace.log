@@ -1,0 +1,9 @@
+=== P2 loopback SSH + P3 /workspace  2026-07-27T23:26:31Z ===
+loopback-key: generated
+authorized_keys lines: 2
+Warning: Permanently added 'mars12' (ED25519) to the list of known hosts.
+loopback-ok as nuc@mars12
+drwxr-xr-x 2 nuc nuc 4096 Jul 27 23:26 /workspace
+--- checkout destination must be absent or empty ---
+destination: absent
+P2_EXIT=0

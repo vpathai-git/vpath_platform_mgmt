@@ -1,0 +1,70 @@
+=== phase 1: bootstrapVMs  start 2026-07-27T23:31:38Z ===
+[ok] ✓ nuc reachable over SSH (build host == deploy host == the NUC) — no VM to create
+Downloading https://services.gradle.org/distributions/gradle-8.9-bin.zip
+............10%.............20%.............30%.............40%.............50%.............60%.............70%.............80%.............90%.............100%
+
+Welcome to Gradle 8.9!
+
+Here are the highlights of this release:
+ - Enhanced Error and Warning Messages
+ - IDE Integration Improvements
+ - Daemon JVM Information
+
+For more details see https://docs.gradle.org/8.9/release-notes.html
+
+Starting a Gradle Daemon (subsequent builds will be faster)
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors
+> Task :buildSrc:pluginDescriptors
+> Task :buildSrc:processResources NO-SOURCE
+
+> Task :buildSrc:compileKotlin
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/TaskTimingListener.kt:4:33 'TaskExecutionListener' is deprecated. Deprecated in Java
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/TaskTimingListener.kt:43:5 'TaskExecutionListener' is deprecated. Deprecated in Java
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/manifest/ChartValuesGenerator.kt:296:47 Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/manifest/ChartValuesGenerator.kt:297:54 Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/manifest/K8sManifestGenerator.kt:1020:76 No cast needed
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/manifest/K8sManifestGenerator.kt:1094:76 No cast needed
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/tasks/GenerateStorageConfigTask.kt:60:54 Unnecessary non-null assertion (!!) on a non-null receiver of type CapabilitiesSpec
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/tasks/GenerateStorageConfigTask.kt:60:90 Unnecessary non-null assertion (!!) on a non-null receiver of type CapabilitiesSpec
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/tasks/PhaseGate.kt:110:39 'all(): Map<String, String>' is deprecated. Use typed accessors from ConfigSchema.kt — they match schema types and are covered by test_vpath_config_covers_schema.py.
+w: file:///home/nuc/vpath_server_dev/buildSrc/src/main/kotlin/vpath/tasks/VerifyInstallationCharterTask.kt:125:31 Parameter 'budgetSec' is never used
+
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+
+> Task :buildSrc:jar
+:jar: No valid plugin descriptors were found in META-INF/gradle-plugins
+
+> Configure project :
+w: file:///home/nuc/vpath_server_dev/build.gradle.kts:44:53: 'all(): Map<String, String>' is deprecated. Use typed accessors from ConfigSchema.kt — they match schema types and are covered by test_vpath_config_covers_schema.py.
+w: file:///home/nuc/vpath_server_dev/build.gradle.kts:119:8: 'buildFinished(Action<in BuildResult!>!): Unit' is deprecated. Deprecated in Java
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:419:13: Variable 'dockerfile' is never used
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:607:63: Unchecked cast: Any? to List<Map<String, Any>>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1185:41: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1186:52: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1429:13: Variable 'modelBClasses' is never used
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1709:41: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1710:37: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1711:33: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:1741:37: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:2040:41: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/platform_infra/gradle/app-images.gradle.kts:2041:48: Unchecked cast: Any? to Map<String, Any>
+w: file:///home/nuc/vpath_server_dev/apps_infra/gradle/standalone-lint.gradle.kts:78:23: Parameter 'appName' is never used
+w: file:///home/nuc/vpath_server_dev/apps_infra/gradle/standalone-lint.gradle.kts:184:5: Conditional branch result of type Task! is implicitly cast to Any!
+w: file:///home/nuc/vpath_server_dev/apps_infra/gradle/standalone-lint.gradle.kts:186:5: Conditional branch result of type TaskProvider<Task!>! is implicitly cast to Any!
+
+> Task :bootstrapVMs
+
+┌─────────────────────────────────────────────────────────────┐
+│  Task Timing Summary                                        │
+├─────────────────────────────────────────────────────────────┤
+│     0.6s  100%  bootstrapVMs                                 │
+├─────────────────────────────────────────────────────────────┤
+│  Total: 0.6s (1 tasks executed, 0 skipped)                  │
+└─────────────────────────────────────────────────────────────┘
+
+BUILD SUCCESSFUL in 1m 16s
+5 actionable tasks: 5 executed
+===EXIT=0===
+=== end 2026-07-27T23:32:56Z ===

@@ -1,0 +1,8 @@
+=== selector deliver mars12 --sha 1a2c51dc7891  2026-07-27T23:27:51Z ===
+--- the exact commands the selector will run (--print) ---
+git push --no-verify nuc@mars12:/home/nuc/vpath_server_dev 1a2c51dc78910a4c2fc9d8c93ab5492c6a8d3c54:refs/heads/delivery-1a2c51dc7891
+ssh -o BatchMode=yes -o ConnectTimeout=12 -i /Users/drnorden/.ssh/id_ed25519 nuc@mars12 cd /home/nuc/vpath_server_dev && git merge --ff-only delivery-1a2c51dc7891
+--- running it for real ---
+To mars12:/home/nuc/vpath_server_dev
+ * [new branch]          1a2c51dc78910a4c2fc9d8c93ab5492c6a8d3c54 -> delivery-1a2c51dc7891
+===EXIT=0===

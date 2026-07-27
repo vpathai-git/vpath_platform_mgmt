@@ -1,0 +1,220 @@
+=== 11-syncWorkspace-provisionBuildVM  start 2026-07-27T23:33:37Z ===
+--- resolved pipeline line ---
+ssh -o BatchMode=yes -o ConnectTimeout=12 -i /Users/drnorden/.ssh/id_ed25519 nuc@mars12 cd /home/nuc/vpath_server_dev && ./gradlew -Penv=nuc syncWorkspace provisionBuildVM
+--- running ---
+[ok] ✓ nuc reachable over SSH (build host == deploy host == the NUC) — no VM to create
+[info] Syncing FULL TREE to NUC (rsync, from-within runner channel — BP11)...
+[ok] Workspace synced to NUC
+[info] Syncing chat-api vendored vpath_agents (with .git provenance) to NUC...
+[ok] vendored vpath_agents synced (provenance intact)
+[info] Syncing vpath_agents vendor source to NUC...
+[ok] vpath_agents synced
+[info] Cloning vpath_orchestrator for workflow-base vendor...
+[warn] Could not clone vpath_orchestrator — workflow-base build may fail
+[info] Cloning vpath_weave for workflow-base vendor...
+[warn] Could not clone vpath_weave — workflow-base build may fail
+[ok] Workspace ownership normalized to nuc
+[ok] Full-tree identity verified: /workspace is a complete git checkout at 1a2c51dc7891 (8821 tracked files, 474 extra/*.py match host)
+[info] Syncing FULL TREE to NUC (rsync, from-within runner channel — BP11)...
+[ok] Workspace synced to NUC
+[info] Syncing chat-api vendored vpath_agents (with .git provenance) to NUC...
+[ok] vendored vpath_agents synced (provenance intact)
+[info] Syncing vpath_agents vendor source to NUC...
+[ok] vpath_agents synced
+[info] Cloning vpath_orchestrator for workflow-base vendor...
+[warn] Could not clone vpath_orchestrator — workflow-base build may fail
+[info] Cloning vpath_weave for workflow-base vendor...
+[warn] Could not clone vpath_weave — workflow-base build may fail
+[ok] Workspace ownership normalized to nuc
+[ok] Full-tree identity verified: /workspace is a complete git checkout at 1a2c51dc7891 (8821 tracked files, 474 extra/*.py match host)
+[warn] Workspace not found at /workspace — using PWD
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+dpkg-preconfigure: unable to re-open stdin: 
+debconf: unable to initialize frontend: Dialog
+debconf: (Dialog frontend will not work on a dumb terminal, an emacs shell buffer, or without a controlling terminal.)
+debconf: falling back to frontend: Readline
+debconf: unable to initialize frontend: Readline
+debconf: (This frontend requires a controlling tty.)
+debconf: falling back to frontend: Teletype
+
+Running kernel seems to be up-to-date.
+
+The processor microcode seems to be up-to-date.
+
+No services need to be restarted.
+
+No containers need to be restarted.
+
+User sessions running outdated binaries:
+ nuc @ session #83: java[6064]
+
+No VM guests are running outdated hypervisor (qemu) binaries on this host.
+curl: (22) The requested URL returned error: 403
+Task '${name}' failed (exit 22) — no stderr was captured.
+    (If this command redirects its own stderr to a file, dump that file on failure at the task site.)
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':provisionBuildVM'.
+> Task '${name}' command finished with non-zero exit value 22 (see captured stderr above)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 24s
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Task :bootstrapVMs
+
+> Task :syncWorkspace
+syncWorkspace: sentinel registered at infra_build_nuc/sync_sentinels/syncworkspace-7073-1785195219.sentinel
+OK: vendor_src verified at pinned sha 66b0634259b2ca81eec208d77659d666f7ec57d2 (v4.5.1)
+syncWorkspace: sentinel self-test passed
+
+> Task :provisionBuildVM
+OK: vendor_src verified at pinned sha 66b0634259b2ca81eec208d77659d666f7ec57d2 (v4.5.1)
+
+[info] VPATH NUC Build-Host Provisioning (Ubuntu/apt, full parity)
+
+[info] OS: Ubuntu 24.04.4 LTS (x86_64 / apt-arch amd64)
+[info] Workspace: /workspace
+[info] Recording before-snapshot for clean teardown: /home/nuc/.vpath-nuc-provision/before-snapshot.txt
+[ok] Before-snapshot written
+
+==> Base CLI packages
+Hit:1 http://de.archive.ubuntu.com/ubuntu noble InRelease
+Hit:2 http://security.ubuntu.com/ubuntu noble-security InRelease
+Hit:3 http://de.archive.ubuntu.com/ubuntu noble-updates InRelease
+Hit:4 http://de.archive.ubuntu.com/ubuntu noble-backports InRelease
+Reading package lists...
+Reading package lists...
+Building dependency tree...
+Reading state information...
+curl is already the newest version (8.5.0-2ubuntu10.11).
+curl set to manually installed.
+wget is already the newest version (1.21.4-1ubuntu4.4).
+wget set to manually installed.
+git is already the newest version (1:2.43.0-1ubuntu7.3).
+git set to manually installed.
+jq is already the newest version (1.7.1-3ubuntu0.24.04.2).
+jq set to manually installed.
+rsync is already the newest version (3.2.7-1ubuntu1.5).
+rsync set to manually installed.
+ca-certificates is already the newest version (20260601~24.04.1).
+ca-certificates set to manually installed.
+gnupg is already the newest version (2.4.4-2ubuntu17.4).
+gnupg set to manually installed.
+openssh-client is already the newest version (1:9.6p1-3ubuntu13.18).
+openssh-client set to manually installed.
+openssl is already the newest version (3.0.13-0ubuntu3.11).
+openssl set to manually installed.
+python3 is already the newest version (3.12.3-0ubuntu2.1).
+python3 set to manually installed.
+gettext-base is already the newest version (0.21-14ubuntu2).
+gettext-base set to manually installed.
+perl is already the newest version (5.38.2-3.2ubuntu0.3).
+perl set to manually installed.
+The following additional packages will be installed:
+  python3-wheel
+Suggested packages:
+  zip
+Recommended packages:
+  build-essential python3-dev
+The following NEW packages will be installed:
+  python3-pip python3-venv python3-wheel unzip
+0 upgraded, 4 newly installed, 0 to remove and 32 not upgraded.
+Need to get 1,548 kB of archives.
+After this operation, 7,661 kB of additional disk space will be used.
+Get:1 http://de.archive.ubuntu.com/ubuntu noble/universe amd64 python3-wheel all 0.42.0-2 [53.1 kB]
+Get:2 http://de.archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-pip all 24.0+dfsg-1ubuntu1.3 [1,320 kB]
+Get:3 http://de.archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-venv amd64 3.12.3-0ubuntu2.1 [1,032 B]
+Get:4 http://de.archive.ubuntu.com/ubuntu noble-updates/main amd64 unzip amd64 6.0-28ubuntu4.1 [174 kB]
+Fetched 1,548 kB in 0s (4,742 kB/s)
+Selecting previously unselected package python3-wheel.
+(Reading database ... 
+(Reading database ... 5%
+(Reading database ... 10%
+(Reading database ... 15%
+(Reading database ... 20%
+(Reading database ... 25%
+(Reading database ... 30%
+(Reading database ... 35%
+(Reading database ... 40%
+(Reading database ... 45%
+(Reading database ... 50%
+(Reading database ... 55%
+(Reading database ... 60%
+(Reading database ... 65%
+(Reading database ... 70%
+(Reading database ... 75%
+(Reading database ... 80%
+(Reading database ... 85%
+(Reading database ... 90%
+(Reading database ... 95%
+(Reading database ... 100%
+(Reading database ... 89738 files and directories currently installed.)
+Preparing to unpack .../python3-wheel_0.42.0-2_all.deb ...
+Unpacking python3-wheel (0.42.0-2) ...
+Selecting previously unselected package python3-pip.
+Preparing to unpack .../python3-pip_24.0+dfsg-1ubuntu1.3_all.deb ...
+Unpacking python3-pip (24.0+dfsg-1ubuntu1.3) ...
+Selecting previously unselected package python3-venv.
+Preparing to unpack .../python3-venv_3.12.3-0ubuntu2.1_amd64.deb ...
+Unpacking python3-venv (3.12.3-0ubuntu2.1) ...
+Selecting previously unselected package unzip.
+Preparing to unpack .../unzip_6.0-28ubuntu4.1_amd64.deb ...
+Unpacking unzip (6.0-28ubuntu4.1) ...
+Setting up unzip (6.0-28ubuntu4.1) ...
+Setting up python3-wheel (0.42.0-2) ...
+Setting up python3-venv (3.12.3-0ubuntu2.1) ...
+Setting up python3-pip (24.0+dfsg-1ubuntu1.3) ...
+Processing triggers for man-db (2.12.0-4build2) ...
+[ok] Base CLI packages installed
+
+==> Python command
+[ok] python linked: Python 3.12.3 (/usr/bin/python3.12)
+
+==> yq
+[ok] yq installed: yq (https://github.com/mikefarah/yq/) version v4.53.3
+
+==> kubectl
+[ok] kubectl installed: v1.36.3
+
+==> helm
+[ok] helm installed: v3.21.3+g1ad6e68
+
+==> JDK 21
+[ok] JDK present: openjdk version "21.0.11" 2026-04-21
+
+==> Node.js
+
+> Task :provisionBuildVM FAILED
+
+┌─────────────────────────────────────────────────────────────┐
+│  Task Timing Summary                                        │
+├─────────────────────────────────────────────────────────────┤
+│    18.5s   77%  provisionBuildVM                             │
+│     4.9s   20%  syncWorkspace                                │
+│     0.6s    2%  bootstrapVMs                                 │
+├─────────────────────────────────────────────────────────────┤
+│  Total: 24.0s (3 tasks executed, 0 skipped)                 │
+└─────────────────────────────────────────────────────────────┘
+7 actionable tasks: 4 executed, 3 up-to-date
+===EXIT=1===
+=== 11-syncWorkspace-provisionBuildVM  end 2026-07-27T23:34:02Z ===

@@ -1,0 +1,20 @@
+=== vpath_agents pin delivery  2026-07-27T23:29:09Z ===
+--- pin declared by config/vpath-agents-pin.yaml @1a2c51dc7 ---
+  repo: https://github.com/vpathai-git/vpath_agents.git
+  ref: main
+  sha: "66b0634259b2ca81eec208d77659d666f7ec57d2"
+  package_version: "4.5.1"
+--- does the pin exist in the vendored checkout? (Mac copy stays untouched) ---
+pin-object-present=yes
+--- init the box-side repo ---
+init ok
+--- push the pin ---
+To mars12:/home/nuc/vpath_server_dev/vpath_agents
+ * [new branch]      66b0634259b2ca81eec208d77659d666f7ec57d2 -> pin-66b0634
+--- fast-forward on the box (same route the selector uses) ---
+--- verify: sha at the pin, version = the declared anchor ---
+HEAD=66b0634259b2ca81eec208d77659d666f7ec57d2
+__version__ = "4.5.1"
+__version_info__ = tuple(int(i) for i in __version__.split("."))
+tracked=1220
+===EXIT=0===

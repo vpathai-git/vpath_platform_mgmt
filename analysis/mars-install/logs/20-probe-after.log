@@ -1,0 +1,14 @@
+register: /Users/drnorden/projects/vpath/vpath_platform_mgmt/instances.local.env
+
+mars12  [server-nuc]  UNHEALTHY
+    checkout       1a2c51dc7891 (main)            git -C /home/nuc/vpath_server_dev
+    env profile    nuc                            /home/nuc/vpath_server_dev/config/dot_env/.env.nuc
+    platform       silent                         https://127.0.0.1:30600/api/version
+    ! deployments  not establishable: cluster did not answer
+                     source: sudo k3s kubectl get deploy -A
+    ! last install not establishable: no phase-gate marker: /home/nuc/vpath_server_dev/infra_build_nuc/phase-gates/platformReady.marker
+                     source: server pipeline phase gate
+    ! image sha    not establishable: no image carries a vpath.git.sha label (built before labelling)
+                     source: docker inspect
+
+===EXIT=2===

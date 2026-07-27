@@ -1,0 +1,14 @@
+=== preflight re-verification  2026-07-27T23:30:36Z ===
+1 loopback:   ok as nuc
+2 java:       openjdk version "21.0.11" 2026-04-21
+3 overlay:    NUC_HOST=mars12 VPATH_HOST=mars12 
+4 gradlew:    executable
+5 /workspace: nuc:nuc 755
+6 checkout:   HEAD=1a2c51dc clean=yes-except-overlay
+7 agents pin: 66b0634 v4.5.1
+8 venv:       Python 3.12.3
+9 memory:     62780 MiB available  (guard: >= 4096)
+10 disk:      435G free (3% used)
+11 no k3s/docker yet: k3s=none docker=none
+12 secrets:   .env=600 cosign.key=600
+===EXIT=0===
