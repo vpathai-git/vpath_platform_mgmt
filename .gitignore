@@ -87,9 +87,11 @@ build/
 .claude/agent-memory/
 
 # Instance credentials and access material — never commit
-# (see analysis/instance-management/)
+# (see docs/INSTANCES.md and analysis/instance-management/)
 platform-admin-credentials*.zip
 *.pem
 *_key
 *_key.*
+# THE instance register. Its template (instances.example.env) is tracked and
+# carries placeholders only; the filled-in file never is.
 instances.local.*
