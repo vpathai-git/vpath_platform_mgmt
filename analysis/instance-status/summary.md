@@ -133,8 +133,9 @@ Gebündelt.
    Electron-Instanz: Prozess da? Fenster offen? Backend antwortet?
 3. **Bauform der Konsole** — der Request impliziert grafisch. Damit fällt eine
    EIP-222-Entscheidung („graphical or chatbot-assisted, TBD"). Bewusst so?
-4. **Uptime wovon** — der Box, des k3s-Clusters, der Plattformdienste oder der Apps?
-   Vier verschiedene Zahlen, und bei einer NUC laufen sie auseinander.
+4. ~~**Uptime wovon**~~ — **entschieden 2026-07-27:** Hauptzahl ist die Uptime der
+   **Plattformdienste** (seit wann Keycloak/OpenFGA/Dapr gesund); die
+   Detailansicht zeigt alle vier Uhren (Box, k3s, Plattform, Apps).
 
 ---
 
@@ -152,3 +153,7 @@ Gebündelt.
 ## Entscheidungslog
 
 - 26.07.: Strang angelegt. Keine inhaltliche Entscheidung getroffen.
+- 27.07.: **Uptime entschieden** — Plattformdienste als Hauptzahl, Detail alle
+  vier Uhren (S4 geschlossen). Track 17 ist zeitgleich entsperrt (Terra
+  entschieden) — die Blockade dieses Strangs reduziert sich auf das noch zu
+  bauende Register.

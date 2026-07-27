@@ -113,9 +113,10 @@ git-ignorierten Set besteht. → `credentials-hygiene.issue.md`
 
 ## Backlog
 
-### P0 — blockiert alles andere
-- **[naming-collision-terra](naming-collision-terra.issue.md)** — wem gehört der
-  Name Terra? Ohne diese Antwort kein Register.
+### ~~P0~~ — **entsperrt 2026-07-27**
+- **[naming-collision-terra](naming-collision-terra.issue.md)** — **decided:**
+  Azure = `terra`, `terra12`-Reservierung fällt, nächste NUC = `mars`. Das
+  Register kann geschrieben werden.
 
 ### P1 — der eigentliche Auftrag
 - **[registry-migration](registry-migration.issue.md)** — `.env.nucs` aus dem
@@ -135,15 +136,16 @@ git-ignorierten Set besteht. → `credentials-hygiene.issue.md`
 
 ## Offene Fragen an den Nutzer
 
-Gebündelt, nicht einzeln zu stellen:
+**Alle vier beantwortet (2026-07-27):**
 
-1. **Terra** — Azure bekommt den Namen und die NUC-Reservierung weicht? Oder Azure
-   bekommt einen anderen Namen? (Konflikt 2 oben)
-2. **Zwei Klassen** — Planeten für Server, NATO für Standalones: so gemeint?
-3. **Alpha** — welche der lokalen Installationen ist das? Ich konnte keine
-   benannte, laufende Standalone-Instanz verifizieren, nur die Bauanleitung.
-4. **Umfang der Verwaltung** — nur Zugang + Deployment, oder auch Zustand
-   (installierte Version, Gesundheit, letzter Deploy je Instanz)?
+1. **Terra** → Azure = `terra`; Schema zählt Instanzen, `terra12` fällt, nächste
+   NUC = `mars`.
+2. **Zwei Klassen** → faktisch bestätigt (Planeten für Server, NATO für
+   Standalones) durch die Alpha-Entscheidung.
+3. **Alpha** → die Blindrun-Kit-Standalone; Bravo entsteht frisch.
+4. **Umfang** → Zustand gehört dazu — als eigener Strang beauftragt
+   ([instance-status](../instance-status/summary.md), Track 18; Uptime-Hauptzahl:
+   Plattformdienste, Detail alle vier Uhren).
 
 ---
 
@@ -167,3 +169,9 @@ Gebündelt, nicht einzeln zu stellen:
   aufgenommen, nicht diskutiert.
 - 26.07.: `.gitignore` um Zugangsmaterial ergänzt (Sofortmaßnahme, nicht
   entscheidungspflichtig — es war ein offenes Leck).
+- 27.07.: **Alle vier Nutzerfragen entschieden** — Azure = `terra` (Schema zählt
+  Instanzen; `terra12` fällt, nächste NUC `mars`), Zwei-Klassen-Schema bestätigt,
+  Alpha = Blindrun-Kit-Standalone (Bravo frisch), Zustand gehört zum Umfang.
+  **Der Strang ist dispatchbar.** Beim Registerumzug den Serverstrang
+  `nuc-fleet-access` nachziehen (terra12-Reservierung dort austragen, Fabrikat
+  venus10 dokumentieren).

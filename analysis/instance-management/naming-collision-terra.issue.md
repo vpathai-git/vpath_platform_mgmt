@@ -1,6 +1,13 @@
 # Issue: Namenskonflikt „Terra"
 
-**Status:** draft · **Priorität:** P0 — blockiert das Register
+**Status:** **decided** — Option A, Nutzerentscheidung 2026-07-27 · war P0-Blocker des Registers
+
+> **Entscheidung (2026-07-27):** Das Schema zählt **Instanzen** in
+> Anschaffungsreihenfolge, nicht NUCs. **Azure = `terra`.** Die `terra12`-
+> Reservierung fällt; die nächste NUC wird **`mars`**. Die Fabrikats-
+> Doppeldeutigkeit zu venus10 (Wortmann „TERRA") wird im Spec Sheet des
+> Serverstrangs dokumentiert, wenn das Register umzieht. Das Register ist
+> damit entsperrt.
 **Herkunft:** `raw/2026-07-26_2007_instanzverwaltung-signaletik.md` („Und die Azure Instanz heißt Terra.")
 
 ## Das Problem

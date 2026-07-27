@@ -38,10 +38,9 @@ führt, und sie gehört dort vermerkt, nicht nur hier.
 
 ## Offene Punkte
 
-- **S4 — Uptime wovon?** Box, k3s-Cluster, Plattformdienste oder Apps. Vier
-  verschiedene Zahlen; bei einer NUC laufen sie auseinander (Box läuft seit Wochen,
-  Cluster seit dem letzten Install, Apps seit dem letzten Redeploy). Eine davon ist
-  gemeint — welche, entscheidet, was gemessen wird.
+- ~~**S4 — Uptime wovon?**~~ **Entschieden 2026-07-27:** Hauptzahl =
+  Plattformdienste (gesund seit); Detailansicht zeigt alle vier Uhren (Box, k3s,
+  Plattform, Apps).
 - **Bauform** — Python-TUI, lokale Weboberfläche, Electron? Das Projekt ist ein
   reines Python-Paket (`src/vpath_platform_mgmt/`, `pyproject.toml`); jede grafische
   Variante bringt eine Technologieentscheidung mit, die es dort noch nicht gibt.

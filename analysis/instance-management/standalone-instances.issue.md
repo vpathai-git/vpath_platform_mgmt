@@ -47,7 +47,10 @@ Tage alte Entscheidung unbemerkt.
 4. Das Zwei-Klassen-Namensschema ist in beiden Strängen dokumentiert — hier und im
    Serverstrang.
 
-## Offene Frage an den Nutzer
+## Offene Frage an den Nutzer — beantwortet 2026-07-27
 
-Welche Installation ist Alpha? Ohne diese Antwort ist der erste Registereintrag
-nicht schreibbar.
+**Alpha = die Blindrun-Kit-Standalone** (die im Blindtest aufgebaute
+Electron-Shell, `blindrun-legacy-upload/…/kit`). Der Bestand wird benannt;
+**Bravo entsteht frisch** nach Anleitung. Damit ist auch das
+Zwei-Klassen-Schema faktisch bestätigt: Planeten für Server, NATO-Alphabet für
+Standalones. Der erste Registereintrag ist schreibbar.
