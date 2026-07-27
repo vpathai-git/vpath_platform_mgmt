@@ -125,3 +125,7 @@ MVP (drei Achsen, Ziel Ende der Woche):
   Namensschreibweise bestätigt: **Arsany** (frühere Diktat-Form „Arsene").
 - 27.07. (13:29): **Fünf Betriebs-Dimensionen validiert und in den Backlog
   gestellt** (B1–B5, s. o.) — MVP bleiben die drei Achsen, Ziel Ende der Woche.
+- 27.07. (14:15): **Nach Jira gespiegelt** (Sync-Lauf 2, freigegebene Vorschau):
+  Zielbild als Block „Stand 27.07.2026" in der Beschreibung von **EIP-222**;
+  Umsetzungs-To-do als **EIP-248** („Management-Konsole MVP", unter EIP-163,
+  Andre); der Run-Folder-Fund als **EIP-249** (unter EIP-134).
