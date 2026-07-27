@@ -80,14 +80,14 @@ verständlich sein.
 Die Übertragung nach Jira läuft über den zweistufigen Sync (Vorschau → Freigabe);
 dieser Block ist die vorbereitete Karte dafür.
 
-## Offene Punkte
+## Die vier Zuschnittsfragen — **alle entschieden 2026-07-27 (Interview)**
 
-| # | Frage |
+| # | Entscheidung |
 |---|---|
-| M1 | Typ-Template-Format: dasselbe Schema wie das Register (`kind`-getragen) oder eigenes Artefakt je Typ? |
-| M2 | `remote`/win-claas: Zugangsweg und Deploy-Pfad sind unerhoben — vor der Template-Definition erheben. |
-| M3 | OntoGate-Viewer-Link: setzt `.ontogate/`-Adoption der Ziele voraus — auch dieses Repo hat noch keine. Reihenfolge? |
-| M4 | Achse-3-Iteration-1 (Explorer isoliert) berührt die laufende Explorer-Extraktion ins eigene Repo — derselbe Gegenstand aus zwei Richtungen; Zuschnitt gehört koordiniert. |
+| **M1** | **Deklarativ + kind-Hooks.** Ein versioniertes Template-YAML je Typ im Register-Schema (Pflichtfelder, Defaults); typspezifische Logik in den vorhandenen kind-Hooks (`transport.py`, `probe.py`). Anlage = Vorlage kopieren, Payload füllen, validieren. |
+| **M2** | **Struktur jetzt, Erhebung als Auftrag.** Das `remote`-Template (win-claas) wird mit den bekannten Feldern strukturiert und als **declared, unproven** markiert; die Feld-Erhebung ist ein eigener Auftrag → [remote-type-survey](remote-type-survey.issue.md). Kein Raten. |
+| **M3** | **Link auf den OntoGate-UI-Server.** Der Link je Instanz/App zeigt auf den OntoGate-UI-Server, der die OntoGate-Sicht **aus dem jeweiligen Projekt** liefert (Server-, Standalone-, App-/Workflow-spezifisch) — *wenn vorhanden*; fehlende Sicht wird ehrlich als fehlend gezeigt. **Nicht verifiziert:** ob ein solcher UI-Server heute existiert oder Teil des Bauauftrags wird — zu erheben (vpath_ontogate). |
+| **M4** | **Eigene Quick-Extraktion zuerst.** Arsany arbeitet parallel an seiner Extraktion (Quick-Solution). Iteration 1: **wir extrahieren die Explorer-App selbst und demonstrieren die Deploybarkeit** über die Konsole; **später Umzug auf Arsanys App-Repo als Quelle** → [explorer-quick-extraction](explorer-quick-extraction.issue.md). Die zeitweise zweite Variante ist eine **bewusste, befristete Ausnahme von Regel „keine zwei Varianten"** — vom Nutzer angeordnet, mit definiertem Ablauf (Umzug auf Arsanys Basis). |
 
 ---
 
@@ -95,9 +95,17 @@ dieser Block ist die vorbereitete Karte dafür.
 
 - `raw/2026-07-27_1252_three-axes.md` — Wortlaut + Dekodierung
 - README-Abschnitt „Primary goals — the three axes" — der verbindliche Zieltext
+- `explorer-quick-extraction.issue.md` — Iteration 1 von Achse 3, dispatchbar
+- `remote-type-survey.issue.md` — Erhebung des win-claas-Typs
 - Vorgänger: `../instance-management/`, `../instance-status/`
 
 ## Entscheidungslog
 
 - 27.07.: Strang angelegt; die drei Achsen als Primärziele im README verankert
   (self-contained). Keine Umsetzungsentscheidung getroffen.
+- 27.07. (Interview): **M1–M4 entschieden** — Templates deklarativ + kind-Hooks;
+  remote strukturiert als *declared, unproven* mit Erhebungsauftrag; OntoGate-
+  Link zeigt auf den OntoGate-**UI-Server** (projektspezifische Sicht, ehrliches
+  Fehlen); Iteration 1 = **eigene Quick-Extraktion des Explorers + Deploy-Demo**,
+  später Umzug auf Arsanys App-Repo (befristete, angeordnete Regel-8-Ausnahme).
+  Namensschreibweise bestätigt: **Arsany** (frühere Diktat-Form „Arsene").

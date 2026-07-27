@@ -36,7 +36,9 @@ We manage server AND standalone platforms. The console renders a **generic
 view** that both types share — status, apps, state, operations — plus the
 **type-specific panels** that only one side has (examples: stack status and
 load for servers; login and size-on-disk for standalones), plus an **OntoGate
-viewer link** per instance where a spine exists.
+link** per instance/app: it points at the OntoGate UI server, which serves the
+OntoGate view of the respective project (server, standalone, app/workflow
+specific) where one exists — a missing view is shown honestly as missing.
 
 ### Axis 2 — Instances: CRUD + health
 
