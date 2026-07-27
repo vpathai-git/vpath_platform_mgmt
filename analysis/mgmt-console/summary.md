@@ -91,6 +91,20 @@ dieser Block ist die vorbereitete Karte dafür.
 
 ---
 
+## Backlog — validiert, bewusst post-MVP (Entscheidung 2026-07-27)
+
+Fünf Dimensionen des klassischen Serverbetriebs, in der Lückenanalyse benannt,
+vom Nutzer **alle als valide bestätigt** und in den Backlog gestellt — nicht im
+MVP (drei Achsen, Ziel Ende der Woche):
+
+| # | Dimension | Kernpunkt · Beleg |
+|---|---|---|
+| B1 | **Plattform-Lebenszyklus** | Der Stack zwischen Box und Apps (k3s, Keycloak, OpenFGA, Dapr) hat keinen CRUD: install/upgrade/rollback/uninstall/backup-restore. Projektauftrag nennt uninstall (README:3); Server hat `deploy-backup-jobs.sh`. |
+| B2 | **Katalog & Kompatibilität** | „Apps raussuchen" braucht einen Katalog + Kompatibilitätswahrheit (Pin-Kette: App↔SDK↔Server) + Transportweg auf airgapped Boxen. Katalogkonzept existiert plattformseitig (Standalone-Arming). |
+| B3 | **Nutzer-/Zugangsverwaltung** | Keycloak-User, SSH-Keys, Rollen — der häufigste Wartungsvorgang; heute manueller Admin-Handgriff (vm5-Manual). |
+| B4 | **Daten-Lebenszyklus** | Undeploy/Update ohne Datenkonzept; Box-Wiederherstellung. Empfindlichkeit belegt durch den Run-ID-Überschreib-Fund (workflow-citizen-Strang). |
+| B5 | **Sicherheits-Wartungstakt** | CVE-Wellen (gelebt: Next-15-Migration, Trivy-Gates), Zertifikats-/Secret-Rotation. Der reale Grund, warum „über die Zeit" Arbeit anfällt. |
+
 ## Dateien
 
 - `raw/2026-07-27_1252_three-axes.md` — Wortlaut + Dekodierung
@@ -109,3 +123,5 @@ dieser Block ist die vorbereitete Karte dafür.
   Fehlen); Iteration 1 = **eigene Quick-Extraktion des Explorers + Deploy-Demo**,
   später Umzug auf Arsanys App-Repo (befristete, angeordnete Regel-8-Ausnahme).
   Namensschreibweise bestätigt: **Arsany** (frühere Diktat-Form „Arsene").
+- 27.07. (13:29): **Fünf Betriebs-Dimensionen validiert und in den Backlog
+  gestellt** (B1–B5, s. o.) — MVP bleiben die drei Achsen, Ziel Ende der Woche.

@@ -60,6 +60,17 @@ here as an isolated app. The console offers manifest inspection and visibility
 for the app's frontend part, backend part, its workflow templates, and for
 **bundles** — app + workflow templates as one package.
 
+**MVP scope (decided 2026-07-27):** the three axes above, targeted for the end
+of this week. Five further dimensions are validated but deliberately
+**backlog, post-MVP**: (a) platform lifecycle — install/upgrade/rollback/
+uninstall/backup-restore of the platform stack itself on an instance; (b) app
+catalog & compatibility — what can be picked, which app version runs on which
+platform version (the pin chain is that truth), including the transport path
+onto air-gapped boxes; (c) tenancy — Keycloak users, SSH access, roles;
+(d) data lifecycle — what happens to an app's persisted data on undeploy and
+update; (e) security upkeep — CVE-driven base-image waves, certificate and
+secret rotation. Detail: `analysis/mgmt-console/summary.md`.
+
 Derivation and open points: `analysis/mgmt-console/summary.md`.
 
 The full concept, roles, and open questions live in the Jira task — that is the
