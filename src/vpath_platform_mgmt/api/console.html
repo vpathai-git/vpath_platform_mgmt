@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>vpath console</title>
+<style>
+:root{--paper:#F5F8F8;--surface:#FFF;--s2:#EDF3F3;--ink:#1C2B30;--muted:#5D7076;
+--line:#D5E0E1;--acc:#0B7285;--accs:#E0EFF1;--good:#2F7D46;--goods:#E3F0E6;
+--warn:#B4690E;--warns:#F7EEDD;--bad:#B03A3A;--bads:#F6E3E3;
+--mono:"Cascadia Code",Consolas,ui-monospace,monospace;
+--sans:"Segoe UI Variable Text","Segoe UI",system-ui,sans-serif}
+@media (prefers-color-scheme:dark){:root{--paper:#101B1E;--surface:#16252A;
+--s2:#1C2E34;--ink:#DCE7E9;--muted:#8CA3A9;--line:#294047;--acc:#5BC4D4;
+--accs:#143A42;--good:#6FC287;--goods:#173320;--warn:#E0A458;--warns:#3A2C14;
+--bad:#E08585;--bads:#3A1D1D}}
+body{margin:0;background:var(--paper);color:var(--ink);font:14px/1.5 var(--sans)}
+header{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 22px;
+border-bottom:1px solid var(--line);position:sticky;top:0;background:var(--paper)}
+h1{font-size:16px;margin:0}
+.badge{font-family:var(--mono);font-size:11px;padding:3px 9px}
+.badge.sim{color:var(--warn);background:var(--warns)}
+.badge.real{color:var(--bad);background:var(--bads)}
+.role{margin-left:auto;display:flex;gap:8px;align-items:center;color:var(--muted)}
+select,input,button{font:13px var(--sans);color:var(--ink);background:var(--surface);
+border:1px solid var(--line);padding:6px 10px}
+button{cursor:pointer;color:var(--acc)}button:hover{background:var(--accs)}
+button.danger{color:var(--warn)}button.danger:hover{background:var(--warns)}
+main{max-width:1180px;margin:0 auto;padding:18px 22px;display:grid;gap:16px;
+grid-template-columns:1.4fr 1fr}
+@media(max-width:900px){main{grid-template-columns:1fr}}
+section{background:var(--surface);border:1px solid var(--line);padding:14px 16px;
+min-width:0}
+h2{font-size:12px;margin:0 0 10px;font-family:var(--mono);text-transform:uppercase;
+letter-spacing:.07em;color:var(--muted)}
+table{border-collapse:collapse;width:100%;font-size:13px}
+td,th{text-align:left;padding:6px 10px 6px 0;border-bottom:1px solid var(--line)}
+th{font-family:var(--mono);font-size:10.5px;text-transform:uppercase;
+letter-spacing:.06em;color:var(--muted)}
+tr:last-child td{border-bottom:none}
+.chip{font-family:var(--mono);font-size:11px;padding:2px 8px;white-space:nowrap}
+.ok{color:var(--good);background:var(--goods)}.run{color:var(--acc);background:var(--accs)}
+.q{color:var(--muted);background:var(--s2)}.err{color:var(--bad);background:var(--bads)}
+.mono{font-family:var(--mono);font-size:12px}.dim{color:var(--muted)}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
+#msg{font-family:var(--mono);font-size:12px;color:var(--bad);min-height:16px;
+margin-top:8px}
+.gates{display:flex;gap:6px;flex-wrap:wrap}
+ul{margin:0;padding:0;list-style:none}
+li{padding:4px 0;border-bottom:1px solid var(--line);font-size:12.5px}
+li:last-child{border-bottom:none}
+</style>
+</head>
+<body>
+<header>
+  <h1>vpath console</h1><span id="engine" class="badge sim">…</span>
+  <div class="role">acting as
+    <select id="role">
+      <option value="app-dev">App-Entwickler</option>
+      <option value="admin">Administrator</option>
+      <option value="server-dev">Serverprojekt-Entwickler</option>
+    </select>
+    <input id="actor" value="you" size="8" aria-label="actor name">
+  </div>
+</header>
+<main>
+  <section>
+    <h2>Jobs</h2>
+    <div class="row">
+      <select id="verb">
+        <option>deploy</option><option>build</option><option>health</option>
+        <option>status</option><option>uninstall</option>
+      </select>
+      <input id="app" value="sample-app" size="12" aria-label="app name">
+      <button onclick="submitJob()">Run</button>
+      <button class="danger" onclick="reinstall()">reinstall server…</button>
+    </div>
+    <div id="msg" aria-live="polite"></div>
+    <table id="jobs"></table>
+  </section>
+  <section>
+    <h2>Platform health</h2>
+    <div id="healthline" class="dim">no health run yet</div>
+    <div class="gates" id="gates"></div>
+    <h2 style="margin-top:16px">Locks</h2>
+    <ul id="locks"><li class="dim">none held</li></ul>
+    <h2 style="margin-top:16px">Audit trail</h2>
+    <ul id="audit"></ul>
+  </section>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const chip = s =>
+  ({queued: "q", running: "run", succeeded: "ok", failed: "err"})[s] || "q";
+const hdrs = () => ({
+  "Content-Type": "application/json",
+  "X-Dev-Actor": $("actor").value || "you",
+  "X-Dev-Role": $("role").value,
+});
+async function post(body) {
+  const r = await fetch("/api/jobs",
+    {method: "POST", headers: hdrs(), body: JSON.stringify(body)});
+  const d = await r.json();
+  $("msg").textContent = r.ok ? "" : (d.detail || "error");
+}
+function submitJob() { post({verb: $("verb").value, app: $("app").value}); }
+function reinstall() {
+  const c = prompt("Destructive: full server reinstall.\nType REINSTALL:");
+  if (c !== null) post({verb: "reinstall", app: "server", confirm: c || ""});
+}
+function fmt(ts) { return new Date(ts * 1000).toLocaleTimeString(); }
+async function tick() {
+  try {
+    const r = await fetch("/api/state", {headers: hdrs()});
+    if (r.ok) render(await r.json());
+  } catch (e) { /* server restarting; keep polling */ }
+  setTimeout(tick, 1000);
+}
+function render(s) {
+  const eng = $("engine");
+  eng.textContent = s.engine === "simulated"
+    ? "SIMULATED ENGINE — no real server contact"
+    : "REAL ENGINE: " + s.engine;
+  eng.className = "badge " + (s.engine === "simulated" ? "sim" : "real");
+  $("jobs").innerHTML =
+    "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>state</th>" +
+    "<th>step</th></tr>" +
+    s.jobs.map(j =>
+      `<tr><td class="mono dim">${j.id}</td><td class="mono">${j.verb}</td>` +
+      `<td>${j.app}</td><td>${j.actor}</td>` +
+      `<td><span class="chip ${chip(j.state)}">${j.state}</span></td>` +
+      `<td class="dim">${j.step}</td></tr>`).join("");
+  if (s.health) {
+    $("healthline").innerHTML =
+      `<span class="chip ${s.health.verdict === "healthy" ? "ok" : "err"}">` +
+      `${s.health.verdict}</span> <span class="dim">at ${fmt(s.health.at)}</span>`;
+    $("gates").innerHTML = Object.entries(s.health.gates || {}).map(([g, v]) =>
+      `<span class="chip ${v === "pass" ? "ok" : "err"}">${g}</span>`).join("");
+  }
+  const locks = s.locks || [];
+  $("locks").innerHTML = locks.length
+    ? locks.map(l =>
+        `<li><span class="mono">${l.scope}</span> — ${l.holder} ` +
+        `<span class="dim">since ${fmt(l.since)} (job ${l.job_id})</span></li>`)
+        .join("")
+    : '<li class="dim">none held</li>';
+  $("audit").innerHTML = (s.audit || []).slice(0, 15).map(a =>
+    `<li><span class="mono dim">${fmt(a.at)}</span> ` +
+    `<span class="mono">${a.action}</span> ${a.target} — ${a.actor} ` +
+    `(${a.role}): <b>${a.result}</b></li>`).join("") ||
+    '<li class="dim">empty</li>';
+}
+tick();
+</script>
+</body>
+</html>
