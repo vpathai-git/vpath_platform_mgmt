@@ -11,10 +11,22 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 import init_project as initp  # noqa: E402
 
 
+def fake_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Route every home lookup to tmp_path — cross-platform.
+
+    Setting HOME alone is ignored by ``Path.home()`` on Windows (USERPROFILE
+    wins), which silently pointed these tests at the REAL ``~/.claude`` and
+    let them overwrite the user's live hooks. Guard: never again.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+
+
 def test_completion_chime_decline_writes_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     monkeypatch.setattr("builtins.input", lambda *a, **k: "n")
     initp.optional_setup_completion_chime()
     assert not (tmp_path / ".claude").exists()
@@ -23,7 +35,7 @@ def test_completion_chime_decline_writes_nothing(
 def test_completion_chime_consent_preserves_existing_stop_hook(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     monkeypatch.setattr(initp, "completion_chime_supported", lambda: True)
     claude = tmp_path / ".claude"
     claude.mkdir()
@@ -42,7 +54,7 @@ def test_completion_chime_consent_preserves_existing_stop_hook(
 def test_completion_chime_not_duplicated(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     monkeypatch.setattr(initp, "completion_chime_supported", lambda: True)
     monkeypatch.setattr("builtins.input", lambda *a, **k: "y")
     initp.optional_setup_completion_chime()
