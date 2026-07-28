@@ -41,6 +41,8 @@ tr:last-child td{border-bottom:none}
 .chip{font-family:var(--mono);font-size:11px;padding:2px 8px;white-space:nowrap}
 .ok{color:var(--good);background:var(--goods)}.run{color:var(--acc);background:var(--accs)}
 .q{color:var(--muted);background:var(--s2)}.err{color:var(--bad);background:var(--bads)}
+.sim-chip{color:var(--warn);background:var(--warns)}
+.real-chip{color:var(--bad);background:var(--bads)}
 .mono{font-family:var(--mono);font-size:12px}.dim{color:var(--muted)}
 .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-top:10px}
 #msg{font-family:var(--mono);font-size:12px;color:var(--bad);min-height:16px;
@@ -123,13 +125,19 @@ function render(s) {
     : "REAL ENGINE: " + s.engine;
   eng.className = "badge " + (s.engine === "simulated" ? "sim" : "real");
   $("jobs").innerHTML =
-    "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>state</th>" +
-    "<th>step</th></tr>" +
-    s.jobs.map(j =>
-      `<tr><td class="mono dim">${j.id}</td><td class="mono">${j.verb}</td>` +
-      `<td>${j.app}</td><td>${j.actor}</td>` +
-      `<td><span class="chip ${chip(j.state)}">${j.state}</span></td>` +
-      `<td class="dim">${j.step}</td></tr>`).join("");
+    "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>engine</th>" +
+    "<th>state</th><th>step</th></tr>" +
+    s.jobs.map(j => {
+      const simulated = j.engine === "simulated";
+      const engineChip = simulated
+        ? '<span class="chip sim-chip">simulated</span>'
+        : `<span class="chip real-chip">${j.engine}</span>`;
+      return `<tr><td class="mono dim">${j.id}</td>` +
+        `<td class="mono">${j.verb}</td><td>${j.app}</td><td>${j.actor}</td>` +
+        `<td>${engineChip}</td>` +
+        `<td><span class="chip ${chip(j.state)}">${j.state}</span></td>` +
+        `<td class="dim">${j.step}</td></tr>`;
+    }).join("");
   if (s.health) {
     $("healthline").innerHTML =
       `<span class="chip ${s.health.verdict === "healthy" ? "ok" : "err"}">` +

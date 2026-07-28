@@ -75,6 +75,9 @@ class Job:
     app: str
     actor: str
     role: Role
+    # Which adapter executed this job. Stamped per job so no screenshot or
+    # log excerpt of a simulated run can be mistaken for a real deployment.
+    engine: str = "unknown"
     id: str = field(default_factory=lambda: uuid.uuid4().hex[:8])
     state: JobState = JobState.QUEUED
     step: str = "queued"
@@ -90,6 +93,7 @@ class Job:
             "app": self.app,
             "actor": self.actor,
             "role": self.role.value,
+            "engine": self.engine,
             "state": self.state.value,
             "step": self.step,
             "log": list(self.log),

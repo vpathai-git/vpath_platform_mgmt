@@ -147,6 +147,27 @@ def test_health_verdict_is_captured_in_state() -> None:
     assert health["verdict"] == "healthy"
 
 
+def test_simulated_jobs_are_labelled_everywhere() -> None:
+    """A simulated run must never be mistakable for a real deployment."""
+    service = make_service()
+    job = service.submit("deploy", "sample-app", "alice", "app-dev")
+    service.wait(job.id)
+    assert job.engine == "simulated"
+    assert job.to_dict()["engine"] == "simulated"
+    assert any("SIMULATED RUN" in line for line in job.log)
+
+
+def test_real_engine_jobs_carry_engine_name_without_simulation_notice() -> None:
+    class RealishEngine(SimulatedEngine):
+        name = "local"
+
+    service = OpsService(RealishEngine())
+    job = service.submit("deploy", "sample-app", "alice", "app-dev")
+    service.wait(job.id)
+    assert job.to_dict()["engine"] == "local"
+    assert not any("SIMULATED RUN" in line for line in job.log)
+
+
 def test_job_lookup_and_state_shape() -> None:
     service = make_service()
     job = service.submit("build", "sample-app", "alice", "app-dev")
