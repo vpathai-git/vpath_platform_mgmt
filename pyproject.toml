@@ -24,9 +24,10 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
 ]
 dependencies = [
-    # Add your runtime dependencies here, e.g. "requests>=2.31.0",
     # Keep requirements.txt mirrored (see AGENTS.md, Dependency Management)
     "python-dotenv>=1.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
 ]
 
 [project.optional-dependencies]
@@ -36,13 +37,18 @@ dev = [
     "black>=24.0.0",
     "flake8>=7.0.0",
     "mypy>=1.10.0",
+    "httpx>=0.27.0",
 ]
 
 [project.scripts]
 vpath-platform-mgmt = "vpath_platform_mgmt:main"
+vpath-console = "vpath_platform_mgmt.api.server:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+vpath_platform_mgmt = ["api/console.html"]
 
 [tool.black]
 line-length = 88

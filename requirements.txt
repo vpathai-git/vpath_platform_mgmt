@@ -3,7 +3,5 @@
 # Dev tools (pytest, black, flake8, mypy) live in pyproject [dev] extras:
 #   pip install -e ".[dev]"
 python-dotenv>=1.0.0  # Used by config/settings.py for .env loading
-
-# Add your project dependencies here, for example:
-# requests>=2.31.0
-# click>=8.1.0  # For command-line interfaces
+fastapi>=0.115.0  # Ops API + thin console (docs/PLATFORM_FUNCTIONS.md)
+uvicorn>=0.30.0  # ASGI server for the Ops API
