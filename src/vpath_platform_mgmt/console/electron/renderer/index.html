@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self'"
+    />
+    <title>VPATH platform management console</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>Platform instances</h1>
+        <p id="register" class="muted">loading…</p>
+      </div>
+      <div class="actions">
+        <button id="reload" type="button">Reload register</button>
+        <button id="probe" type="button">Probe now</button>
+        <button id="new" type="button">New instance…</button>
+      </div>
+    </header>
+
+    <p id="error" class="error" hidden></p>
+
+    <main>
+      <nav id="list" aria-label="Instances"></nav>
+      <section id="detail">
+        <p class="muted">Select an instance on the left.</p>
+      </section>
+    </main>
+
+    <dialog id="create-dialog">
+      <form id="create-form" method="dialog">
+        <h2>New instance</h2>
+        <label>
+          Name
+          <input id="create-name" name="name" required pattern="[a-z][a-z0-9]*" />
+        </label>
+        <label>
+          Type template
+          <select id="create-template" name="template"></select>
+        </label>
+        <p id="template-summary" class="muted"></p>
+        <p id="template-unproven" class="warning" hidden></p>
+        <div id="create-fields"></div>
+        <div class="actions">
+          <button value="cancel" type="submit" formnovalidate>Cancel</button>
+          <button id="create-submit" value="create" type="submit">Create</button>
+        </div>
+      </form>
+    </dialog>
+
+    <script src="app.js"></script>
+  </body>
+</html>

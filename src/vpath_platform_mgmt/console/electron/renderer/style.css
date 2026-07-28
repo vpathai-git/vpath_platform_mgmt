@@ -1,0 +1,220 @@
+/* Master-detail: the instance list on the left, one instance on the right. */
+
+:root {
+  color-scheme: light dark;
+  --edge: color-mix(in srgb, currentColor 18%, transparent);
+  --soft: color-mix(in srgb, currentColor 8%, transparent);
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: grid;
+  grid-template-rows: auto auto 1fr;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid var(--edge);
+}
+
+h1 {
+  font-size: 1.05rem;
+  margin: 0;
+}
+
+h2 {
+  margin: 0 0 0.15rem;
+}
+
+h3 {
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.6;
+  margin: 1.25rem 0 0.4rem;
+}
+
+p {
+  margin: 0.25rem 0;
+}
+
+.muted {
+  opacity: 0.62;
+}
+
+.warning {
+  color: #b45309;
+}
+
+.error {
+  margin: 0;
+  padding: 0.6rem 1rem;
+  background: color-mix(in srgb, #dc2626 14%, transparent);
+  border-bottom: 1px solid var(--edge);
+  white-space: pre-wrap;
+}
+
+.actions {
+  display: flex;
+  gap: 0.5rem;
+}
+
+button {
+  font: inherit;
+  padding: 0.35rem 0.7rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--soft);
+}
+
+button.danger {
+  margin-top: 1.5rem;
+  border-color: color-mix(in srgb, #dc2626 45%, transparent);
+}
+
+button.link {
+  border: none;
+  padding: 0;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+main {
+  display: grid;
+  grid-template-columns: minmax(220px, 300px) 1fr;
+  min-height: 0;
+}
+
+nav {
+  border-right: 1px solid var(--edge);
+  overflow-y: auto;
+  padding: 0.5rem;
+}
+
+.entry {
+  width: 100%;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.15rem 0.5rem;
+  text-align: left;
+  border: none;
+  border-radius: 8px;
+  padding: 0.5rem 0.6rem;
+  margin-bottom: 0.2rem;
+}
+
+.entry.selected {
+  background: var(--soft);
+}
+
+.entry-name {
+  font-weight: 600;
+}
+
+.entry-kind {
+  grid-column: 1;
+  opacity: 0.6;
+  font-size: 0.8rem;
+}
+
+.badge {
+  grid-row: 1 / span 2;
+  align-self: center;
+  font-size: 0.68rem;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.4rem;
+  border-radius: 999px;
+  border: 1px solid var(--edge);
+  white-space: nowrap;
+}
+
+.badge.ok {
+  background: color-mix(in srgb, #16a34a 22%, transparent);
+}
+
+.badge.bad {
+  background: color-mix(in srgb, #dc2626 22%, transparent);
+}
+
+.badge.pending {
+  background: color-mix(in srgb, #d97706 22%, transparent);
+}
+
+.badge.unknown {
+  background: var(--soft);
+}
+
+#detail {
+  overflow-y: auto;
+  padding: 1rem 1.25rem 3rem;
+}
+
+dl {
+  display: grid;
+  grid-template-columns: minmax(140px, max-content) 1fr;
+  gap: 0.3rem 1rem;
+  margin: 0;
+}
+
+dt {
+  opacity: 0.6;
+}
+
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+dialog {
+  border: 1px solid var(--edge);
+  border-radius: 10px;
+  padding: 1.25rem;
+  width: min(560px, 92vw);
+  max-height: 86vh;
+  color: inherit;
+}
+
+dialog form {
+  display: grid;
+  gap: 0.7rem;
+}
+
+dialog label {
+  display: grid;
+  gap: 0.2rem;
+}
+
+dialog input,
+dialog select {
+  font: inherit;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--edge);
+  border-radius: 6px;
+  background: transparent;
+  color: inherit;
+}
+
+#create-fields {
+  display: grid;
+  gap: 0.7rem;
+  max-height: 42vh;
+  overflow-y: auto;
+  padding-right: 0.4rem;
+}
