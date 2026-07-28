@@ -26,6 +26,26 @@ app repo rather than in the server monorepo.
   `apps_infra/sdk`, i.e. **the ported app is not yet self-contained**; it
   still expects to be built from inside the server tree.
 
+## Integration findings from the first real deploy (2026-07-28)
+
+Running the Ops API on the shared server with `LocalEngine` surfaced two
+things no amount of reading would have:
+
+1. **Authorization is by group, not realm role.** The realm defines no custom
+   realm roles; tokens carry `groups: ["/vpath-admins"]`. The validator now
+   maps groups → platform roles (decision 6 unchanged in intent, corrected in
+   mechanism).
+2. **The engine needs the target's environment.** `lib/vm.sh` resolves its
+   topology from the environment and aborts loudly otherwise
+   (`run_build_vm called on deploy VM (linux)`). The right configuration for
+   a target is its overlay selector — `VPATH_ENV=vm5` loads
+   `config/dot_env/.env.vm5`, which supplies `VPATH_INSTALL_MODE` and the
+   `NUC_*` host variables. The Ops API passes this through
+   `VPATH_MGMT_ENGINE_ENV`, so each target is configured, never guessed.
+
+Both failures were loud, correctly attributed, and left the platform
+untouched — the fail-hard rule doing its job on first contact.
+
 ## Options
 
 | Option | Weight | Pros | Cons |
