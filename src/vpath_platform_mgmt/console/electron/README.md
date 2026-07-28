@@ -29,6 +29,34 @@ npm start
 Windows). `PYTHONPATH` is set to the repository's `src/` automatically, so the
 shell runs from a checkout without installing the package first.
 
+## Building a binary
+
+```bash
+npm run dist        # distributable for this platform -> dist/
+npm run dist:dir    # unpacked directory only, faster for a smoke test
+```
+
+electron-builder does not cross-compile between platforms; run it on each
+platform you want an artifact for.
+
+**A packaged build is not self-contained.** It is still only a renderer, so it
+needs an interpreter with `vpath-platform-mgmt` installed — build the wheel
+(`make dist-python`), install it, and point `VPATH_PYTHON` at that interpreter.
+Bundling a Python runtime was not done: it would put a second, silently
+diverging copy of the console's logic inside the shell, which is the one thing
+this split exists to prevent.
+
+Two things differ from a checkout, both in `pythonEnvironment()` in `main.js`:
+the repository `src/` is **not** put on `PYTHONPATH` (there is no repository,
+and a stale path could shadow the installed package), and the register defaults
+to `<userData>/instances.local.env`, because the checkout-relative default
+would otherwise resolve to somewhere inside `site-packages`.
+
+`overrides.brace-expansion` in `package.json` is not cosmetic: electron-builder
+pins several old lines of it that sit inside GHSA-mh99-v99m-4gvg, and this
+repository blocks on HIGH. Remove the override once electron-builder ships the
+fix itself.
+
 ## Why this is the build form
 
 `README.md` left the console's build form open ("graphical or chatbot-assisted,

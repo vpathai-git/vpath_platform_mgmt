@@ -41,10 +41,38 @@ package `__init__.py` `__version__` — bump both together (see
   rule. `registry.py` re-exports every moved name, so existing imports are
   unaffected.
 
+- **Distributable builds for both halves.** `make dist-python` produces the
+  wheel and sdist, `make dist-console` the console binary for the host
+  platform (electron-builder does not cross-compile), `make dist` both. New
+  `make console` / `make console-install` run the shell from a checkout.
+
+### Fixed
+- The wheel packaged 66 files it should not have: setuptools discovered the
+  console shell's `node_modules/node-gyp/gyp/pylib/gyp` as a Python package
+  (it carries an `__init__.py`) and swept its sources in. Excluded from
+  package discovery — the wheel drops from 478 KB to 84 KB.
+- The shell resolved the Python side by walking four directories up from
+  `__dirname`, which is the repository root only in a checkout — inside
+  `app.asar` it is not. A packaged build now relies on the installed package
+  instead, and reads its register from `<userData>/instances.local.env`
+  rather than a path that would land inside `site-packages`.
+
+### Security
+- `electron` pinned to `^43.2.0`: the `^33` line carries a HIGH advisory
+  (ASAR integrity bypass, among others).
+- `electron-builder` pinned to `^26.15.3` and its transitive
+  `brace-expansion` forced to `^5.0.8` via `overrides`. The `@25` tree carried
+  28 advisories (27 high, 1 critical); `@26` still pinned vulnerable
+  `brace-expansion` lines (GHSA-mh99-v99m-4gvg). `npm audit` now reports 0.
+
 ### Notes
 - Axis 3 (apps) is not started; the console reports apps as unmanaged and
   names the issue that changes it. Uptime is reported as *not measured* rather
   than relabelling the install marker.
+- The console binary is deliberately **not** self-contained: it stays a
+  renderer over an installed `vpath-platform-mgmt`. Bundling a Python runtime
+  would put a second, silently diverging copy of the console's logic inside
+  the shell.
 
 ## [0.2.1] - 2026-06-28
 

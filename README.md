@@ -99,8 +99,29 @@ The same commands with `--json` are exactly what the Electron shell consumes;
 the shell renders that payload and holds no logic of its own.
 
 ```bash
-cd src/vpath_platform_mgmt/console/electron && npm install && npm start
+make console-install    # once: the shell's Node dependencies
+make console            # run the shell from this checkout
 ```
+
+### Building distributables
+
+```bash
+make dist            # both halves
+make dist-python     # wheel + sdist  -> dist/
+make dist-console    # console binary -> src/vpath_platform_mgmt/console/electron/dist/
+```
+
+The console binary is a **renderer, not a self-contained application**: it
+spawns a Python interpreter that must have `vpath-platform-mgmt` installed —
+which is what the wheel is for. Point `VPATH_PYTHON` at that interpreter if it
+is not the default `python3`/`python`. Running from a checkout needs no install
+at all; the shell puts `src/` on `PYTHONPATH` itself.
+
+A packaged build has no repository next to it, so it reads its register from
+`<userData>/instances.local.env` unless `VPATH_INSTANCES_FILE` says otherwise.
+
+`electron-builder` does not cross-compile between platforms — run
+`make dist-console` on each platform you want an artifact for.
 
 Creating an instance goes through a template rather than an editor — the
 template decides which fields exist and which are mandatory, and the edit is
