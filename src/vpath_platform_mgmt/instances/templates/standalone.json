@@ -1,0 +1,56 @@
+{
+  "template_version": "1",
+  "kind": "standalone",
+  "title": "standalone Electron shell",
+  "proven": true,
+  "summary": "A local Electron shell embedding the platform. NATO alphabet name (alpha, bravo, ...). It is a local process, not a box: it has no SSH access, and it allocates every port through listen(0), so a running instance has no address knowable from outside.",
+  "fields": [
+    {
+      "key": "APP_ROOT",
+      "required": true,
+      "example": "<path-of-the-app-repo-with-the-electron-shell>",
+      "comment": "the app repository carrying the Electron shell"
+    },
+    {
+      "key": "HOME",
+      "required": true,
+      "example": "<path-of-VPATH_STANDALONE_HOME>",
+      "comment": "VPATH_STANDALONE_HOME -- runtime state, keys and KPs"
+    },
+    {
+      "key": "LOCATION",
+      "example": "<this workstation> / <APP_ROOT>",
+      "comment": "location question 1 -- where this instance lives (host + filesystem)"
+    },
+    {
+      "key": "BUILD_PROCESS",
+      "example": "local build in <APP_ROOT>",
+      "comment": "location question 2 -- where its build process lives"
+    },
+    {
+      "key": "SOURCE_REPOS",
+      "example": "<repo-url> <repo-url>",
+      "comment": "location question 3 -- which source repositories the build pulls apps from"
+    },
+    {
+      "key": "IMAGE_REGISTRY",
+      "example": "<registry-url, or 'none -- no containers on a standalone'>",
+      "comment": "location question 4 -- where the container images live"
+    },
+    {
+      "key": "ONTOGATE_VIEW",
+      "example": "http://127.0.0.1:<port>",
+      "comment": "base URL of a running OntoGate viewer for this project's Spine; leave unset if none runs"
+    },
+    {
+      "key": "LIFECYCLE",
+      "default": "live",
+      "comment": "live | planned -- 'planned' means agreed but not built yet"
+    },
+    {
+      "key": "NOTES",
+      "example": "<one line of free text>",
+      "comment": "free text, one line"
+    }
+  ]
+}

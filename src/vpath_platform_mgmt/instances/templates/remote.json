@@ -1,0 +1,76 @@
+{
+  "template_version": "0",
+  "kind": "remote",
+  "title": "remote customer cluster (win-claas)",
+  "proven": false,
+  "unproven_reason": "The access path, the deploy path and the limits of what the console may do on a customer system are structured here from what the server project already names -- they are NOT established. Every field below is a question to be answered by analysis/mgmt-console/remote-type-survey.issue.md, not an assertion. Version stays 0 until that survey closes.",
+  "summary": "A customer-side Windows cluster (CLAAS line). Declared so the console can carry it; unproven until surveyed. Nothing here may be treated as a working access path.",
+  "fields": [
+    {
+      "key": "CLUSTER_HOST",
+      "required": true,
+      "example": "<customer-cluster-target>",
+      "comment": "the cluster target the server project carries for this line (e.g. a dehwllvpath##.claas.local style host) -- the one field the server side already names"
+    },
+    {
+      "key": "ACCESS_PROTOCOL",
+      "example": "<unproven -- survey question 1: protocol>",
+      "comment": "survey question 1 (access): how the cluster is reached at all. Structure only; no value may be guessed"
+    },
+    {
+      "key": "JUMP_HOST",
+      "example": "<unproven -- survey question 1: jump host>",
+      "comment": "survey question 1 (access): bastion the cluster is reached through, if any"
+    },
+    {
+      "key": "CREDENTIALS_MODEL",
+      "example": "<unproven -- survey question 1: credentials model>",
+      "comment": "survey question 1 (access): WHICH credentials model applies. Only the structure lives here -- values stay gitignored payload"
+    },
+    {
+      "key": "DEPLOY_PATH",
+      "example": "<unproven -- survey question 2: install/update path>",
+      "comment": "survey question 2 (deploy): how installs and updates happen there today; the server README describes an install host without internet"
+    },
+    {
+      "key": "CONSOLE_PERMITTED",
+      "example": "<unproven -- survey question 3: health only? redeploy after which approval?>",
+      "comment": "survey question 3 (limits): what this console may do on a customer system at all. Until answered, treat as health-read only"
+    },
+    {
+      "key": "LOCATION",
+      "example": "<unproven -- customer site / filesystem>",
+      "comment": "location question 1 -- where this instance lives (host + filesystem)"
+    },
+    {
+      "key": "BUILD_PROCESS",
+      "example": "<unproven -- may differ from a NUC>",
+      "comment": "location question 2 -- where its build process lives"
+    },
+    {
+      "key": "SOURCE_REPOS",
+      "example": "<unproven -- may differ from a NUC>",
+      "comment": "location question 3 -- which source repositories the build pulls apps from"
+    },
+    {
+      "key": "IMAGE_REGISTRY",
+      "example": "<unproven -- may differ from a NUC>",
+      "comment": "location question 4 -- where the container images live"
+    },
+    {
+      "key": "ONTOGATE_VIEW",
+      "example": "http://127.0.0.1:<port>",
+      "comment": "base URL of a running OntoGate viewer for this project's Spine; leave unset if none runs"
+    },
+    {
+      "key": "LIFECYCLE",
+      "default": "live",
+      "comment": "live | planned -- 'planned' means agreed but not built yet"
+    },
+    {
+      "key": "NOTES",
+      "example": "<one line of free text>",
+      "comment": "free text, one line"
+    }
+  ]
+}

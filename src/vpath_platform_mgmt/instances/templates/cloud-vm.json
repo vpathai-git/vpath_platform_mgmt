@@ -1,0 +1,83 @@
+{
+  "template_version": "1",
+  "kind": "server-cloud-vm",
+  "title": "server on a cloud VM",
+  "proven": true,
+  "summary": "Same shape as a NUC. What differs: the env profile it is driven with, and that the key usually has to be materialised out of a credentials bundle first. Planet name without a generation suffix (terra).",
+  "fields": [
+    {
+      "key": "SSH_HOST",
+      "required": true,
+      "example": "<public-address-of-the-vm>",
+      "comment": "address the dev machine connects to"
+    },
+    {
+      "key": "SSH_USER",
+      "required": true,
+      "example": "<vm-user>",
+      "comment": "login user on the VM"
+    },
+    {
+      "key": "ENV_PROFILE",
+      "required": true,
+      "example": "vm5",
+      "comment": "server env profile name -> ./gradlew -Penv=<this>"
+    },
+    {
+      "key": "CHECKOUT",
+      "required": true,
+      "example": "<path-of-the-server-checkout-on-the-box>",
+      "comment": "the server checkout ON the VM: delivery target and Gradle cwd"
+    },
+    {
+      "key": "SSH_KEY",
+      "example": "$HOME/.ssh/<key-file>",
+      "comment": "private key path; omit to use the ssh default"
+    },
+    {
+      "key": "SSH_KEY_SOURCE",
+      "example": "<credentials-bundle>::<member-name>",
+      "comment": "what to extract when the key path does not exist -- the tooling never falls back to another key"
+    },
+    {
+      "key": "SSH_ALIAS",
+      "example": "<~/.ssh/config alias>",
+      "comment": "~/.ssh/config alias, informational"
+    },
+    {
+      "key": "LOCATION",
+      "example": "<cloud region / resource group> / <filesystem root on the VM>",
+      "comment": "location question 1 -- where this instance lives (host + filesystem)"
+    },
+    {
+      "key": "BUILD_PROCESS",
+      "example": "on the VM: <CHECKOUT>/gradlew -Penv=<ENV_PROFILE>",
+      "comment": "location question 2 -- where its build process lives"
+    },
+    {
+      "key": "SOURCE_REPOS",
+      "example": "<repo-url> <repo-url>",
+      "comment": "location question 3 -- which source repositories the build pulls apps from"
+    },
+    {
+      "key": "IMAGE_REGISTRY",
+      "example": "<registry-url or 'local docker daemon on the VM'>",
+      "comment": "location question 4 -- where the container images live"
+    },
+    {
+      "key": "ONTOGATE_VIEW",
+      "example": "http://127.0.0.1:<port>",
+      "comment": "base URL of a running OntoGate viewer for this project's Spine; leave unset if none runs"
+    },
+    {
+      "key": "LIFECYCLE",
+      "default": "live",
+      "comment": "live | planned -- 'planned' means agreed but not built yet"
+    },
+    {
+      "key": "NOTES",
+      "example": "<one line of free text>",
+      "comment": "free text, one line"
+    }
+  ]
+}
