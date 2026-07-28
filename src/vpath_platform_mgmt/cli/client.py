@@ -88,6 +88,26 @@ class OpsClient:
         )
         return str(self._checked(response).json()["job"])
 
+    def push_source(
+        self,
+        app: str,
+        archive: bytes,
+        provenance: dict[str, str],
+        replace: bool = False,
+    ) -> dict[str, object]:
+        """Upload app source for materialization into the server checkout."""
+        headers = self._headers()
+        headers["Content-Type"] = "application/octet-stream"
+        headers["X-Source-Repo"] = provenance.get("repo", "")
+        headers["X-Source-Ref"] = provenance.get("ref", "")
+        headers["X-Source-Commit"] = provenance.get("commit", "")
+        headers["X-Source-Dirty"] = provenance.get("dirty", "false")
+        headers["X-Source-Replace"] = "true" if replace else "false"
+        response = self._http.post(
+            f"/api/apps/{app}/source", content=archive, headers=headers, timeout=120.0
+        )
+        return dict(self._checked(response).json())
+
     def job(self, job_id: str) -> dict[str, object]:
         """One job with its full log."""
         response = self._http.get(f"/api/jobs/{job_id}", headers=self._headers())

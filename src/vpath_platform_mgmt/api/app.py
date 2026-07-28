@@ -23,8 +23,13 @@ from vpath_platform_mgmt.api.auth import (
     validate_auth_mode,
 )
 from vpath_platform_mgmt.api.oidc import OidcValidator
-from vpath_platform_mgmt.ops.model import OpsError
+from vpath_platform_mgmt.ops.model import OpsError, Role
 from vpath_platform_mgmt.ops.service import OpsService
+from vpath_platform_mgmt.ops.source import (
+    SourceError,
+    SourceMaterializer,
+    SourceProvenance,
+)
 
 IdentityFn = Callable[[Request], Identity]
 
@@ -76,10 +81,42 @@ def _submit(service: OpsService, caller: Identity, body: JobRequest) -> dict[str
     return {"job": job.id}
 
 
+def _materialize(
+    materializer: SourceMaterializer | None,
+    caller: Identity,
+    app_name: str,
+    body: bytes,
+    request: Request,
+) -> dict[str, object]:
+    if materializer is None:
+        raise HTTPException(
+            status_code=409,
+            detail="no server checkout configured — source materialization "
+            "requires VPATH_MGMT_SERVER_CHECKOUT",
+        )
+    if caller.role != Role.ADMIN.value:
+        raise HTTPException(
+            status_code=403,
+            detail="materializing app source requires role admin — refused",
+        )
+    provenance = SourceProvenance(
+        repo=request.headers.get("x-source-repo", ""),
+        ref=request.headers.get("x-source-ref", ""),
+        commit=request.headers.get("x-source-commit", ""),
+        dirty=request.headers.get("x-source-dirty", "") == "true",
+    )
+    replace = request.headers.get("x-source-replace", "") == "true"
+    try:
+        return materializer.materialize(app_name, body, provenance, replace=replace)
+    except SourceError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 def create_app(
     service: OpsService,
     auth_mode: str = "dev",
     oidc_validator: OidcValidator | None = None,
+    materializer: SourceMaterializer | None = None,
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
@@ -105,6 +142,15 @@ def create_app(
     def submit(request: Request, body: JobRequest) -> dict[str, str]:
         """Submit a verb as a job; typed ops errors map to HTTP statuses."""
         return _submit(service, identity(request), body)
+
+    @app.post("/api/apps/{app_name}/source", status_code=201)
+    async def put_source(request: Request, app_name: str) -> dict[str, object]:
+        """Materialize uploaded app source into the server checkout (Admin)."""
+        caller = identity(request)
+        body = await request.body()
+        summary = _materialize(materializer, caller, app_name, body, request)
+        service.record_source(app_name, caller.actor, caller.role, summary)
+        return summary
 
     @app.get("/api/jobs/{job_id}")
     def job_detail(request: Request, job_id: str) -> dict[str, object]:

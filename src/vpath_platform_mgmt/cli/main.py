@@ -8,11 +8,13 @@ RBAC · 4 lock held · 5 not authenticated.
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import cast
 
 import httpx
 import typer
 
+from vpath_platform_mgmt.cli.bundle import BundleError, bundle, provenance_of
 from vpath_platform_mgmt.cli.auth import (
     DEFAULT_CLIENT_ID,
     AuthFlowError,
@@ -147,6 +149,40 @@ def reinstall(
 ) -> None:
     """Reinstall the server (Admin only; exclusive cluster lock)."""
     _run_verb("reinstall", "server", confirm=confirm)
+
+
+@app.command("push-source")
+def push_source(
+    app_name: str = typer.Argument(..., metavar="APP"),
+    path: str = typer.Option(..., "--path", help="App directory in your app repo."),
+    replace: bool = typer.Option(
+        False, "--replace", help="Overwrite the app's existing source on the server."
+    ),
+) -> None:
+    """Upload app source into the server checkout (Admin; precedes deploy)."""
+    try:
+        archive = bundle(Path(path))
+        provenance = provenance_of(Path(path))
+    except BundleError as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=EXIT_CONFIG) from exc
+    if provenance.get("dirty") == "true":
+        typer.echo("warning: source directory has uncommitted changes", err=True)
+    try:
+        summary = _client().push_source(app_name, archive, provenance, replace)
+    except ApiError as exc:
+        _fail(exc)
+        return
+    except httpx.HTTPError as exc:
+        typer.echo(f"error: cannot reach the Ops API ({exc})", err=True)
+        raise typer.Exit(code=EXIT_CONFIG) from exc
+    typer.echo(
+        f"materialized {summary['file_count']} files to {summary['target']} "
+        f"(replaced={summary['replaced']})"
+    )
+    source = summary.get("source", {})
+    if isinstance(source, dict):
+        typer.echo(f"source: {source.get('ref')}@{str(source.get('commit'))[:8]}")
 
 
 @app.command()
