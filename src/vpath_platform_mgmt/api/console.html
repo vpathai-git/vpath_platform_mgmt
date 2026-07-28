@@ -41,6 +41,15 @@ tr:last-child td{border-bottom:none}
 .chip{font-family:var(--mono);font-size:11px;padding:2px 8px;white-space:nowrap}
 .ok{color:var(--good);background:var(--goods)}.run{color:var(--acc);background:var(--accs)}
 .q{color:var(--muted);background:var(--s2)}.err{color:var(--bad);background:var(--bads)}
+.full{grid-column:1/-1}
+.apps{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:10px}
+.app{border:1px solid var(--line);background:var(--surface);padding:10px 12px;
+cursor:pointer;min-width:0}
+.app:hover{border-color:var(--acc);background:var(--accs)}
+.app .t{font-weight:600;font-size:13.5px;display:flex;gap:6px;align-items:baseline}
+.app .d{color:var(--muted);font-size:12px;margin-top:3px}
+.app .m{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:6px;
+display:flex;gap:8px;flex-wrap:wrap}
 .sim-chip{color:var(--warn);background:var(--warns)}
 .real-chip{color:var(--bad);background:var(--bads)}
 .mono{font-family:var(--mono);font-size:12px}.dim{color:var(--muted)}
@@ -80,6 +89,11 @@ li:last-child{border-bottom:none}
     <div id="msg" aria-live="polite"></div>
     <table id="jobs"></table>
   </section>
+  <section class="full">
+    <h2>Applications</h2>
+    <div id="appcount" class="dim" style="font-size:12.5px">loading…</div>
+    <div class="apps" id="apps"></div>
+  </section>
   <section>
     <h2>Platform health</h2>
     <div id="healthline" class="dim">no health run yet</div>
@@ -111,6 +125,41 @@ function reinstall() {
   if (c !== null) post({verb: "reinstall", app: "server", confirm: c || ""});
 }
 function fmt(ts) { return new Date(ts * 1000).toLocaleTimeString(); }
+function openApp(a) {
+  if (a.url) { window.open(a.url, "_blank", "noopener"); }
+  else { $("msg").textContent =
+    "no platform URL configured (set VPATH_MGMT_PLATFORM_URL) — cannot open " + a.name; }
+}
+function renderApps(d) {
+  const apps = d.apps || [];
+  $("appcount").textContent = apps.length
+    ? apps.length + " application(s) — click to open" +
+      (d.platform_url ? " on " + d.platform_url : " (no platform URL configured)")
+    : "no applications found";
+  $("apps").innerHTML = "";
+  apps.forEach(a => {
+    const el = document.createElement("div");
+    el.className = "app";
+    el.tabIndex = 0;
+    el.title = a.url || "no platform URL configured";
+    el.innerHTML =
+      `<div class="t">${a.title}</div>` +
+      `<div class="d">${a.description || "&nbsp;"}</div>` +
+      `<div class="m"><span>${a.name}</span>` +
+      (a.type ? `<span>${a.type}</span>` : "") +
+      (a.base_path ? `<span>${a.base_path}</span>` : "") +
+      (a.port ? `<span>:${a.port}</span>` : "") + `</div>`;
+    el.onclick = () => openApp(a);
+    el.onkeydown = e => { if (e.key === "Enter") openApp(a); };
+    $("apps").appendChild(el);
+  });
+}
+async function loadApps() {
+  try {
+    const r = await fetch("/api/apps", {headers: hdrs()});
+    if (r.ok) renderApps(await r.json());
+  } catch (e) { /* retry on next tick */ }
+}
 async function tick() {
   try {
     const r = await fetch("/api/state", {headers: hdrs()});
@@ -118,6 +167,7 @@ async function tick() {
   } catch (e) { /* server restarting; keep polling */ }
   setTimeout(tick, 1000);
 }
+loadApps();
 function render(s) {
   const eng = $("engine");
   eng.textContent = s.engine === "simulated"

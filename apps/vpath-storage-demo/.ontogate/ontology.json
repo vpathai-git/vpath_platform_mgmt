@@ -1,0 +1,174 @@
+{
+  "model": {
+    "name": "vpath_storage_demo_spine3",
+    "layer": "app",
+    "version": "0.1.0",
+    "extension_procedure": "ontogate_canonical_cycle",
+    "method_version": "0.10.44",
+    "generated_from": "spine.yaml",
+    "source_sha256": "0580077fcff93432e94cbb74b4bb4e23210fcaf1d3d5310da4ca828eb237892b",
+    "generated_with": "0.10.44"
+  },
+  "contracts": {
+    "C-auth-delegated": "{face: given, channel: sdk}",
+    "C-zero-header": "{face: given, channel: sdk}",
+    "C-tokens-only": "{face: given, channel: sdk}",
+    "C-proxy-via-sdk": "{face: given, channel: sdk}",
+    "C-resource-reader-via-sdk": "{face: given, channel: sdk}",
+    "C-health-via-sdk": "{face: given, channel: sdk}",
+    "C-version-via-sdk": "{face: given, channel: sdk}",
+    "C-error-boundary-via-sdk": "{face: given, channel: sdk}",
+    "C-config-fail-fast": "{face: given, channel: sdk}",
+    "C-authz-via-sdk": "{face: given, channel: sdk}",
+    "C-no-override-generated-k8s": "{face: given, channel: manifest}",
+    "C-no-handrolled-ingress": "{face: given, channel: manifest}",
+    "C-no-handbuilt-dapr-url": "{face: given, channel: manifest}",
+    "C-no-handbuilt-health-probe": "{face: given, channel: manifest}",
+    "C-no-bespoke-secret-mount": "{face: given, channel: manifest}",
+    "C-no-bespoke-tls-mount": "{face: given, channel: manifest}",
+    "C-no-hardcoded-service-dns": "{face: given, channel: manifest}",
+    "C-dual-target": "{face: given, channel: na}",
+    "C-fail-fast": "{face: given, channel: na}",
+    "C-fill-backend": "{face: fill, channel: na}",
+    "C-fill-frontend": "{face: fill, channel: na}",
+    "C-fill-manifest": "{face: fill, channel: na}",
+    "C-need-resource-requirements": "{face: need, channel: manifest}",
+    "C-need-auth-groups": "{face: need, channel: manifest}",
+    "C-need-dapr-dependson": "{face: need, channel: manifest}",
+    "C-need-app-storage": "{face: need, channel: manifest}",
+    "C-need-workflow": "{face: need, channel: manifest}",
+    "C-given-agent-factory": "{face: given, channel: sdk}",
+    "C-given-workflow-hooks": "{face: given, channel: sdk}",
+    "C-given-storage-hooks": "{face: given, channel: sdk}",
+    "C-contract-resource-json": "{face: given, channel: sdk}",
+    "C-need-agent-provider": "{face: need, channel: manifest}",
+    "C-need-shared-folders": "{face: need, channel: manifest}",
+    "C-need-deploy": "{face: need, channel: manifest}"
+  },
+  "fill": {
+    "backend": {
+      "realized": "false"
+    },
+    "frontend": {
+      "realized": "true"
+    },
+    "manifest": {
+      "realized": "true"
+    }
+  },
+  "need": {
+    "resource_requirements": {
+      "declared": "false"
+    },
+    "workflow": {
+      "declared": "false"
+    },
+    "dapr": {
+      "declared": "true"
+    },
+    "volumes": {
+      "declared": "true"
+    },
+    "auth_groups": {
+      "declared": "false"
+    },
+    "app_storage": {
+      "declared": "true"
+    }
+  },
+  "unguarded": {},
+  "requirement_seam": {
+    "status": "n/a",
+    "decision": "../../foundation/_vendor/VENDOR_PROVENANCE.md :: SEAM wired (2026-07-20)"
+  },
+  "entities": {
+    "src.app.api.healthz.route": {
+      "kind": "frontend",
+      "path": "src/app/api/healthz/route.ts",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "src.app.api.platform.[...path].route": {
+      "kind": "frontend",
+      "path": "src/app/api/platform/[...path]/route.ts",
+      "deps": [
+        "src.pages.api.auth.[...nextauth]"
+      ],
+      "resolution": "mapped"
+    },
+    "src.app.api.version.route": {
+      "kind": "frontend",
+      "path": "src/app/api/version/route.ts",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "src.app.layout": {
+      "kind": "frontend",
+      "path": "src/app/layout.tsx",
+      "deps": [
+        "src.components.providers"
+      ],
+      "resolution": "mapped"
+    },
+    "src.app.page": {
+      "kind": "frontend",
+      "path": "src/app/page.tsx",
+      "deps": [
+        "src.components.storage-demo"
+      ],
+      "resolution": "mapped"
+    },
+    "src.components.providers": {
+      "kind": "frontend",
+      "path": "src/components/providers.tsx",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "src.components.storage-demo": {
+      "kind": "frontend",
+      "path": "src/components/storage-demo.tsx",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "src.pages.api.auth.[...nextauth]": {
+      "kind": "frontend",
+      "path": "src/pages/api/auth/[...nextauth].ts",
+      "resolution": "mapped",
+      "deps": []
+    }
+  },
+  "concept_pins": {
+    "src.app.api.healthz.route": {
+      "sha256": "1d922a38aed150abbe290b50ab224653e8961c8b9542bd8a0504df7af14c9415",
+      "approved": "2026-07-22"
+    },
+    "src.app.api.platform.[...path].route": {
+      "sha256": "ec87322f7f16107e14b39734430e50a9bc2d6748c632fdada78d0637b70bf2f4",
+      "approved": "2026-07-22"
+    },
+    "src.app.api.version.route": {
+      "sha256": "0e41fc6d261c1a199bef6d6945ac01ad26cfffe0c375952cd9515436d6706b19",
+      "approved": "2026-07-22"
+    },
+    "src.app.layout": {
+      "sha256": "4a063a0ccb346d688612ea6536a7dd6357517d8c36424454aa9465fcebd755b6",
+      "approved": "2026-07-22"
+    },
+    "src.app.page": {
+      "sha256": "7e294209306ea039c5f954f679ed40cd5fa283bc878010025c6273e99c8c0597",
+      "approved": "2026-07-22"
+    },
+    "src.components.providers": {
+      "sha256": "f9129046ea5fe7aa405ff20718adb22c070c30a43196beef89a19c6f1f6b51b6",
+      "approved": "2026-07-22"
+    },
+    "src.components.storage-demo": {
+      "sha256": "8423a927b9f89b5595b74923f2ce6d099504a54953aed793051be8457b1bf0da",
+      "approved": "2026-07-22"
+    },
+    "src.pages.api.auth.[...nextauth]": {
+      "sha256": "ae263062eb612c1a0f537547cbc784f3adcc0036a202321434c91b9cbb53faf3",
+      "approved": "2026-07-22"
+    }
+  }
+}

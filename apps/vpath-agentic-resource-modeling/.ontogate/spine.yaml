@@ -1,0 +1,117 @@
+# vpath-agentic-resource-modeling — Spine-3 catalog: the app filling the
+# app-hull foundation, with the NEED face filled FOR REAL.
+#
+# SOURCE OF TRUTH (LinkML-shaped data). ontology.json is GENERATED from this file
+# by regenerate.py (stamps generated_from / source_sha256 / generated_with) —
+# never edit ontology.json by hand; a stale copy fails gatelib M10 (exit 2).
+#
+# The gate (check.py) composes THREE layers:
+#   (1) the kit's vendored gatelib  — freshness / story_lint / verdict,
+#   (2) the foundation audit (kit foundation/audit) run against THIS app repo,
+#   (3) app-specific stories over this catalog (positive per contract + negative
+#       red-drill mutations) PLUS an app-strict NEED check: because this app
+#       DECLARES an agent-provider resource, the manifest MUST carry
+#       resourceRequirements (the foundation audit is lenient on NEED by design;
+#       the per-app Spine-3 is what makes the declared need binding).
+model:
+  name: vpath_agentic_resource_modeling_spine3
+  layer: app
+  version: 1.0.0
+  extension_procedure: ontogate_canonical_cycle
+  method_version: 0.10.44
+  # The app repo this gate audits (relative to THIS .ontogate dir). READ-ONLY.
+  app_repo: ..
+
+# === FILL — which of the three sockets THIS app realizes =====================
+# This app realizes ALL THREE: a Python FastAPI domain API (the cognition
+# modeler, surfaced via the Next proxy route), a product UI (the editor), and
+# the manifest.
+fill:
+  backend:
+    realized: true    # api/src/cognition (FastAPI) + src/app/api/modeling proxy
+  frontend:
+    realized: true    # src/app/page.tsx (the editor)
+  manifest:
+    realized: true    # vpath-app.yaml (kind: VpathApp)
+
+# === NEED — the needs this app DECLARES in its manifest ======================
+# THE DEFINING TRAIT of this app (vs vpath-fortune-teller): it DECLARES an
+# agent-provider resource, so the resource-requirements NEED is REAL — the
+# platform provisions/injects it. C-need-resource-requirements is therefore
+# exercised both ways: positive (the declaration is present) and a negative
+# red-drill (delete resourceRequirements -> the contract goes RED via the
+# app-strict NEED check). The shared LLM key is platform-managed (envfrom); the
+# app NEVER reads a K8s secret name (C-no-bespoke-secret-mount, kept negative).
+need:
+  resource_requirements:
+    declared: true    # agent-provider — the NEED face filled FOR REAL
+  workflow:
+    declared: false   # no spec.workflow (not a pipeline app)
+  dapr:
+    declared: true    # spec.dapr (appId/appPort)
+  volumes:
+    declared: true    # spec.volumes (mkcert-ca, tls-certs)
+  auth_groups:
+    declared: false   # only oidcClient; no requireGroups (need unused)
+  app_storage:
+    declared: false   # no appStorage block (the volumes are TLS, not storage)
+
+# === SEAM — the M13 requirement-seam declaration (0.10.27 / 0.10.30) =========
+# FORCED by M13: a book either carries a gated requirements->catalog coverage
+# map (`status: covered`), or the absence of an external requirement set is a
+# DATED operator decision on record (`status: n/a`). Silent omission reds the
+# SEAM row — that is what the declaration exists to catch.
+#
+# This book declares `n/a`: it gates contract-composition of app stories against
+# the LOCKED foundation hull (v1.2.0), and the requirements live UPSTREAM in that
+# hull contract (normative parity home: platform app_model_spine H1-H9), not as a
+# per-book requirement catalog — this book declares no catalog, the same
+# structural fact that leaves MAP/MAPREF/AXIS input-less. Revisit if this book
+# ever grows its own requirement catalog.
+#
+# The pointer is `<file> :: <anchor>`, file-half relative to the APP ROOT (this
+# .ontogate dir's parent). Quoted because ` :: ` is not expressible as a plain
+# YAML scalar; regenerate.py unquotes it on the way into ontology.json.
+requirement_seam:
+  status: n/a
+  decision: "../../foundation/_vendor/VENDOR_PROVENANCE.md :: SEAM wired (2026-07-20)"
+
+# === CONTRACTS — the 34 foundation contracts the gate runs ===================
+# The TEXTS live in foundation/spine.yaml; this catalog pins the id set so a
+# contract added/removed in the foundation without updating this app is caught
+# (count mismatch -> red).
+contracts:
+  C-auth-delegated: {face: given, channel: sdk}
+  C-zero-header: {face: given, channel: sdk}
+  C-tokens-only: {face: given, channel: sdk}
+  C-proxy-via-sdk: {face: given, channel: sdk}
+  C-resource-reader-via-sdk: {face: given, channel: sdk}
+  C-health-via-sdk: {face: given, channel: sdk}
+  C-version-via-sdk: {face: given, channel: sdk}
+  C-error-boundary-via-sdk: {face: given, channel: sdk}
+  C-config-fail-fast: {face: given, channel: sdk}
+  C-authz-via-sdk: {face: given, channel: sdk}
+  C-no-override-generated-k8s: {face: given, channel: manifest}
+  C-no-handrolled-ingress: {face: given, channel: manifest}
+  C-no-handbuilt-dapr-url: {face: given, channel: manifest}
+  C-no-handbuilt-health-probe: {face: given, channel: manifest}
+  C-no-bespoke-secret-mount: {face: given, channel: manifest}
+  C-no-bespoke-tls-mount: {face: given, channel: manifest}
+  C-no-hardcoded-service-dns: {face: given, channel: manifest}
+  C-dual-target: {face: given, channel: na}
+  C-fail-fast: {face: given, channel: na}
+  C-fill-backend: {face: fill, channel: na}
+  C-fill-frontend: {face: fill, channel: na}
+  C-fill-manifest: {face: fill, channel: na}
+  C-need-resource-requirements: {face: need, channel: manifest}
+  C-need-auth-groups: {face: need, channel: manifest}
+  C-need-dapr-dependson: {face: need, channel: manifest}
+  C-need-app-storage: {face: need, channel: manifest}
+  C-need-workflow: {face: need, channel: manifest}
+  C-given-agent-factory: {face: given, channel: sdk}
+  C-given-workflow-hooks: {face: given, channel: sdk}
+  C-given-storage-hooks: {face: given, channel: sdk}
+  C-contract-resource-json: {face: given, channel: sdk}
+  C-need-agent-provider: {face: need, channel: manifest}
+  C-need-shared-folders: {face: need, channel: manifest}
+  C-need-deploy: {face: need, channel: manifest}

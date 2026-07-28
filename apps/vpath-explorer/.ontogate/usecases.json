@@ -1,0 +1,746 @@
+{
+  "step_vocabulary": {
+    "audit": {
+      "type": "enum",
+      "values": [
+        "pass",
+        "fail"
+      ],
+      "description": "the foundation audit verdict this story asserts for `contract` on the (real or mutated) app repo"
+    },
+    "contract": {
+      "type": "string",
+      "description": "the foundation contract id this story exercises"
+    }
+  },
+  "story_vocabulary": {
+    "mutation": {
+      "type": "string",
+      "description": "a NEGATIVE story's deliberate break, applied by check.py to a scratch COPY of the app repo; the named contract must go RED for its declared reason, then the copy is discarded"
+    }
+  },
+  "stories": [
+    {
+      "id": "P01",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-auth-delegated holds on the real app",
+      "refs": [
+        "C-auth-delegated"
+      ],
+      "steps": [
+        {
+          "contract": "C-auth-delegated",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P02",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-authz-via-sdk holds on the real app",
+      "refs": [
+        "C-authz-via-sdk"
+      ],
+      "steps": [
+        {
+          "contract": "C-authz-via-sdk",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P03",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-config-fail-fast holds on the real app",
+      "refs": [
+        "C-config-fail-fast"
+      ],
+      "steps": [
+        {
+          "contract": "C-config-fail-fast",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P04",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-contract-resource-json holds on the real app",
+      "refs": [
+        "C-contract-resource-json"
+      ],
+      "steps": [
+        {
+          "contract": "C-contract-resource-json",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P05",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-dual-target holds on the real app",
+      "refs": [
+        "C-dual-target"
+      ],
+      "steps": [
+        {
+          "contract": "C-dual-target",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P06",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-error-boundary-via-sdk holds on the real app",
+      "refs": [
+        "C-error-boundary-via-sdk"
+      ],
+      "steps": [
+        {
+          "contract": "C-error-boundary-via-sdk",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P07",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-fail-fast holds on the real app",
+      "refs": [
+        "C-fail-fast"
+      ],
+      "steps": [
+        {
+          "contract": "C-fail-fast",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P08",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-fill-backend holds on the real app",
+      "refs": [
+        "C-fill-backend"
+      ],
+      "steps": [
+        {
+          "contract": "C-fill-backend",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P09",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-fill-frontend holds on the real app",
+      "refs": [
+        "C-fill-frontend"
+      ],
+      "steps": [
+        {
+          "contract": "C-fill-frontend",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P10",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-fill-manifest holds on the real app",
+      "refs": [
+        "C-fill-manifest"
+      ],
+      "steps": [
+        {
+          "contract": "C-fill-manifest",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P11",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-given-agent-factory holds on the real app",
+      "refs": [
+        "C-given-agent-factory"
+      ],
+      "steps": [
+        {
+          "contract": "C-given-agent-factory",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P12",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-given-storage-hooks FAILS today \u2014 pinned as_is finding (work it off)",
+      "refs": [
+        "C-given-storage-hooks"
+      ],
+      "steps": [
+        {
+          "contract": "C-given-storage-hooks",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-given-storage-hooks"
+      ]
+    },
+    {
+      "id": "P13",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-given-workflow-hooks holds on the real app",
+      "refs": [
+        "C-given-workflow-hooks"
+      ],
+      "steps": [
+        {
+          "contract": "C-given-workflow-hooks",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P14",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-health-via-sdk holds on the real app",
+      "refs": [
+        "C-health-via-sdk"
+      ],
+      "steps": [
+        {
+          "contract": "C-health-via-sdk",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P15",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-agent-provider holds on the real app",
+      "refs": [
+        "C-need-agent-provider"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-agent-provider",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P16",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-app-storage holds on the real app",
+      "refs": [
+        "C-need-app-storage"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-app-storage",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P17",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-auth-groups holds on the real app",
+      "refs": [
+        "C-need-auth-groups"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-auth-groups",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P18",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-dapr-dependson holds on the real app",
+      "refs": [
+        "C-need-dapr-dependson"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-dapr-dependson",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P19",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-deploy holds on the real app",
+      "refs": [
+        "C-need-deploy"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-deploy",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P20",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-resource-requirements holds on the real app",
+      "refs": [
+        "C-need-resource-requirements"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-resource-requirements",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P21",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-shared-folders holds on the real app",
+      "refs": [
+        "C-need-shared-folders"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-shared-folders",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P22",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-need-workflow holds on the real app",
+      "refs": [
+        "C-need-workflow"
+      ],
+      "steps": [
+        {
+          "contract": "C-need-workflow",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P23",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-bespoke-secret-mount holds on the real app",
+      "refs": [
+        "C-no-bespoke-secret-mount"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-bespoke-secret-mount",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P24",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-bespoke-tls-mount holds on the real app",
+      "refs": [
+        "C-no-bespoke-tls-mount"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-bespoke-tls-mount",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P25",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-handbuilt-dapr-url holds on the real app",
+      "refs": [
+        "C-no-handbuilt-dapr-url"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-handbuilt-dapr-url",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P26",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-handbuilt-health-probe holds on the real app",
+      "refs": [
+        "C-no-handbuilt-health-probe"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-handbuilt-health-probe",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P27",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-handrolled-ingress holds on the real app",
+      "refs": [
+        "C-no-handrolled-ingress"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-handrolled-ingress",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P28",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-hardcoded-service-dns holds on the real app",
+      "refs": [
+        "C-no-hardcoded-service-dns"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-hardcoded-service-dns",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P29",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-no-override-generated-k8s holds on the real app",
+      "refs": [
+        "C-no-override-generated-k8s"
+      ],
+      "steps": [
+        {
+          "contract": "C-no-override-generated-k8s",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P30",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-proxy-via-sdk holds on the real app",
+      "refs": [
+        "C-proxy-via-sdk"
+      ],
+      "steps": [
+        {
+          "contract": "C-proxy-via-sdk",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P31",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-resource-reader-via-sdk holds on the real app",
+      "refs": [
+        "C-resource-reader-via-sdk"
+      ],
+      "steps": [
+        {
+          "contract": "C-resource-reader-via-sdk",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P32",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-tokens-only holds on the real app",
+      "refs": [
+        "C-tokens-only"
+      ],
+      "steps": [
+        {
+          "contract": "C-tokens-only",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P33",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-version-via-sdk holds on the real app",
+      "refs": [
+        "C-version-via-sdk"
+      ],
+      "steps": [
+        {
+          "contract": "C-version-via-sdk",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "P34",
+      "polarity": "positive",
+      "era": "as_is",
+      "title": "C-zero-header holds on the real app",
+      "refs": [
+        "C-zero-header"
+      ],
+      "steps": [
+        {
+          "contract": "C-zero-header",
+          "audit": "pass"
+        }
+      ],
+      "expected_violations": []
+    },
+    {
+      "id": "N01",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "red drill: palette-literal-css must fire C-tokens-only",
+      "refs": [
+        "C-tokens-only"
+      ],
+      "mutation": "palette-literal-css",
+      "steps": [
+        {
+          "contract": "C-tokens-only",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-tokens-only"
+      ]
+    },
+    {
+      "id": "N02",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "red drill: hand-jwt-verify must fire C-auth-delegated",
+      "refs": [
+        "C-auth-delegated"
+      ],
+      "mutation": "hand-jwt-verify",
+      "steps": [
+        {
+          "contract": "C-auth-delegated",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-auth-delegated"
+      ]
+    },
+    {
+      "id": "N03",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "red drill: override-generated-np must fire C-no-override-generated-k8s",
+      "refs": [
+        "C-no-override-generated-k8s"
+      ],
+      "mutation": "override-generated-np",
+      "steps": [
+        {
+          "contract": "C-no-override-generated-k8s",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-no-override-generated-k8s"
+      ]
+    },
+    {
+      "id": "N04",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "red drill: local-navtabs must fire C-zero-header",
+      "refs": [
+        "C-zero-header"
+      ],
+      "mutation": "local-navtabs",
+      "steps": [
+        {
+          "contract": "C-zero-header",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-zero-header"
+      ]
+    },
+    {
+      "id": "N05",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "red drill: soft-default-dns must fire C-no-hardcoded-service-dns",
+      "refs": [
+        "C-no-hardcoded-service-dns"
+      ],
+      "mutation": "soft-default-dns",
+      "steps": [
+        {
+          "contract": "C-no-hardcoded-service-dns",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-no-hardcoded-service-dns"
+      ]
+    },
+    {
+      "id": "N06",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "red drill: delete-manifest must fire C-fill-manifest",
+      "refs": [
+        "C-fill-manifest"
+      ],
+      "mutation": "delete-manifest",
+      "steps": [
+        {
+          "contract": "C-fill-manifest",
+          "audit": "fail"
+        }
+      ],
+      "expected_violations": [
+        "C-fill-manifest"
+      ]
+    }
+  ],
+  "concept_stories": [
+    {
+      "id": "K01",
+      "polarity": "positive",
+      "era": "to_be",
+      "status": "to_be",
+      "title": "the expression backlog lands (inventory -> expressed concepts)",
+      "proof": "tests/test_k01_expression_backlog.py",
+      "expected_violations": []
+    },
+    {
+      "id": "KN1",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "an entity name detached from the book ONTOLOGY.md",
+      "mutation": "detach-ontology-name",
+      "expected_violations": [
+        "R-A",
+        "R-C"
+      ]
+    },
+    {
+      "id": "KN2",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "a source file lands outside the catalog",
+      "mutation": "rogue-source",
+      "expected_violations": [
+        "R-B"
+      ]
+    },
+    {
+      "id": "KN3",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "an entity loses its concept doc",
+      "mutation": "delete-concept-doc",
+      "expected_violations": [
+        "R-C"
+      ]
+    },
+    {
+      "id": "KN4",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "a pin freezing a reverse_draft hypothesis",
+      "mutation": "break-permission-lock",
+      "expected_violations": [
+        "R-D"
+      ]
+    },
+    {
+      "id": "KN5",
+      "polarity": "negative",
+      "era": "forbidden",
+      "title": "the backlog twin forgets its story id",
+      "mutation": "detach-story-proof",
+      "expected_violations": [
+        "R-E"
+      ]
+    }
+  ]
+}
