@@ -1,0 +1,16 @@
+=== restore exactly two tracked files, then prove the freeze read-only  2026-07-28T00:24:04Z ===
+--- before ---
+ D platform_infra/docker/workflow-base/vendor/vpath_agents/src/vpath_workflows/processors/generic_json_etl/.claude/settings.local.json
+ D platform_infra/docker/workflow-base/vendor/vpath_agents/src/vpath_workflows/processors/polarion_publisher/.claude/settings.local.json
+restored: generic_json_etl/.claude/settings.local.json
+restored: polarion_publisher/.claude/settings.local.json
+--- after: the vendor path must be clean, and ONLY these two changed ---
+vendor-path dirty entries now: 0
+byte-identical to the checkout?
+  generic_json_etl: identical
+  polarion_publisher: identical
+--- the freeze check, READ-ONLY (no --write) ---
+script: /workspace/platform_infra/docker/workflow-base/fork-provenance.sh
+[ok] fork provenance: vpath_workflows — platform-owned, no upstream; content verified over 962 files (8f6f8622db96…)
+FREEZE_CHECK_RC=0
+===EXIT=0===

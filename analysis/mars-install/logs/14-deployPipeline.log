@@ -1,0 +1,205 @@
+=== 14-deployPipeline  start 2026-07-27T23:47:01Z ===
+--- resolved pipeline line ---
+ssh -o BatchMode=yes -o ConnectTimeout=12 -i /Users/drnorden/.ssh/id_ed25519 nuc@mars12 cd /home/nuc/vpath_server_dev && ./gradlew -Penv=nuc deployPipeline -PvpathBuildId=1a2c51dc7891
+--- running ---
+[ok] ✓ nuc reachable over SSH (build host == deploy host == the NUC) — no VM to create
+[info] Syncing FULL TREE to NUC (rsync, from-within runner channel — BP11)...
+[ok] Workspace synced to NUC
+[info] Syncing chat-api vendored vpath_agents (with .git provenance) to NUC...
+[ok] vendored vpath_agents synced (provenance intact)
+[info] Syncing vpath_agents vendor source to NUC...
+[ok] vpath_agents synced
+[info] Cloning vpath_orchestrator for workflow-base vendor...
+[warn] Could not clone vpath_orchestrator — workflow-base build may fail
+[info] Cloning vpath_weave for workflow-base vendor...
+[warn] Could not clone vpath_weave — workflow-base build may fail
+[ok] Workspace ownership normalized to nuc
+[ok] Full-tree identity verified: /workspace is a complete git checkout at 1a2c51dc7891 (8821 tracked files, 474 extra/*.py match host)
+
+==> Oracle probe 1/4: base-image CVE posture (trivy image, graph-derived)
+
+==> Oracle probe 2/4: dependency-manifest sweep (trivy fs, full sweep)
+[info]   swept 25 manifests (full sweep — no sampling)
+
+==> Oracle probe 3/4: repo guards (pytest contracts)
+
+==> Oracle probe 4/4: digest-vs-cluster consistency
+[ok] ORACLE GREEN — no train-killing defect detectable from here.
+[info] nuc mode: skipping external-route pinning + vpath-routes.service — never mutate a host we don't own (NUC is online)
+[ok] ✓ Deploy VM already has K3s running
+[info] Provisioning K3s kubeconfig for the NUC install user...
+[ok] ✓ NUC install-user kubeconfig provisioned and bare kubectl verified
+[info] Seeding CoreDNS NodeHosts with 4 external hostname mappings...
+[ok] ✓ CoreDNS NodeHosts patched (4 entries)
+[info] ✓ All app namespaces ensured
+[info] Deploying app-catalog ConfigMap...
+[info] ✓ app-catalog ConfigMap deployed
+[info] Generating self-signed registry TLS certificate in build VM...
+..+...+.+...+..+...............+....+.....+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*........+..........+...+..+...+.+......+......+..+.......+........+......+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*.+.....+.........+...+...+.+.....+....+.........+....................+...+..........+...+............+..+................+..............................+..+...+....+..+...+.+...............+..............+...+.........+.+...+...........+...+...+...+.+..............+.+...........+.........+.............+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+..+.............+........................+.....+.+.........+.....+......+.+......+........+.+...+..+......+...+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*......+.................+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++*..........+......+......+.....+.......+..+...............+...+......+.......+.........+.........+..+.........+...+.......+...+..+.............+........+...+.+...+......+............+.....+.......+...+........+.+..........................+.............+.........+.....+......+.+.....+.+..............+...............+...+......+.+.........+.....+.........+.+.........+..+......+....+......+...+..............+......+......+.............+...+.............................+....+...........+...+...+.......+...........+...............+.........+......+.+.....+.+........+.+...........+.......+..+.+.........+.....+..........+........+...+...+.......+..+.+.....+...............+.+.....+...............+....+..+.............+......+.....+......+.......+............+...+............+.....+......+...+....+........+.........+....+...............+.........+.....+...+....+......+.....+..........+..+.......+........+.+.........+.....+..........+..+.........+..........+..+....+...+..+..........+.........+..+...+.+...+..................+..+.+............+..+...+....+.....+....+.........+..+...+.......+.....+....+.....+.........+.+..............+......+............+.......+..+......+....+.....+.........+............+.............+.........+......+......+.............................................+...+...+........+....+..+...+...............+...+..........+............+..+.+.............................+.+........+....+...+..............+...+..............................+.+...........+.........+.+.....+.........+.........+......+.+...+...+.....+..........+...+...........+...+.............+...+.........+...+...+.....+......+..........+...............+...+..+......+.......+.....+.......+.....+......+...+.........+.+..+...+..........+.....+.......+........+.+...+...............+..................+.....+.........+......+..........+........+.+...+..+...+.....................+.+...........+.......+.................+...+..........+......+......+......+..+..........+............+........+.............+..+..................+.........+......+....+...+...............+...+..+......+..........+...........+...+......+......+......+...+....+......+..+...+..........+......+...+..+....+......+...............+.........+..............+.......+......+........+.+.....................+..+..........+......+.........+......+.....+.+....................+...+......+.+......+.....+...+..........+..+.......+......+.................+............+.+..+....+........+.......+......+...+.........+..+.+..+.......+...+...+........+....+..+...+.+....................+.+...+...........+......+....+......+.............................+.+...+...............+.....+.......+...........+..........+...+...........+..................+..........+..+.........+.+.....+....+.....+.......+...+..+....+........+.+..+.............+.....+.+...+..+...+............+...+...+....+......+..+.............+.....+...+....+........+.............+..+........................+.+...+...............+..+.......+...............+........+.............+..+.........+...+...+....+....................+.+........+......+.+...+...........+...+......+....+..+.+...+.........+...+.........+.........+......+......+........................+..................+...............+......+.....+....+...+.....+....+...+......+..+.............+.....+.......+...+.....+.......+.........+.....+..........+......+........+......+....+......+........+..........+...............+..................+.....+...+.+.....+......+...............+.......+..+..................+......+.......+..+.......+...+...........+.+.....+.....................+....+......+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+-----
+[info] ✓ Registry certs generated in build VM
+[info] Generating self-signed ingress TLS certificate (host: mars12)...
+[info] ✓ Ingress certs generated (host: mars12)
+[info] Verifying airgap...
+[info] nuc mode: skipping airgap verification — the NUC is intentionally online (not an airgapped target)
+[info] Setting up registry...
+[info] Ensuring registry:2 image is available...
+[info] Pulling registry:2 on build-vm and loading via pipe...
+[ok] ✓ registry:2 loaded into containerd
+scp: stat local "platform_infra/kubernetes/registry/certs/registry.crt": No such file or directory
+Task '${name}' failed (exit 255) — no stderr was captured.
+    (If this command redirects its own stderr to a file, dump that file on failure at the task site.)
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':setupRegistry'.
+> Task '${name}' command finished with non-zero exit value 255 (see captured stderr above)
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 49s
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors
+> Task :buildSrc:compileKotlin UP-TO-DATE
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:pluginDescriptors UP-TO-DATE
+> Task :buildSrc:processResources NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+> Task :buildSrc:jar UP-TO-DATE
+
+> Task :checkHostResources
+Host available: 60 GB (free=60 + inactive=0; threshold: 8 GB)
+Swap used: 0 MB (threshold: 500 MB)
+Disk free at /home/nuc/vpath_server_dev: 425 GB (threshold: 40 GB)
+OK — host has resources for a full build.
+
+> Task :bootstrapVMs
+
+> Task :syncWorkspace
+syncWorkspace: sentinel registered at infra_build_nuc/sync_sentinels/syncworkspace-17534-1785196023.sentinel
+OK: vendor_src verified at pinned sha 66b0634259b2ca81eec208d77659d666f7ec57d2 (v4.5.1)
+syncWorkspace: sentinel self-test passed
+
+> Task :trainOracle
+
+==== TRAIN ORACLE SUMMARY ====
+  base-images: NOT CHECKABLE (0 of 10 graph images present)
+  lockfiles: OK (25 manifests swept, 0 failing)
+  repo-guards: OK (python CVE floors + trivyignore hygiene + plaintext-http mediation/kyverno simulation)
+  digest-drift: NOT CHECKABLE (no digest dir)
+-- coverage notes (NOT checkable from here — the train may still hit these) --
+  ~ base-images: 10 graph image(s) absent on the build host — their rebuilt posture is only provable by the train (fresh box?)
+  ~ digest-drift: infra_build_nuc/images absent — nothing transferred yet; comparison n/a (fresh box?)
+
+> Task :prepareK3sBundle UP-TO-DATE
+
+> Task :provisionDeployVM
+NAME     STATUS   ROLES                  AGE   VERSION
+mars12   Ready    control-plane,master   30s   v1.31.6+k3s1
+configmap/coredns patched (no change)
+
+> Task :ensureAppNamespaces
+Ensuring 14 namespaces: vpath-agent-chat, vpath-apps-v2, vpath-document-converter, vpath-explorer, vpath-iam, vpath-jira-demo, vpath-knowledge-chat, vpath-kp-admin, vpath-legacy-upload, vpath-llm-gateway, vpath-monitor, vpath-platform, vpath-resource-admin, vpath-showcase
+namespace/vpath-agent-chat created
+namespace/vpath-agent-chat labeled
+namespace/vpath-apps-v2 created
+namespace/vpath-apps-v2 labeled
+namespace/vpath-document-converter created
+namespace/vpath-document-converter labeled
+namespace/vpath-explorer created
+namespace/vpath-explorer labeled
+namespace/vpath-iam created
+namespace/vpath-iam labeled
+namespace/vpath-jira-demo created
+namespace/vpath-jira-demo labeled
+namespace/vpath-knowledge-chat created
+namespace/vpath-knowledge-chat labeled
+namespace/vpath-kp-admin created
+namespace/vpath-kp-admin labeled
+namespace/vpath-legacy-upload created
+namespace/vpath-legacy-upload labeled
+namespace/vpath-llm-gateway created
+namespace/vpath-llm-gateway labeled
+namespace/vpath-monitor created
+namespace/vpath-monitor labeled
+namespace/vpath-platform created
+namespace/vpath-platform labeled
+namespace/vpath-resource-admin created
+namespace/vpath-resource-admin labeled
+namespace/vpath-showcase created
+namespace/vpath-showcase labeled
+
+> Task :generateAppCatalog
+Generated app-catalog.json: 10 sidebar apps
+Generated app-identity.json: 11 apps with spec.ui
+SDK identity defaults unchanged (11 apps)
+
+> Task :deployAppCatalog
+configmap/app-catalog created
+
+> Task :provisionBuildVM UP-TO-DATE
+
+> Task :generateCerts
+
+> Task :verifyAirgap
+
+> Task :setupRegistry
+2: Pulling from library/registry
+8e82f80af0de: Pulling fs layer
+3493bf46cdec: Pulling fs layer
+6d464ea18732: Pulling fs layer
+44cf07d57ee4: Pulling fs layer
+bbbdd6c6894b: Pulling fs layer
+6d464ea18732: Download complete
+3493bf46cdec: Download complete
+8e82f80af0de: Download complete
+bbbdd6c6894b: Download complete
+b537bf6d1146: Download complete
+32a76c78501f: Download complete
+44cf07d57ee4: Download complete
+bbbdd6c6894b: Pull complete
+44cf07d57ee4: Pull complete
+8e82f80af0de: Pull complete
+6d464ea18732: Pull complete
+3493bf46cdec: Pull complete
+Digest: sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+Status: Downloaded newer image for registry:2
+docker.io/library/registry:2
+docker.io/library/registry:2            	saved	
+application/vnd.oci.image.index.v1+json sha256:a3d8aaa63ed8681a604f1dea0aa03f100d5895b6a58ace528858a7b332415373
+Importing	elapsed: 0.4 s	total:   0.0 B	(0.0 B/s)	
+namespace/registry created
+persistentvolumeclaim/registry-data created
+secret/registry-tls created
+deployment.apps/registry created
+service/registry created
+secret "registry-tls" deleted
+
+> Task :setupRegistry FAILED
+
+┌─────────────────────────────────────────────────────────────┐
+│  Task Timing Summary                                        │
+├─────────────────────────────────────────────────────────────┤
+│    20.8s   43%  trainOracle                                  │
+│     9.9s   20%  ensureAppNamespaces                          │
+│     7.0s   14%  setupRegistry                                │
+│     4.5s    9%  generateCerts                                │
+│     4.2s    9%  syncWorkspace                                │
+│     1.1s    2%  provisionDeployVM                            │
+│     0.7s    1%  deployAppCatalog                             │
+│     0.5s    1%  bootstrapVMs                                 │
+│     0.1s    0%  generateAppCatalog                           │
+│     0.0s    0%  verifyAirgap                                 │
+│     0.0s    0%  checkHostResources                           │
+├─────────────────────────────────────────────────────────────┤
+│  Total: 48.8s (11 tasks executed, 2 skipped)                │
+└─────────────────────────────────────────────────────────────┘
+17 actionable tasks: 12 executed, 5 up-to-date
+===EXIT=1===
+=== 14-deployPipeline  end 2026-07-27T23:47:51Z ===

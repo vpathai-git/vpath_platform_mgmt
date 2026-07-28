@@ -1,0 +1,120 @@
+=== deployPipeline from /workspace (D1)  start 2026-07-27T23:53:03Z ===
+--- resolved pipeline line ---
+ssh -o BatchMode=yes -o ConnectTimeout=12 -i /Users/drnorden/.ssh/id_ed25519 nuc@mars12 cd /workspace && ./gradlew -Penv=nuc deployPipeline -PvpathBuildId=1a2c51dc7891
+--- running ---
+[ok] ✓ nuc reachable over SSH (build host == deploy host == the NUC) — no VM to create
+[info] Syncing FULL TREE to NUC (rsync, from-within runner channel — BP11)...
+[ok] Workspace synced to NUC
+[info] Syncing chat-api vendored vpath_agents (with .git provenance) to NUC...
+[ok] vendored vpath_agents synced (provenance intact)
+[info] Syncing vpath_agents vendor source to NUC...
+[ok] vpath_agents synced
+[info] Cloning vpath_orchestrator for workflow-base vendor...
+[warn] Could not clone vpath_orchestrator — workflow-base build may fail
+[info] Cloning vpath_weave for workflow-base vendor...
+[warn] Could not clone vpath_weave — workflow-base build may fail
+[ok] Workspace ownership normalized to nuc
+[ok] Full-tree identity verified: /workspace is a complete git checkout at 1a2c51dc7891 (8821 tracked files, 474 extra/*.py match host)
+
+==> Oracle probe 1/4: base-image CVE posture (trivy image, graph-derived)
+
+==> Oracle probe 2/4: dependency-manifest sweep (trivy fs, full sweep)
+[info]   swept 25 manifests (full sweep — no sampling)
+
+==> Oracle probe 3/4: repo guards (pytest contracts)
+
+==> Oracle probe 4/4: digest-vs-cluster consistency
+
+FAILURE: Build failed with an exception.
+
+* What went wrong:
+Execution failed for task ':trainOracle'.
+> Process 'command 'bash'' finished with non-zero exit value 1
+
+* Try:
+> Run with --stacktrace option to get the stack trace.
+> Run with --info or --debug option to get more log output.
+> Run with --scan to get full insights.
+> Get more help at https://help.gradle.org.
+
+BUILD FAILED in 33s
+> Task :buildSrc:checkKotlinGradlePluginConfigurationErrors
+> Task :buildSrc:pluginDescriptors
+> Task :buildSrc:processResources NO-SOURCE
+
+> Task :buildSrc:compileKotlin
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/TaskTimingListener.kt:4:33 'TaskExecutionListener' is deprecated. Deprecated in Java
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/TaskTimingListener.kt:43:5 'TaskExecutionListener' is deprecated. Deprecated in Java
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/manifest/ChartValuesGenerator.kt:296:47 Unchecked cast: Any? to Map<String, Any>
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/manifest/ChartValuesGenerator.kt:297:54 Unchecked cast: Any? to Map<String, Any>
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/manifest/K8sManifestGenerator.kt:1020:76 No cast needed
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/manifest/K8sManifestGenerator.kt:1094:76 No cast needed
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/tasks/GenerateStorageConfigTask.kt:60:54 Unnecessary non-null assertion (!!) on a non-null receiver of type CapabilitiesSpec
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/tasks/GenerateStorageConfigTask.kt:60:90 Unnecessary non-null assertion (!!) on a non-null receiver of type CapabilitiesSpec
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/tasks/PhaseGate.kt:110:39 'all(): Map<String, String>' is deprecated. Use typed accessors from ConfigSchema.kt — they match schema types and are covered by test_vpath_config_covers_schema.py.
+w: file:///workspace/buildSrc/src/main/kotlin/vpath/tasks/VerifyInstallationCharterTask.kt:125:31 Parameter 'budgetSec' is never used
+
+> Task :buildSrc:compileJava NO-SOURCE
+> Task :buildSrc:compileGroovy NO-SOURCE
+> Task :buildSrc:classes UP-TO-DATE
+
+> Task :buildSrc:jar
+:jar: No valid plugin descriptors were found in META-INF/gradle-plugins
+
+> Task :checkHostResources
+Host available: 59 GB (free=59 + inactive=0; threshold: 8 GB)
+Swap used: 0 MB (threshold: 500 MB)
+Disk free at /workspace: 423 GB (threshold: 40 GB)
+OK — host has resources for a full build.
+
+> Task :bootstrapVMs
+
+> Task :syncWorkspace
+syncWorkspace: sentinel registered at infra_build_nuc/sync_sentinels/syncworkspace-28620-1785196402.sentinel
+OK: vendor_src verified at pinned sha 66b0634259b2ca81eec208d77659d666f7ec57d2 (v4.5.1)
+syncWorkspace: sentinel self-test passed
+
+> Task :trainOracle
+
+==================================== ERRORS ====================================
+___ ERROR collecting test_infra/extra/test_plaintext_http_mediation_guard.py ___
+ImportError while importing test module '/workspace/test_infra/extra/test_plaintext_http_mediation_guard.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+/usr/lib/python3.12/importlib/__init__.py:90: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+test_infra/extra/test_plaintext_http_mediation_guard.py:14: in <module>
+    import jmespath
+E   ModuleNotFoundError: No module named 'jmespath'
+=========================== short test summary info ============================
+ERROR test_infra/extra/test_plaintext_http_mediation_guard.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+1 error in 0.23s
+
+==== TRAIN ORACLE SUMMARY ====
+  base-images: NOT CHECKABLE (0 of 10 graph images present)
+  lockfiles: OK (25 manifests swept, 0 failing)
+  repo-guards: FAIL
+  digest-drift: NOT CHECKABLE (no digest dir)
+-- coverage notes (NOT checkable from here — the train may still hit these) --
+  ~ base-images: 10 graph image(s) absent on the build host — their rebuilt posture is only provable by the train (fresh box?)
+  ~ digest-drift: infra_build_nuc/images absent — nothing transferred yet; comparison n/a (fresh box?)
+ORACLE RED — 1 train-killing defect(s); fix ALL of them before launching:
+  x repo-guards: pytest contracts RED (rc=2) — pins, allowlist, or Kyverno-policy↔manifest boundary inconsistent; the train inherits this
+
+> Task :trainOracle FAILED
+
+┌─────────────────────────────────────────────────────────────┐
+│  Task Timing Summary                                        │
+├─────────────────────────────────────────────────────────────┤
+│    11.7s   73%  trainOracle                                  │
+│     3.8s   24%  syncWorkspace                                │
+│     0.6s    3%  bootstrapVMs                                 │
+│     0.0s    0%  checkHostResources                           │
+├─────────────────────────────────────────────────────────────┤
+│  Total: 16.1s (4 tasks executed, 0 skipped)                 │
+└─────────────────────────────────────────────────────────────┘
+8 actionable tasks: 8 executed
+===EXIT=1===
+=== end 2026-07-27T23:53:37Z ===

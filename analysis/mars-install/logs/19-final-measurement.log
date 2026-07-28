@@ -1,0 +1,54 @@
+=== FINAL MEASUREMENT  2026-07-28T01:24:18Z ===
+=== probe: all three NUCs ===
+register: /Users/drnorden/projects/vpath/vpath_platform_mgmt/instances.local.env
+
+mercury8  [server-nuc]  HEALTHY
+    checkout       1a2c51dc7891 (main)            git -C /workspace
+    env profile    nuc                            /workspace/config/dot_env/.env.nuc
+    platform       answers                        https://127.0.0.1:30600/api/version
+    version        1a2c51dc7891                   /api/version build_id
+    deployments    53/53                          k3s kubectl get deploy -A
+    last install   2026-07-26T04:52:25Z           /workspace/infra_build_nuc/phase-gates/platformReady.marker
+    image sha      1a2c51dc7891-dirty             vpath-web:1.0 label vpath.git.sha
+
+PROBE_mercury8_EXIT=0
+
+register: /Users/drnorden/projects/vpath/vpath_platform_mgmt/instances.local.env
+
+venus10  [server-nuc]  HEALTHY
+    checkout       1a2c51dc7891 (feat/nextjs15-cve-migration) git -C /home/nuc/vpath_server_dev
+    env profile    nuc                            /home/nuc/vpath_server_dev/config/dot_env/.env.nuc
+    platform       answers                        https://127.0.0.1:30600/api/version
+    version        1a2c51dc7891                   /api/version build_id
+    deployments    53/53                          k3s kubectl get deploy -A
+    last install   2026-07-26T07:44:00Z           /home/nuc/vpath_server_dev/infra_build_nuc/phase-gates/platformReady.marker
+    image sha      1a2c51dc7891-dirty             vpath-web:1.0 label vpath.git.sha
+
+PROBE_venus10_EXIT=0
+
+register: /Users/drnorden/projects/vpath/vpath_platform_mgmt/instances.local.env
+
+mars12  [server-nuc]  HEALTHY
+    checkout       1a2c51dc7891 (main)            git -C /workspace
+    env profile    nuc                            /workspace/config/dot_env/.env.nuc
+    platform       answers                        https://127.0.0.1:30600/api/version
+    version        1a2c51dc7891                   /api/version build_id
+    deployments    53/53                          k3s kubectl get deploy -A
+    last install   2026-07-28T00:55:57Z           /workspace/infra_build_nuc/phase-gates/platformReady.marker
+    image sha      1a2c51dc7891-dirty             vpath-web:1.0 label vpath.git.sha
+
+PROBE_mars12_EXIT=0
+
+=== /api/version on mars12, measured on the box ===
+{"version":"2.0.0","build_id":"1a2c51dc7891","manifest_version":"76f18e7c9627a7d7b7f34332441067c46098e7cd0b63f498c85bdacea90f8656","digest":"sha256:b42adaf5bb35de2b3da52a8e2da5be397c4d249005b504ff3e489cbe3504a8a4","frontend_version":"2.0.0","frontend_build_id":"1a2c51dc7891","frontend_manifest_version":"3d339c278382c327d47f4f081e76b258e9401507acdc2a47b57df8ef1cecd5fe","frontend_digest":"sha256:618f96841c245f4faa7a37d4aa62c071ab61ae07ac61063d0b43531dd6060485"}
+http=200
+=== deployments: mars12 vs the sisters ===
+--- mercury8 ---
+     53 1/1 
+total=53 podsRunning=56
+--- venus10 ---
+     53 1/1 
+total=53 podsRunning=56
+--- mars12 ---
+     53 1/1 
+total=53 podsRunning=56

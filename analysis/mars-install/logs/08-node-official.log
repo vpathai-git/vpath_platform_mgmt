@@ -1,0 +1,15 @@
+=== node from the official nodejs.org channel  2026-07-27T23:44:13Z ===
+--- decision: v22.23.1 = current 22.x LTS (Jod) AND venus10's exact version ---
+--- integrity gate: official SHASUMS256 must verify, else nothing is installed ---
+node-v22.23.1-linux-x64.tar.xz: OK
+--- install (only after the gate passed) ---
+--- no apt/nodesource involved ---
+dpkg nodejs package: 0
+0 (0 = not installed)
+no nodesource apt source added
+--- THE decisive test: the condition as the pipeline evaluates it (loopback ssh, non-interactive PATH) ---
+CONDITION MET: short-circuits
+node: /usr/local/bin/node v22.23.1
+npm:  /usr/local/bin/npm 10.9.8
+npx:  /usr/local/bin/npx
+===EXIT=0===
