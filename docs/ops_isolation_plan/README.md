@@ -33,6 +33,7 @@ repos on 2026-07-24.
 | 13 | Tech stack | Python: FastAPI + Typer CLI + deliberately thin web | 8/10 | [04](04_stack_health_acceptance.md) |
 | 14 | Health verb design | Aggregate existing PhaseGate/health-check scripts + URL probes via Ops API | 8/10 | [04](04_stack_health_acceptance.md) |
 | 15 | Easy Access onboarding | Invite link + one-command `vpath join`; NetBird overlay underneath, Keycloak the only identity | 9/10 | [05](05_remote_access.md) |
+| 16 | App source delivery | Ops API materializes `<repo>@<ref>` into `apps_infra/apps/<name>/`; self-contained apps later | 8/10 | [07](07_app_source_delivery.md) |
 
 Acceptance criteria per delivery phase and the restated operator calls (with
 what each one blocks) are in [04](04_stack_health_acceptance.md). The MVP
