@@ -38,13 +38,28 @@ class Caller:
 
 
 class OpsClient:
-    """Typed calls against the Ops API endpoints."""
+    """Typed calls against the Ops API endpoints.
 
-    def __init__(self, http: httpx.Client, caller: Caller) -> None:
+    With a bearer token (from ``vpath login``) requests authenticate via
+    OIDC; without one, dev headers are sent — which only a simulated-engine
+    server accepts (docs/ACCESS_MECHANISM.md).
+    """
+
+    def __init__(
+        self, http: httpx.Client, caller: Caller, bearer: str | None = None
+    ) -> None:
         self._http = http
         self._caller = caller
+        self._bearer = bearer
+
+    @property
+    def auth_source(self) -> str:
+        """Which credential the client sends: 'oidc token' or 'dev headers'."""
+        return "oidc token" if self._bearer else "dev headers"
 
     def _headers(self) -> dict[str, str]:
+        if self._bearer:
+            return {"Authorization": f"Bearer {self._bearer}"}
         return {
             DEV_ACTOR_HEADER: self._caller.actor,
             DEV_ROLE_HEADER: self._caller.role,

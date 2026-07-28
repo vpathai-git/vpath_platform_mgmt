@@ -1,10 +1,10 @@
 """Request identity. Two explicit modes, no silent fallback.
 
 ``dev``  — identity from explicit headers; for local development against the
-           simulated engine only. Refuses requests without headers.
-``oidc`` — Keycloak-validated tokens (decision 6). Not implemented yet:
-           selecting it fails loudly at startup so nobody can accidentally
-           run a real engine behind header-trust auth.
+           simulated engine only. Refuses requests without headers, and
+           refuses to start at all with a real engine.
+``oidc`` — Keycloak-validated bearer tokens (decision 6, api/oidc.py). The
+           only mode allowed in front of a real engine.
 """
 
 from __future__ import annotations
@@ -42,14 +42,14 @@ def dev_identity(actor: str | None, role: str | None) -> Identity:
     return Identity(actor=actor, role=role)
 
 
-def validate_auth_mode(mode: str, engine_name: str) -> None:
+def validate_auth_mode(mode: str, engine_name: str, has_validator: bool) -> None:
     """Fail hard on unknown modes and on unsafe mode/engine combinations."""
     if mode not in AUTH_MODES:
         raise ValueError(f"unknown auth mode '{mode}' (expected one of {AUTH_MODES})")
-    if mode == "oidc":
-        raise NotImplementedError(
-            "oidc auth is not implemented yet (planned: Keycloak per decision 6);"
-            " run auth_mode=dev against the simulated engine only"
+    if mode == "oidc" and not has_validator:
+        raise ValueError(
+            "oidc auth requires a configured validator — set "
+            "VPATH_MGMT_OIDC_ISSUER (docs/ACCESS_MECHANISM.md)"
         )
     if mode == "dev" and engine_name != "simulated":
         raise ValueError(

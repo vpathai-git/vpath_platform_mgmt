@@ -25,6 +25,8 @@ def wired(monkeypatch: pytest.MonkeyPatch) -> OpsService:
     service = OpsService(SimulatedEngine())
     test_client = TestClient(create_app(service))
     monkeypatch.setattr(main, "make_http_client", lambda url: test_client)
+    # Never pick up a real login token from the developer's home directory.
+    monkeypatch.setattr(main, "load_access_token", lambda: None)
     monkeypatch.setenv("VPATH_MGMT_ACTOR", "alice")
     monkeypatch.setenv("VPATH_MGMT_ROLE", "app-dev")
     return service
@@ -118,6 +120,7 @@ def test_unreachable_api_maps_to_config_exit(
         return httpx.Client(base_url="http://down", transport=transport)
 
     monkeypatch.setattr(main, "make_http_client", raise_connect)
+    monkeypatch.setattr(main, "load_access_token", lambda: None)
     monkeypatch.setenv("VPATH_MGMT_ROLE", "app-dev")
     result = runner.invoke(main.app, ["doctor"])
     assert result.exit_code == main.EXIT_CONFIG
