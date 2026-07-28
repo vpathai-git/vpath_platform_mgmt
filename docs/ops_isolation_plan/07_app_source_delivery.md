@@ -57,11 +57,29 @@ untouched — the fail-hard rule doing its job on first contact.
    must keep writing desired state through this path and never apply
    directly.
 
+4. **Materializing the ported app proves it is not yet self-contained.**
+   `push-source` placed 120 files (a reviewable 63-path git diff), and the
+   deploy then failed in the image build with
+   `Module not found: Can't resolve '@vpath/sdk'`. Cause: the app-repo copy
+   declares `"@vpath/sdk": "file:../../kit/sdk"` (its own repo layout) while
+   the server tree provides the SDK at `apps_infra/sdk`, which the
+   monorepo-resident copy references as `file:../../sdk`. Materialization
+   alone is therefore **not sufficient** for an app whose dependency paths
+   assume its home repo — option C (self-contained apps) or an
+   SDK-aware materialization is required. The checkout was restored with the
+   documented git rollback and the running app was never affected: the failed
+   build published nothing.
+
 A deploy of an unchanged app is a **no-op by design**: the content hash in
 `build.hash.dirs` matches, so no image is rebuilt and Argo has nothing new to
-roll out. Verified: the pod, its start time and its image digest were
-identical before and after. Proving an actual rollout therefore requires a
-real source change — i.e. exactly the materialization step below.
+roll out. **Correction to an earlier reading of that run:** the pod checked
+immediately after the job looked unchanged, but ArgoCD reconciles
+asynchronously — some minutes later the pod *was* replaced
+(`6c48b6cc4-pvctx` → `54fb6b4758-28l6p`) while the image digest stayed
+identical, i.e. Argo re-applied the same desired state. The lesson is
+procedural: a GitOps deploy is not verified by a single check taken right
+after the verb returns; verification must wait for the Argo application to
+report `Synced/Healthy` for the new revision.
 
 ## Options
 
