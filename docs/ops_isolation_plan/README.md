@@ -39,6 +39,11 @@ what each one blocks) are in [04](04_stack_health_acceptance.md). The MVP
 synthesizing all fifteen recommendations — architecture, surfaces, and
 milestones M0–M4 gated by tests T1–T3 — is sketched in [06](06_mvp.md).
 
+Reference specifications derived from these decisions (design-stage, the
+committed target behavior): [user access guide](../USER_ACCESS.md) · [access
+mechanism internals](../ACCESS_MECHANISM.md) · [platform functions
+reference](../PLATFORM_FUNCTIONS.md).
+
 ## Deviations from the original request (require sign-off)
 
 1. **"Build-Pipeline in ein separates Repository isolieren"** is NOT done in
