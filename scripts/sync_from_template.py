@@ -63,6 +63,20 @@ def blob_sha(data: bytes) -> str:
     return hashlib.sha1(b"blob %d\x00" % len(data) + data).hexdigest()
 
 
+def content_shas(data: bytes) -> set[str]:
+    """Blob hashes to compare against git history: raw and LF-normalized.
+
+    Git stores text blobs LF-normalized under autocrlf, so a pristine
+    Windows checkout is CRLF on disk — it must still count as pristine,
+    or sync misclassifies every unmodified file as custom.
+    """
+    shas = {blob_sha(data)}
+    normalized = data.replace(b"\r\n", b"\n")
+    if normalized != data:
+        shas.add(blob_sha(normalized))
+    return shas
+
+
 def history_blobs(tmp: Path) -> dict[str, set[str]]:
     """Every blob hash the template ever shipped, per path (posix keys).
 
@@ -95,11 +109,21 @@ def base_bytes(tmp: Path, stamp_sha: str, path: str) -> bytes | None:
 
 
 def merge3(ours: Path, base: bytes, theirs: Path, workdir: Path) -> tuple[bytes, int]:
-    """git merge-file 3-way merge; returns (merged content, conflict count)."""
+    """git merge-file 3-way merge; returns (merged content, conflict count).
+
+    All three inputs are LF-normalized before merging: the base comes from
+    git's object store (always LF) while Windows checkouts are CRLF — mixed
+    endings would otherwise conflict on every line. The project file's
+    ending style is restored on the merged result.
+    """
+    ours_raw = ours.read_bytes()
+    uses_crlf = b"\r\n" in ours_raw
     ours_c = workdir / "ours"
     base_c = workdir / "base"
-    ours_c.write_bytes(ours.read_bytes())
-    base_c.write_bytes(base)
+    theirs_c = workdir / "theirs"
+    ours_c.write_bytes(ours_raw.replace(b"\r\n", b"\n"))
+    base_c.write_bytes(base.replace(b"\r\n", b"\n"))
+    theirs_c.write_bytes(theirs.read_bytes().replace(b"\r\n", b"\n"))
     result = subprocess.run(
         [
             "git",
@@ -113,14 +137,17 @@ def merge3(ours: Path, base: bytes, theirs: Path, workdir: Path) -> tuple[bytes,
             "template(latest)",
             str(ours_c),
             str(base_c),
-            str(theirs),
+            str(theirs_c),
         ],
         capture_output=True,
         env=drift.GIT_CLEAN_ENV,
     )
     if result.returncode < 0:
         sys.exit(f"ERROR: merge failed for {ours}:\n{result.stderr.decode()}")
-    return result.stdout, result.returncode
+    merged = result.stdout
+    if uses_crlf:
+        merged = merged.replace(b"\n", b"\r\n")
+    return merged, result.returncode
 
 
 def removed_candidates(root: Path, latest: set[str]) -> list[str]:
@@ -152,14 +179,14 @@ def classify(root: Path, tmp: Path) -> dict[str, list[str]]:
             plan["new"].append(rel)
         elif local.read_bytes() == (tmp / rel).read_bytes():
             plan["same"].append(rel)
-        elif blob_sha(local.read_bytes()) in blobs.get(rel, set()):
+        elif content_shas(local.read_bytes()) & blobs.get(rel, set()):
             plan["update"].append(rel)
         else:
             plan["custom"].append(rel)
     for rel in removed_candidates(root, set(latest)):
         if rel not in blobs:
             continue  # project-own file in a tracked dir — not ours to touch
-        pristine = blob_sha((root / rel).read_bytes()) in blobs[rel]
+        pristine = bool(content_shas((root / rel).read_bytes()) & blobs[rel])
         plan["remove" if pristine else "keep"].append(rel)
     return plan
 
