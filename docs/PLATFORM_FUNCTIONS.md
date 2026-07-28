@@ -26,6 +26,14 @@ claims; refusals are audited, not silent; no fallbacks — a failed
 precondition fails the job with the reason; destructive verbs additionally
 require typing the verb name.
 
+The engine calls above were **verified against `vpath_server` on 2026-07-28**:
+`buildApp` and `redeployApp` are registered gradle tasks taking `-Papp=<name>`,
+validated against an app registry auto-discovered from
+`apps_infra/apps/<name>/vpath-app.yaml`. An app is therefore only deployable
+once its source sits in the server checkout — see decision 16
+(`ops_isolation_plan/07_app_source_delivery.md`) for how app-repo source gets
+there.
+
 ## The job model
 
 Every verb invocation (CLI or console) becomes a **job**:
