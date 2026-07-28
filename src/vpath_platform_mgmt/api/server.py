@@ -40,8 +40,32 @@ def build_engine(env: Mapping[str, str]) -> EngineAdapter:
         checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
         if not checkout:
             raise ValueError("engine mode 'local' requires VPATH_MGMT_SERVER_CHECKOUT")
-        return LocalEngine(Path(checkout))
+        return LocalEngine(Path(checkout), extra_env=parse_engine_env(env))
     return SimulatedEngine(step_delay=SIMULATED_STEP_DELAY)
+
+
+def parse_engine_env(env: Mapping[str, str]) -> dict[str, str]:
+    """Parse ``VPATH_MGMT_ENGINE_ENV`` ("K=V,K2=V2") for the engine subprocess.
+
+    The pipeline reads its topology from the environment (e.g.
+    ``VPATH_INSTALL_MODE=nuc`` on a single-box target). Malformed entries
+    fail hard rather than being skipped.
+    """
+    raw = env.get("VPATH_MGMT_ENGINE_ENV", "").strip()
+    if not raw:
+        return {}
+    pairs: dict[str, str] = {}
+    for item in raw.split(","):
+        entry = item.strip()
+        if not entry:
+            continue
+        if "=" not in entry:
+            raise ValueError(f"VPATH_MGMT_ENGINE_ENV entry '{entry}' is not KEY=VALUE")
+        key, value = entry.split("=", 1)
+        if not key.strip():
+            raise ValueError("VPATH_MGMT_ENGINE_ENV has an entry with an empty key")
+        pairs[key.strip()] = value.strip()
+    return pairs
 
 
 def build_oidc_validator(env: Mapping[str, str]) -> OidcValidator | None:

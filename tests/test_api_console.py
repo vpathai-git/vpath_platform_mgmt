@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -102,6 +104,30 @@ def test_build_oidc_validator_config() -> None:
 def test_unknown_auth_mode_fails_loud() -> None:
     with pytest.raises(ValueError, match="unknown auth mode"):
         create_app(OpsService(SimulatedEngine()), auth_mode="none")
+
+
+def test_engine_env_passthrough_parsing() -> None:
+    """The pipeline needs VPATH_INSTALL_MODE on single-box targets."""
+    from vpath_platform_mgmt.api.server import parse_engine_env
+
+    assert parse_engine_env({}) == {}
+    assert parse_engine_env({"VPATH_MGMT_ENGINE_ENV": "VPATH_INSTALL_MODE=nuc"}) == {
+        "VPATH_INSTALL_MODE": "nuc"
+    }
+    assert parse_engine_env({"VPATH_MGMT_ENGINE_ENV": "A=1, B=2"}) == {
+        "A": "1",
+        "B": "2",
+    }
+    with pytest.raises(ValueError, match="not KEY=VALUE"):
+        parse_engine_env({"VPATH_MGMT_ENGINE_ENV": "bogus"})
+
+
+def test_local_engine_applies_extra_env(tmp_path: Path) -> None:
+    """extra_env must reach the subprocess, not just be stored."""
+    from vpath_platform_mgmt.ops.engine import LocalEngine
+
+    engine = LocalEngine(tmp_path, extra_env={"VPATH_INSTALL_MODE": "nuc"})
+    assert engine._extra_env == {"VPATH_INSTALL_MODE": "nuc"}
 
 
 def test_build_engine_config_validation() -> None:

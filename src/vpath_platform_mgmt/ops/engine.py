@@ -9,9 +9,10 @@ SSH-from-elsewhere adapter: the Ops API runs beside the engine.
 
 from __future__ import annotations
 
+import os
 import subprocess
 import time
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from pathlib import Path
 from typing import Protocol
 
@@ -105,13 +106,20 @@ class LocalEngine:
 
     name = "local"
 
-    def __init__(self, server_checkout: Path) -> None:
+    def __init__(
+        self, server_checkout: Path, extra_env: Mapping[str, str] | None = None
+    ) -> None:
         if not server_checkout.is_dir():
             raise ValueError(
                 f"server checkout not found: {server_checkout} — LocalEngine "
                 "must run on the host that holds the engine (see 06_mvp.md)"
             )
         self._checkout = server_checkout
+        # The pipeline resolves its topology from the environment: on a
+        # single-box target (build host == deploy host) it needs
+        # VPATH_INSTALL_MODE=nuc, otherwise lib/vm.sh aborts with
+        # "run_build_vm called on deploy VM". Passed in, never guessed.
+        self._extra_env = dict(extra_env or {})
 
     def command(self, verb: Verb, app: str) -> list[str]:
         """Argv for a verb, with the app name substituted."""
@@ -127,6 +135,7 @@ class LocalEngine:
             capture_output=True,
             text=True,
             encoding="utf-8",
+            env={**os.environ, **self._extra_env},
         )
         tail_lines = (completed.stdout + completed.stderr).splitlines()
         tail = "\n".join(tail_lines[-OUTPUT_TAIL_LINES:])
