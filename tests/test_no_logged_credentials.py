@@ -149,6 +149,156 @@ def test_names_that_point_at_a_secret_are_not_the_secret(tmp_path: Path) -> None
     assert gate.names_a_credential("api_key") is True
 
 
+# --- red drill: the three blind spots closed on 2026-07-28 ----------------
+#
+# Each blind spot gets both halves: the violation it used to miss, shown going
+# red, and the shape it must NOT fire on, shown staying green.  An exemption
+# without a green test is just a new blind spot with better manners.
+
+
+def test_red_drill_kts_file_is_scanned_at_all(tmp_path: Path) -> None:
+    """Blind spot 1: `.kts` was absent from TEXT_SUFFIXES, so 27 tracked gradle
+    scripts -- including the one that writes the demo cheat sheet -- were never
+    opened.  They carry their real work as shell inside raw strings."""
+    assert ".kts" in gate.TEXT_SUFFIXES
+    root = make_repo(
+        tmp_path,
+        {"build.gradle.kts": 'exec("""\n  log::info "pw=$ADMIN_PASSWORD"\n""")\n'},
+    )
+    violations = gate.scan(root, gate.tracked_files(root), [])
+    assert [(v.rule, v.line) for v in violations] == [("SOURCE", 2)]
+    assert run_gate(root) == gate.EXIT_VIOLATION
+
+
+def test_red_drill_shell_log_call_leaks(tmp_path: Path) -> None:
+    """Blind spot 2: SOURCE was Python-only, so this platform's own logging
+    vocabulary (`log::info`, lib/log.sh) could carry a value untouched."""
+    root = make_repo(
+        tmp_path,
+        {"start.sh": 'log::info "NEXTAUTH_SECRET=$NEXTAUTH_SECRET"\n'},
+    )
+    violations = gate.scan(root, gate.tracked_files(root), [])
+    assert [(v.rule, v.line) for v in violations] == [("SOURCE", 1)]
+
+
+def test_red_drill_echo_weaving_a_value_into_a_message_leaks(tmp_path: Path) -> None:
+    root = make_repo(tmp_path, {"leak.sh": 'echo "  Password: $PASSWORD"\n'})
+    assert [
+        (v.rule, v.line) for v in gate.scan(root, gate.tracked_files(root), [])
+    ] == [("SOURCE", 1)]
+
+
+def test_bare_echo_of_a_value_is_a_return_channel_not_a_log(tmp_path: Path) -> None:
+    """`echo "$SECRET"` is how a shell function returns a value; every caller in
+    this platform captures it.  `printf -v` never reaches a stream at all."""
+    root = make_repo(
+        tmp_path,
+        {
+            "return.sh": (
+                'echo "$CLIENT_SECRET"\n'
+                "printf '%s\\n' \"$CLIENT_SECRET\"\n"
+                "printf -v quoted_token '%q' \"$TOKEN\"\n"
+            )
+        },
+    )
+    assert gate.scan(root, gate.tracked_files(root), []) == []
+
+
+def test_command_substitution_is_a_capture_not_an_output(tmp_path: Path) -> None:
+    """Both directions: an output call inside `$(...)` hands its text to the
+    shell, and an output call containing one prints the subshell's verdict."""
+    root = make_repo(
+        tmp_path,
+        {
+            "capture.sh": (
+                "ERR=$(printf '%s' \"$TOKEN_RESP\" | jq -r .error)\n"
+                'echo "has colon: $([[ "$JIRA_ACCESS_TOKEN" == *:* ]] && echo yes)"\n'
+            )
+        },
+    )
+    assert gate.scan(root, gate.tracked_files(root), []) == []
+
+
+def test_red_drill_password_inside_a_connection_string(tmp_path: Path) -> None:
+    """Blind spot 3: a DSN hides a value from every key-based rule, because the
+    DSN's own key (`DATABASE_URL`) names a location, not a secret."""
+    root = make_repo(
+        tmp_path,
+        {"app.env": f"DATABASE_URL=postgresql://appuser:{FAKE_VALUE}@db:5432/app\n"},
+    )
+    violations = gate.scan(root, gate.tracked_files(root), [])
+    assert [(v.rule, v.line) for v in violations] == [("URL", 1)]
+    assert FAKE_VALUE not in violations[0].render(root)
+
+
+def test_connection_string_without_a_value_passes(tmp_path: Path) -> None:
+    """A reference, a template and a userinfo-less URL are all not values."""
+    root = make_repo(
+        tmp_path,
+        {
+            "ok.env": (
+                "A_URL=postgresql://appuser:${PGPASSWORD}@db:5432/app\n"
+                "B_URL=postgresql://appuser:password@db:5432/app\n"
+                "C_URL=postgresql://db:5432/app\n"
+            )
+        },
+    )
+    assert gate.scan(root, gate.tracked_files(root), []) == []
+
+
+def test_a_length_is_not_a_value(tmp_path: Path) -> None:
+    """Printing `len(token)` is the honest diagnostic that replaces printing the
+    token -- the gate must not punish the fix it asked for."""
+    root = make_repo(
+        tmp_path,
+        {
+            "ok.py": 'token = mint()\nprint(f"minted ok ({len(token)} chars)")\n',
+            "leak.py": 'token = mint()\nprint(f"token: {token[:30]}...")\n',
+        },
+    )
+    assert [
+        (str(v.path.name), v.line)
+        for v in gate.scan(root, gate.tracked_files(root), [])
+    ] == [("leak.py", 2)]
+
+
+def test_shell_names_that_point_or_count_are_not_values(tmp_path: Path) -> None:
+    """Measured against the server checkout: every one of these was a false
+    alarm before REFERENCE_RE learned the shell's vocabulary."""
+    for name in (
+        "TOKEN_URL",
+        "SECRET_SET_COUNT",
+        "token_attempt",
+        "secretMap",
+        "k8s_secret_name",
+        "gitea_oidc_secret_name",
+    ):
+        assert gate.names_a_credential(name) is False, name
+    for name in ("NEXTAUTH_SECRET", "KEYCLOAK_ADMIN_PASSWORD", "CLIENT_SECRET"):
+        assert gate.names_a_credential(name) is True, name
+
+
+def test_self_declaring_non_secrets_pass_but_a_bare_prefix_does_not(
+    tmp_path: Path,
+) -> None:
+    """A value may declare that it guards nothing -- but only by saying so.  A
+    bare `dev-`/`sandbox-` prefix is NOT a declaration and must still fail."""
+    for value in (
+        "dev-secret-do-not-use-in-production",
+        "sandbox-dev-secret-for-local-testing-only",
+        "unused",
+        "REFERENCE_TO_K8S_SECRET_keycloak_admin_password",
+        "<rotate-me-not-a-live-secret>",
+    ):
+        assert gate.PLACEHOLDER_RE.match(value), value
+    for value in ("dev-" + FAKE_VALUE, "sandbox-" + FAKE_VALUE, FAKE_VALUE):
+        assert not gate.PLACEHOLDER_RE.match(value), value
+    root = make_repo(tmp_path, {"sandbox.sh": f'export API_KEY="dev-{FAKE_VALUE}"\n'})
+    assert [
+        (v.rule, v.line) for v in gate.scan(root, gate.tracked_files(root), [])
+    ] == [("LITERAL", 1)]
+
+
 # --- the anti-soft-pass property ------------------------------------------
 
 

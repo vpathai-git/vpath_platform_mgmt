@@ -16,15 +16,32 @@ All three are **value-free by construction**: this checker never needs to know a
 secret in order to detect one, so it never has to store one.
 
 ``SOURCE``
-    An output call must not carry a credential-named symbol.  An AST walk finds
-    ``print``, ``logging.*`` and the other calls in :data:`OUTPUT_CALLS`, and
-    fails when an argument reaches for a name or attribute that looks like a
-    credential.  This is the rule that prevents new leaks.
+    An output call must not carry a credential-named symbol.  In Python an AST
+    walk finds ``print``, ``logging.*`` and the other calls in
+    :data:`OUTPUT_CALLS`.  In shell -- and in the embedded shell that the gradle
+    ``.kts`` scripts carry in raw strings -- the same rule reads ``log::*``,
+    ``echo`` and ``printf`` and fails when a credential-named *expansion*
+    (``$PASSWORD``, ``${TOKEN}``) is interpolated into the message.  This is the
+    rule that prevents new leaks.
+
+    One shape is deliberately not a log: an output call whose whole argument is
+    a single bare expansion (``echo "$SECRET"``) is a function's return channel,
+    and every caller in this platform captures it.  A value woven into a message
+    (``echo "Password: $PASSWORD"``) is a log line and fails.  ``printf -v``
+    assigns to a variable and never reaches an output at all.
 
 ``LITERAL``
     A credential-named symbol must not be assigned a quoted literal -- the
     classic hardcoded secret.  Checked in Python via the AST and in
     shell/env/yaml text via a strict ``KEY=VALUE`` shape.
+
+``URL``
+    A password must not sit inside a connection string.  The userinfo shape
+    ``scheme://user:password@host`` hides a credential from every key-based rule
+    above, because the DSN's own key (``DATABASE_URL``) names a location, not a
+    secret.  The rule matches the *shape*, never a value -- and it is written so
+    that this very sentence passes: a userinfo segment that reads ``password``
+    names the field rather than filling it.
 
 ``PIPELINE``
     A tracked file must not carry an unredacted line in one of the shapes the
@@ -81,6 +98,12 @@ REFERENCE_RE = re.compile(r"""(?ix)
       | tokens?[_-]?(count|limit|used|usage|budget)
       | .*password[_-]?(policy|length|len|file|path|env|var|hash|prompt)
       | env[_-]?var[_-]?in[_-]?secret
+      # Shell adds its own vocabulary of pointing-at rather than holding.  Every
+      # one of these was measured against the server checkout: a counter, a
+      # location or a collection, never a value.
+      | .*[_-](count|counter|max|attempt|attempts|retries|url|uri|endpoint
+              |size|len|length|hash|digest)
+      | .*(map|list|args|opts)
     )$
     """)
 
@@ -118,7 +141,20 @@ PLACEHOLDER_RE = re.compile(r"""(?ix)
       | -+
       | (your|my|the|example|sample|dummy|fake|test)[-_].*
       | changeme
-      | none | null | true | false | unset | empty
+      # A value that names where the real one lives.  The server's schema
+      # example declares exactly this convention in
+      # config/schemas/example.config.yaml:39-41 and then relies on a reader
+      # honouring it -- so the gate honours it too, and can hold the file to it.
+      | reference[_-]?to[_-].*
+      # An author's explicit declaration that this string guards nothing.  Narrow
+      # on purpose -- each of these states non-production intent *inside the
+      # value*, so hiding a real secret behind one takes a deliberate lie.  A
+      # bare prefix like `dev-` or `sandbox-` is NOT enough and is not accepted.
+      | .*not[-_]a[-_](secret|live[-_]secret).*
+      | .*do[-_]not[-_]use.*
+      | .*(local|dev|development)[-_]testing[-_]only.*
+      | mock[-_].*
+      | none | null | true | false | unset | empty | unused | n/?a
       | %[sd]
     )$
     """)
@@ -142,8 +178,34 @@ SHELL_LITERAL_RE = re.compile(r"""(?ix)
     \s*(\#.*)?$
     """)
 
+# An output call in shell, at a command position.  ``log::*`` is this platform's
+# logging vocabulary (``lib/log.sh``); ``echo``/``printf`` are the bare ones.
+SHELL_OUTPUT_RE = re.compile(r"""(?x)
+    (?:^|[;&|(]|\bthen\s|\bdo\s|\belse\s|&&|\|\|)\s*
+    (?P<call>log::[A-Za-z_]+|echo|printf)\b
+    (?P<args>[^;&|]*)
+    """)
+
+# ``$NAME``, ``${NAME}``, ``${NAME:-default}`` -- what the shell interpolates.
+SHELL_EXPANSION_RE = re.compile(r"\$\{?([A-Za-z_][A-Za-z0-9_]*)")
+
+# What a printf may carry besides its expansions without becoming a message:
+# format directives, escapes, quotes, flags and whitespace.
+PRINTF_NOISE_RE = re.compile(r"%[-+ #0-9.]*[a-zA-Z]|\\[nrt0]|['\"]|\s+|^-[a-zA-Z]+")
+
+# A credential embedded in a connection string: scheme://user:password@host.
+# Shape only -- the value is never read, only its position.
+URL_CREDENTIAL_RE = re.compile(
+    r"[A-Za-z][A-Za-z0-9+.\-]*://[^\s/:@]+:(?P<secret>[^\s/@\"']+)@"
+)
+
 SOURCE_SUFFIXES = frozenset({".py"})
-SHELL_SUFFIXES = frozenset({".sh", ".env", ".yaml", ".yml", ".cfg", ".ini"})
+# ``.kts`` earns its place here rather than in a Kotlin group of its own: the
+# gradle scripts in this platform carry their real work as shell inside
+# ``trimIndent()`` raw strings, so the shell rules are the rules that apply.
+# It was missing until 2026-07-28, which left 27 tracked files unscanned --
+# among them the writer that renders the demo cheat sheet.
+SHELL_SUFFIXES = frozenset({".sh", ".env", ".yaml", ".yml", ".cfg", ".ini", ".kts"})
 TEXT_SUFFIXES = SOURCE_SUFFIXES | SHELL_SUFFIXES | frozenset({".md", ".txt", ".log"})
 
 
@@ -187,13 +249,29 @@ def _call_name(node: ast.Call) -> str:
     return ""
 
 
+# Builtins that turn a value into a fact *about* the value.  `len(token)` is a
+# count, and a count is what an honest diagnostic prints instead of the token.
+MEASURING_CALLS = frozenset({"len"})
+
+
 def _referenced_symbols(node: ast.AST) -> Iterator[str]:
-    """Every identifier-ish string an expression reaches for."""
-    for child in ast.walk(node):
-        if isinstance(child, ast.Name):
-            yield child.id
-        elif isinstance(child, ast.Attribute):
-            yield child.attr
+    """Every identifier-ish string an expression reaches for.
+
+    Does not descend into a measuring call: whatever ``len(...)`` wraps leaves
+    that call as an integer, so the symbol inside it never reaches the output.
+    """
+    if (
+        isinstance(node, ast.Call)
+        and isinstance(node.func, ast.Name)
+        and node.func.id in MEASURING_CALLS
+    ):
+        return
+    if isinstance(node, ast.Name):
+        yield node.id
+    elif isinstance(node, ast.Attribute):
+        yield node.attr
+    for child in ast.iter_child_nodes(node):
+        yield from _referenced_symbols(child)
 
 
 def _output_args(node: ast.Call) -> list[ast.AST]:
@@ -263,6 +341,109 @@ def _scan_shell_literals(path: Path, text: str) -> Iterator[Violation]:
         yield Violation(path, number, "LITERAL", f"{key!r} is assigned a literal value")
 
 
+# --- Rule SOURCE, shell half ----------------------------------------------
+
+SHELL_EXPANSION_FULL_RE = re.compile(
+    r"\$\{[A-Za-z_][A-Za-z0-9_]*[^}]*\}|\$[A-Za-z_][A-Za-z0-9_]*"
+)
+
+
+def _is_return_channel(call: str, args: str) -> bool:
+    """Does this call hand a value back to a caller rather than log it?
+
+    ``echo "$SECRET"`` is how a shell function returns a value, and every caller
+    of that shape in this platform captures the output.  ``printf -v`` does not
+    even reach a stream.  A log function is never a return channel, and neither
+    is a call that weaves the value into a message.
+    """
+    if call.startswith("log::"):
+        return False
+    if re.match(r"\s*-v\b", args):
+        return True
+    if len(SHELL_EXPANSION_FULL_RE.findall(args)) != 1:
+        return False
+    residue = PRINTF_NOISE_RE.sub("", SHELL_EXPANSION_FULL_RE.sub("", args))
+    return residue == ""
+
+
+def _without_command_substitution(line: str) -> str:
+    """Blank out ``$(...)`` spans, keeping every other column in place.
+
+    A command substitution is a capture, not a stream.  This settles two shapes
+    at once: an output call *inside* one hands its text to the shell
+    (``ERR=$(printf '%s' "$TOKEN_RESP")`` writes nothing), and an output call
+    that *contains* one prints the subshell's verdict rather than the variable
+    (``echo "has colon: $([[ "$TOKEN" == *:* ]] && echo yes)"``).  Both were
+    real false alarms on the server checkout before this existed.
+    """
+    out = list(line)
+    depth = 0
+    index = 0
+    while index < len(line):
+        if depth == 0:
+            if line.startswith("$(", index):
+                depth = 1
+                out[index] = out[index + 1] = " "
+                index += 2
+                continue
+        else:
+            if line[index] == "(":
+                depth += 1
+            elif line[index] == ")":
+                depth -= 1
+            out[index] = " "
+        index += 1
+    return "".join(out)
+
+
+def _scan_shell_output_calls(path: Path, text: str) -> Iterator[Violation]:
+    for number, raw in enumerate(text.splitlines(), start=1):
+        line = _without_command_substitution(raw)
+        for match in SHELL_OUTPUT_RE.finditer(line):
+            call, args = match.group("call"), match.group("args")
+            if _is_return_channel(call, args):
+                continue
+            hit = next(
+                (
+                    name
+                    for name in SHELL_EXPANSION_RE.findall(args)
+                    if names_a_credential(name)
+                ),
+                None,
+            )
+            if hit is not None:
+                yield Violation(
+                    path,
+                    number,
+                    "SOURCE",
+                    f"output call {call!r} interpolates credential-named {hit!r}",
+                )
+                break
+
+
+# --- Rule URL -------------------------------------------------------------
+
+
+def _scan_url_credentials(path: Path, text: str) -> Iterator[Violation]:
+    for number, line in enumerate(text.splitlines(), start=1):
+        for match in URL_CREDENTIAL_RE.finditer(line):
+            secret = match.group("secret")
+            # A DSN whose password position reads exactly "password" names the
+            # field instead of filling it, and `${PGPASSWORD}` is a reference.
+            # `fullmatch`, never `search`: a real value that merely *contains*
+            # the word -- `notarealsecret` -- must still fail, and did not until
+            # the red drill caught this exemption swallowing it.
+            if PLACEHOLDER_RE.match(secret) or CREDENTIAL_RE.fullmatch(secret):
+                continue
+            yield Violation(
+                path,
+                number,
+                "URL",
+                "connection string carries a password in its userinfo",
+            )
+            break
+
+
 # --- Rule PIPELINE --------------------------------------------------------
 
 
@@ -318,6 +499,8 @@ def _scan_one(path: Path, text: str) -> Iterator[Violation]:
         yield from _scan_python_literals(path, tree)
     if path.suffix in SHELL_SUFFIXES:
         yield from _scan_shell_literals(path, text)
+        yield from _scan_shell_output_calls(path, text)
+    yield from _scan_url_credentials(path, text)
     yield from _scan_pipeline_shapes(path, text)
 
 
