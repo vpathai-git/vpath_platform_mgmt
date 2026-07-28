@@ -34,15 +34,41 @@ def make_token(
     username: str = "klemens",
     issuer: str = ISSUER,
     expires_in: float = 300.0,
+    groups: list[str] | None = None,
 ) -> str:
-    claims = {
+    claims: dict[str, object] = {
         "iss": issuer,
         "sub": "user-uuid",
         "preferred_username": username,
         "exp": time.time() + expires_in,
         "realm_access": {"roles": ["default-roles-vpath", *roles]},
     }
+    if groups is not None:
+        claims["groups"] = groups
     return jwt.encode(claims, PRIVATE_KEY, algorithm="RS256")
+
+
+def test_vpath_admins_group_grants_admin(validator: OidcValidator) -> None:
+    """The live realm authorizes by group — /vpath-admins must map to admin."""
+    token = make_token([], username="admin_alain", groups=["/vpath-admins"])
+    identity = validator.identity(f"Bearer {token}")
+    assert identity.actor == "admin_alain"
+    assert identity.role == "admin"
+
+
+def test_group_without_leading_slash_still_maps(validator: OidcValidator) -> None:
+    token = make_token([], groups=["kp-maintainers"])
+    assert validator.identity(f"Bearer {token}").role == "app-dev"
+
+
+def test_highest_of_group_and_realm_role_wins(validator: OidcValidator) -> None:
+    token = make_token(["app-dev"], groups=["/vpath-admins"])
+    assert validator.identity(f"Bearer {token}").role == "admin"
+
+
+def test_unmapped_group_is_refused(validator: OidcValidator) -> None:
+    with pytest.raises(AuthError, match="no platform role"):
+        validator.identity(f"Bearer {make_token([], groups=['/kp-access/demo-kp'])}")
 
 
 @pytest.fixture()
