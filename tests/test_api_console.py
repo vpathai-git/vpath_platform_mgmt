@@ -6,7 +6,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from vpath_platform_mgmt.api import create_app
-from vpath_platform_mgmt.api.server import build_engine
+from vpath_platform_mgmt.api.server import build_engine, build_oidc_validator
 from vpath_platform_mgmt.ops import OpsService, SimulatedEngine
 
 APP_DEV = {"X-Dev-Actor": "alice", "X-Dev-Role": "app-dev"}
@@ -80,9 +80,23 @@ def test_dev_auth_with_real_engine_is_refused(tmp_path: object) -> None:
         create_app(OpsService(RealishEngine()))
 
 
-def test_oidc_mode_fails_loud_until_implemented() -> None:
-    with pytest.raises(NotImplementedError, match="oidc"):
+def test_oidc_mode_requires_validator() -> None:
+    with pytest.raises(ValueError, match="VPATH_MGMT_OIDC_ISSUER"):
         create_app(OpsService(SimulatedEngine()), auth_mode="oidc")
+
+
+def test_build_oidc_validator_config() -> None:
+    assert build_oidc_validator({}) is None
+    with pytest.raises(ValueError, match="VPATH_MGMT_OIDC_ISSUER"):
+        build_oidc_validator({"VPATH_MGMT_AUTH": "oidc"})
+    validator = build_oidc_validator(
+        {
+            "VPATH_MGMT_AUTH": "oidc",
+            "VPATH_MGMT_OIDC_ISSUER": "https://kc.example/realms/vpath",
+            "VPATH_MGMT_OIDC_INSECURE_TLS": "1",
+        }
+    )
+    assert validator is not None
 
 
 def test_unknown_auth_mode_fails_loud() -> None:

@@ -12,6 +12,8 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 
+from collections.abc import Callable
+
 from vpath_platform_mgmt.api.auth import (
     DEV_ACTOR_HEADER,
     DEV_ROLE_HEADER,
@@ -20,8 +22,11 @@ from vpath_platform_mgmt.api.auth import (
     dev_identity,
     validate_auth_mode,
 )
+from vpath_platform_mgmt.api.oidc import OidcValidator
 from vpath_platform_mgmt.ops.model import OpsError
 from vpath_platform_mgmt.ops.service import OpsService
+
+IdentityFn = Callable[[Request], Identity]
 
 
 class JobRequest(BaseModel):
@@ -37,7 +42,7 @@ def _console_html() -> str:
     return (package / "console.html").read_text(encoding="utf-8")
 
 
-def _identity(request: Request) -> Identity:
+def _dev_identity(request: Request) -> Identity:
     try:
         return dev_identity(
             request.headers.get(DEV_ACTOR_HEADER),
@@ -45,6 +50,16 @@ def _identity(request: Request) -> Identity:
         )
     except AuthError as exc:
         raise HTTPException(status_code=401, detail=exc.message) from exc
+
+
+def _oidc_identity_fn(validator: OidcValidator) -> IdentityFn:
+    def identity(request: Request) -> Identity:
+        try:
+            return validator.identity(request.headers.get("authorization"))
+        except AuthError as exc:
+            raise HTTPException(status_code=401, detail=exc.message) from exc
+
+    return identity
 
 
 def _submit(service: OpsService, caller: Identity, body: JobRequest) -> dict[str, str]:
@@ -61,9 +76,18 @@ def _submit(service: OpsService, caller: Identity, body: JobRequest) -> dict[str
     return {"job": job.id}
 
 
-def create_app(service: OpsService, auth_mode: str = "dev") -> FastAPI:
+def create_app(
+    service: OpsService,
+    auth_mode: str = "dev",
+    oidc_validator: OidcValidator | None = None,
+) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
-    validate_auth_mode(auth_mode, service.engine_name)
+    validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
+    identity: IdentityFn
+    if auth_mode == "oidc" and oidc_validator is not None:
+        identity = _oidc_identity_fn(oidc_validator)
+    else:
+        identity = _dev_identity
     app = FastAPI(title="vpath platform mgmt — Ops API", version="0.1.0")
 
     @app.get("/", response_class=HTMLResponse)
@@ -74,18 +98,18 @@ def create_app(service: OpsService, auth_mode: str = "dev") -> FastAPI:
     @app.get("/api/state")
     def state(request: Request) -> dict[str, object]:
         """Snapshot for the console: jobs, locks, audit, health, engine."""
-        _identity(request)
+        identity(request)
         return service.state()
 
     @app.post("/api/jobs", status_code=202)
     def submit(request: Request, body: JobRequest) -> dict[str, str]:
         """Submit a verb as a job; typed ops errors map to HTTP statuses."""
-        return _submit(service, _identity(request), body)
+        return _submit(service, identity(request), body)
 
     @app.get("/api/jobs/{job_id}")
     def job_detail(request: Request, job_id: str) -> dict[str, object]:
         """One job with its full log."""
-        _identity(request)
+        identity(request)
         job = service.job(job_id)
         if job is None:
             raise HTTPException(status_code=404, detail=f"no job {job_id}")

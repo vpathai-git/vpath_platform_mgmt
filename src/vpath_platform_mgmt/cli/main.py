@@ -13,6 +13,13 @@ from typing import cast
 import httpx
 import typer
 
+from vpath_platform_mgmt.cli.auth import (
+    DEFAULT_CLIENT_ID,
+    AuthFlowError,
+    device_login,
+    load_access_token,
+    save_tokens,
+)
 from vpath_platform_mgmt.cli.client import ApiError, Caller, OpsClient
 
 EXIT_FAILED = 1
@@ -44,7 +51,41 @@ def _client() -> OpsClient:
         actor=os.environ.get("VPATH_MGMT_ACTOR", "you"),
         role=os.environ.get("VPATH_MGMT_ROLE", "app-dev"),
     )
-    return OpsClient(make_http_client(url), caller)
+    return OpsClient(make_http_client(url), caller, bearer=load_access_token())
+
+
+@app.command()
+def login(
+    issuer: str = typer.Option(
+        "", envvar="VPATH_MGMT_OIDC_ISSUER", help="Keycloak realm issuer URL."
+    ),
+    client_id: str = typer.Option(
+        DEFAULT_CLIENT_ID, envvar="VPATH_MGMT_OIDC_CLIENT_ID"
+    ),
+    insecure_tls: bool = typer.Option(
+        False,
+        "--insecure-tls",
+        envvar="VPATH_MGMT_OIDC_INSECURE_TLS",
+        help="Accept the dev platform's self-signed certificate.",
+    ),
+) -> None:
+    """Log in via the OIDC device flow and store the token locally."""
+    if not issuer:
+        typer.echo("error: set VPATH_MGMT_OIDC_ISSUER or pass --issuer", err=True)
+        raise typer.Exit(code=EXIT_CONFIG)
+    http = make_login_client(verify=not insecure_tls)
+    try:
+        tokens = device_login(http, issuer, client_id, echo=typer.echo)
+    except (AuthFlowError, httpx.HTTPError) as exc:
+        typer.echo(f"error: {exc}", err=True)
+        raise typer.Exit(code=EXIT_AUTH) from exc
+    destination = save_tokens(tokens)
+    typer.echo(f"logged in — token stored at {destination}")
+
+
+def make_login_client(verify: bool) -> httpx.Client:
+    """HTTP client for the login flow; tests monkeypatch this."""
+    return httpx.Client(timeout=15.0, verify=verify)
 
 
 def _fail(exc: ApiError) -> None:
@@ -154,8 +195,8 @@ def doctor() -> None:
         if exc.status == 401:
             typer.echo("api: reachable")
             typer.echo(
-                "auth: FAILED — set VPATH_MGMT_ACTOR and VPATH_MGMT_ROLE "
-                "(dev mode) or wait for OIDC login (decision 6)"
+                f"auth: FAILED ({client.auth_source}) — run 'vpath login' "
+                "(oidc) or set VPATH_MGMT_ACTOR/VPATH_MGMT_ROLE (dev mode)"
             )
             raise typer.Exit(code=EXIT_AUTH) from exc
         typer.echo(f"api: FAILED — {exc.detail}")
@@ -166,7 +207,7 @@ def doctor() -> None:
         typer.echo("fix: start the console (vpath-console) or set VPATH_MGMT_URL")
         raise typer.Exit(code=EXIT_CONFIG) from exc
     typer.echo("api: reachable")
-    typer.echo("auth: valid")
+    typer.echo(f"auth: valid ({client.auth_source})")
     typer.echo(f"engine: {state['engine']}")
 
 
