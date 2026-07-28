@@ -12,7 +12,12 @@ may add mechanics, but they must not duplicate or contradict these rules.
 ```text
 vpath_platform_mgmt/
 ├── src/                    # Main package source code (src layout)
-│   └── vpath_platform_mgmt/  # Placeholder package (replace with real code)
+│   └── vpath_platform_mgmt/
+│       ├── instances/      # Register, templates, CRUD, selector, transport, probe
+│       │   └── templates/  # Versioned type templates (JSON), one per instance type
+│       └── console/        # The management console: generic dual view + entry point
+│           └── electron/   # The Electron shell — renders the console payload only
+├── analysis/               # Decision strands: derivation, issues, decision logs
 ├── tests/                  # Test files
 ├── config/                 # Configuration (settings.py reads .env)
 ├── context/                # Documentation and guidelines

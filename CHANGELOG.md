@@ -11,6 +11,41 @@ package `__init__.py` `__version__` — bump both together (see
 
 ## [Unreleased]
 
+### Added
+- **Management console, axes 1 and 2** (EIP-248, under EIP-163). Instances are
+  created from **versioned type templates** — `nuc`, `cloud-vm`, `standalone`
+  and `remote` (win-claas) — in `src/vpath_platform_mgmt/instances/templates/`,
+  with `templates.py` (load, validate, render a register stanza) and `crud.py`
+  (create/update/remove). Every write is re-read through the register loader
+  before it is kept; a rejected edit restores the previous file exactly.
+- The **generic dual view** over all instance kinds — status, uptime, apps,
+  state, operations, plus type-specific panels, the four location questions
+  and the per-instance OntoGate link (`console/view.py`), served by one entry
+  point that answers a human and the shell identically (`console/api.py`,
+  `--json`). New console scripts: `vpath-console`, `vpath-instance`,
+  `vpath-instance-status`.
+- The **Electron shell** (`console/electron/`) — master-detail, renders the
+  console payload and holds no logic of its own. Build form decided by the
+  user on 2026-07-28, closing the open point in `README.md` ("graphical or
+  chatbot-assisted, TBD").
+- The **`remote` instance kind** with its own kind hooks: the probe reports it
+  as `UNPROVEN` (nothing was tried) rather than `UNREACHABLE`, and the
+  transport refuses to drive it, until
+  `analysis/mgmt-console/remote-type-survey.issue.md` closes.
+- The four location questions as register fields (`LOCATION`,
+  `BUILD_PROCESS`, `SOURCE_REPOS`, `IMAGE_REGISTRY`) and `ONTOGATE_VIEW`.
+
+### Changed
+- `registry.py` split: the `Instance` shape and the kind/lifecycle constants
+  moved to `instances/instance.py`, bringing both files back under the 250-line
+  rule. `registry.py` re-exports every moved name, so existing imports are
+  unaffected.
+
+### Notes
+- Axis 3 (apps) is not started; the console reports apps as unmanaged and
+  names the issue that changes it. Uptime is reported as *not measured* rather
+  than relabelling the install marker.
+
 ## [0.2.1] - 2026-06-28
 
 ### Changed

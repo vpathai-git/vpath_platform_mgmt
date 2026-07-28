@@ -29,26 +29,35 @@ führt, und sie gehört dort vermerkt, nicht nur hier.
 
 ## Anforderung, wie beschrieben
 
-- Startbar (`vpath-platform-mgmt` ist heute ein Console-Script mit Platzhalter,
-  `README.md:50-58`)
-- Links: Liste aller Instanzen mit **Typ** und **Grobzustand** — läuft / broken /
-  sonstiges, auf einen Blick
-- Klick öffnet die Detailansicht derselben Instanz
-- **Uptime** gehört dazu
+- Startbar — **erfüllt:** `vpath-console` bzw. `npm start` in
+  `src/vpath_platform_mgmt/console/electron/`
+- Links: Liste aller Instanzen mit **Typ** und **Grobzustand** — **erfüllt**
+  (Name, Kind, Status-Badge)
+- Klick öffnet die Detailansicht derselben Instanz — **erfüllt**
+- **Uptime** gehört dazu — **offen, und als offen sichtbar.** Die Detailsicht
+  führt die Zeile, sagt aber „not measured": die entschiedene Hauptzahl
+  („Plattformdienste gesund seit") berechnet heute keine Probe. Der
+  Install-Marker wird bewusst **nicht** als Uptime umetikettiert — er wäre eine
+  plausible und falsche Zahl. Umsetzung gehört zu
+  [status-probe](status-probe.issue.md).
 
 ## Offene Punkte
 
 - ~~**S4 — Uptime wovon?**~~ **Entschieden 2026-07-27:** Hauptzahl =
   Plattformdienste (gesund seit); Detailansicht zeigt alle vier Uhren (Box, k3s,
   Plattform, Apps).
-- **Bauform** — Python-TUI, lokale Weboberfläche, Electron? Das Projekt ist ein
-  reines Python-Paket (`src/vpath_platform_mgmt/`, `pyproject.toml`); jede grafische
-  Variante bringt eine Technologieentscheidung mit, die es dort noch nicht gibt.
-- **Live oder Momentaufnahme?** Hängt an S6 (wie oft die Probe läuft). Eine Liste,
-  die bei jedem Öffnen fünf SSH-Verbindungen aufbaut, fühlt sich anders an als eine,
-  die einen zwischengespeicherten Stand zeigt — und ein zwischengespeicherter Stand,
-  der als aktuell erscheint, ist genau die Sorte stiller Täuschung, die hier
-  verboten ist.
+- ~~**Bauform** — Python-TUI, lokale Weboberfläche, Electron?~~ **Entschieden
+  2026-07-28 (Nutzer): Electron.** Umgesetzt in
+  `src/vpath_platform_mgmt/console/electron/`. Die Node-Kette in einem reinen
+  Python-Repo ist der bewusst gezahlte Preis; eingegrenzt durch die Regel, dass
+  die Shell ausschließlich rendert — jede Aussage kommt aus
+  `python -m vpath_platform_mgmt.console.api --json`, damit das Fenster nichts
+  behaupten kann, was `make check` nicht geprüft hat.
+- ~~**Live oder Momentaufnahme?**~~ **Gelöst 2026-07-28 durch Trennung statt
+  Wahl:** Das Öffnen liest nur das Register und zeigt jede Instanz als
+  `NOT PROBED`; Messen ist ein eigener Knopf („Probe now"), und nur dann trägt
+  die Sicht einen Zeitstempel (`probed_at`). Ein zwischengespeicherter Stand
+  kann sich damit nicht als aktueller ausgeben.
 - Zeigt die Konsole später auch den **Pin-Status**? Beide Werkzeuge beantworten
   „stimmt hier noch alles" für verschiedene Gegenstände. Nicht jetzt entscheiden,
   aber beim Zuschnitt nicht ausschließen.

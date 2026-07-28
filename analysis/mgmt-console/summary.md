@@ -4,7 +4,7 @@
 
 Sprache: Deutsch (Dateinamen, Code, Bezeichner Englisch) · Angelegt: 2026-07-27 12:52
 Projekt: `vpath_platform_mgmt` (dieses Repository)
-Status: **Zielbild verankert (README) — Umsetzung nicht begonnen**
+Status: **Achse 1 + 2 umgesetzt (2026-07-28), Achse 3 nicht begonnen**
 
 Vorbereitet vom zuarbeitenden Agenten. Selbst-Containment ist hier Anforderung:
 Dieser Strang und der README-Abschnitt müssen ohne den Koordinations-Workspace
@@ -125,6 +125,35 @@ MVP (drei Achsen, Ziel Ende der Woche):
   Namensschreibweise bestätigt: **Arsany** (frühere Diktat-Form „Arsene").
 - 27.07. (13:29): **Fünf Betriebs-Dimensionen validiert und in den Backlog
   gestellt** (B1–B5, s. o.) — MVP bleiben die drei Achsen, Ziel Ende der Woche.
+- 28.07.: **Achse 1 und 2 umgesetzt.** Typ-Templates versioniert als JSON unter
+  `src/vpath_platform_mgmt/instances/templates/` (`nuc`, `cloud-vm`,
+  `standalone`, `remote`) + `templates.py`/`crud.py`; generische Dual-Sicht +
+  ein Entry-Point in `src/vpath_platform_mgmt/console/`; Electron-Shell in
+  `console/electron/`. 106 neue Tests, Coverage 97,7 %.
+  Vier Festlegungen, die dabei gefallen sind:
+  - **Bauform = Electron** (Nutzerentscheidung 28.07.) — schließt den offenen
+    Punkt „graphical or chatbot-assisted, TBD" (README) und den offenen Punkt
+    „Bauform" in `../instance-status/console-ui.issue.md`. Die Node-Kette in
+    einem reinen Python-Repo ist der bewusst gezahlte Preis; eingegrenzt durch
+    die Regel, dass die Shell nur rendert.
+  - **Templates als JSON statt YAML** — Abweichung von der Schreibweise in M1,
+    nicht von der Substanz: YAML kostet einen Fremdparser, und `AGENTS.md`
+    stellt stdlib vor neue Dependency. Kommentare wandern in die gerenderte
+    Register-Stanza, wo der Operator sie liest.
+  - **Vier statt drei Templates** — `cloud-vm` kam hinzu, weil `terra` live ist
+    und sonst nicht anlegbar wäre. Zielbildtext nennt drei; das ist die
+    Vollständigkeit derselben Sache, keine Erweiterung.
+  - **M3 ist nicht mehr unverifiziert.** Der OntoGate-UI-Server **existiert**:
+    `vpath_ontogate/src/vpath_ontogate/view/` (`ontogate-view`, mountet
+    `.ontogate/`-Spines über HTTP). Er bindet aber einen **automatisch
+    gewählten Loopback-Port**, also ist keine Adresse ableitbar — der Link ist
+    deshalb ein Registerfeld (`ONTOGATE_VIEW`), und ein fehlender wird ehrlich
+    als fehlend gezeigt statt als toter Link.
+  Zwei Dinge bleiben bewusst ungeraten und sind in der Konsole als solche
+  sichtbar: `remote` ist **declared, unproven** (Probe meldet `UNPROVEN`, nicht
+  `UNREACHABLE` — es wurde nichts versucht; Transport verweigert), und
+  **Uptime ist nicht gemessen** (die entschiedene Zahl „Plattformdienste gesund
+  seit" berechnet heute keine Probe; der Install-Marker wird nicht umetikettiert).
 - 27.07. (14:15): **Nach Jira gespiegelt** (Sync-Lauf 2, freigegebene Vorschau):
   Zielbild als Block „Stand 27.07.2026" in der Beschreibung von **EIP-222**;
   Umsetzungs-To-do als **EIP-248** („Management-Konsole MVP", unter EIP-163,

@@ -73,6 +73,43 @@ secret rotation. Detail: `analysis/mgmt-console/summary.md`.
 
 Derivation and open points: `analysis/mgmt-console/summary.md`.
 
+### What of this runs today (2026-07-28)
+
+| Axis | State |
+|---|---|
+| 1 — dualism | **Built.** One generic view (status, uptime, apps, state, operations) over all four instance kinds, plus type-specific panels and the per-instance OntoGate link — `src/vpath_platform_mgmt/console/`. |
+| 2 — instances | **Built.** Versioned type templates (`nuc`, `cloud-vm`, `standalone`, `remote`) with create/update/remove against the gitignored register — `src/vpath_platform_mgmt/instances/`. |
+| 3 — apps | **Not started.** The console reports apps as unmanaged and names the issue that changes it. Iteration 1 (Explorer extracted and deployed) needs the server monorepo plus a live instance. |
+
+Two things are deliberately *not* guessed and are visible as such in the
+console: the `remote` (win-claas) type is **declared but unproven** until
+`analysis/mgmt-console/remote-type-survey.issue.md` closes, and **uptime is
+not measured yet** — the decided figure is "platform services healthy since",
+which no probe computes today.
+
+### Running the console
+
+```bash
+python -m vpath_platform_mgmt.console.api view          # register only
+python -m vpath_platform_mgmt.console.api view --probe  # measure now
+python -m vpath_platform_mgmt.console.api templates     # the type templates
+```
+
+The same commands with `--json` are exactly what the Electron shell consumes;
+the shell renders that payload and holds no logic of its own.
+
+```bash
+cd src/vpath_platform_mgmt/console/electron && npm install && npm start
+```
+
+Creating an instance goes through a template rather than an editor — the
+template decides which fields exist and which are mandatory, and the edit is
+kept only if the resulting register still parses:
+
+```bash
+python -m vpath_platform_mgmt.console.api create mars --template nuc --set SSH_HOST=... --set SSH_USER=... --set CHECKOUT=...
+```
+
 The full concept, roles, and open questions live in the Jira task — that is the
 source of truth:
 **[EIP-222 · Server Stabilisierung und Administration](https://vpathai-team-l8xgdmtm.atlassian.net/browse/EIP-222)**
