@@ -1,0 +1,9 @@
+[flake8]
+# The console shell lives inside the package, so `npm install` drops a
+# node_modules/ tree under src/. node-gyp vendors gyp, which is third-party
+# *Python* — without this, linting src/ lints someone else's build tool and
+# the gate fails on a machine that merely built the console.
+#
+# Only the exclusion lives here. The gate's actual thresholds stay in the
+# Makefile and the CI workflow, so there is one place they are declared.
+extend-exclude = node_modules

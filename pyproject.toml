@@ -36,6 +36,8 @@ dev = [
     "black>=24.0.0",
     "flake8>=7.0.0",
     "mypy>=1.10.0",
+    # PEP 517 front-end for `make dist-python` (wheel + sdist).
+    "build>=1.2.0",
 ]
 
 [project.scripts]
@@ -46,6 +48,11 @@ vpath-instance-status = "vpath_platform_mgmt.instances.probe:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+# The console shell's node_modules/ contains third-party Python (node-gyp
+# vendors gyp, which has __init__.py), so package discovery mistakes it for
+# part of this project and sweeps it into the wheel. It is build-time-only
+# tooling and must never ship.
+exclude = ["*node_modules*"]
 
 [tool.setuptools.package-data]
 # The type templates are mechanism, not payload: they ship with the package.
@@ -68,6 +75,9 @@ line_length = 88
 
 [tool.mypy]
 python_version = "3.10"
+# Same reason as .flake8: `npm install` puts a node_modules/ tree under src/,
+# and node-gyp vendors third-party Python inside it.
+exclude = ["node_modules"]
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true

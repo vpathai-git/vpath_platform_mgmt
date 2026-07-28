@@ -3,11 +3,49 @@
   "version": "0.1.0",
   "private": true,
   "description": "Electron shell for the VPATH platform management console. Renders what vpath_platform_mgmt.console.api produces; holds no logic of its own.",
+  "author": "Andre Fischer <andre.fischer@vpathai.com>",
+  "license": "SEE LICENSE IN ../../../../LICENSE.TXT",
   "main": "main.js",
   "scripts": {
-    "start": "electron ."
+    "start": "electron .",
+    "dist": "electron-builder",
+    "dist:dir": "electron-builder --dir"
   },
   "devDependencies": {
-    "electron": "^43.2.0"
+    "electron": "^43.2.0",
+    "electron-builder": "^26.15.3"
+  },
+  "comment:overrides": "electron-builder's tree pins several old brace-expansion lines, all of which sit inside GHSA-mh99-v99m-4gvg (unbounded expansion -> OOM). This repository blocks on HIGH, so the transitive dependency is forced tree-wide to the fixed release. Drop this override once electron-builder ships it itself.",
+  "overrides": {
+    "brace-expansion": "^5.0.8"
+  },
+  "build": {
+    "appId": "com.vpathai.platform-mgmt-console",
+    "productName": "VPATH Platform Console",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "renderer/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ]
+    },
+    "mac": {
+      "target": [
+        "dir"
+      ]
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Development"
+    }
   }
 }
