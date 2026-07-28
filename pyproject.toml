@@ -40,9 +40,23 @@ dev = [
 
 [project.scripts]
 vpath-platform-mgmt = "vpath_platform_mgmt:main"
+vpath-console = "vpath_platform_mgmt.console.api:main"
+vpath-instance = "vpath_platform_mgmt.instances.selector:main"
+vpath-instance-status = "vpath_platform_mgmt.instances.probe:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+# The type templates are mechanism, not payload: they ship with the package.
+# The Electron shell ships with it too, so `vpath-console` and the window it
+# opens can never be different versions of the same console.
+vpath_platform_mgmt = [
+    "instances/templates/*.json",
+    "console/electron/*.js",
+    "console/electron/*.json",
+    "console/electron/renderer/*",
+]
 
 [tool.black]
 line-length = 88
