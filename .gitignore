@@ -77,6 +77,13 @@ docs/_templates/
 # Ad-hoc UI exploration artifacts (see /verify-ui skill)
 ui_exploration/
 
+# Node / Electron — the console shell's dependency tree is installed, never
+# committed (src/vpath_platform_mgmt/console/electron/)
+# package-lock.json is deliberately NOT ignored: it pins the transitive tree,
+# which is the only supply-chain guarantee the Node side has.
+node_modules/
+npm-debug.log*
+
 # Java / Gradle (flavor branches generate these when switching locally)
 build/
 .gradle/
