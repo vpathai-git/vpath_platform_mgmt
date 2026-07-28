@@ -1,6 +1,11 @@
 # Issue: Full-Tree-Sync wirft Dateien weg, die das Vendor-Freeze-Gate hasht
 
-Status: draft (Server-Strom-Spur — Fix gehört ins Server-Repo, nicht hierher) ·
+Status: **Wurzel am HEAD gelöst** (nachgemessen 2026-07-28: 0 getrackte
+`settings.local.json` im Vendor-Baum @ Server `origin/main 47d9d23ea` —
+`git ls-tree`; Folge des Substrat-Schnitts S55/Masterplan). **Auf dem
+Flotten-Pin `1a2c51dc` lebt die Kollision weiter**, bis die Flotte den Stand
+hebt — der mars12-Behelf (Restore der zwei Dateien) bleibt bis dahin nötig.
+BP11-Schwäche bleibt eigenes Issue. ·
 Herkunft: mars12-Install 2026-07-28, `buildWorkflowBase` rot nach 23m 5s
 
 **Befund:** `lib/vm.sh:2638` schließt `.claude/` aus dem From-within-Sync nach
