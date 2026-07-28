@@ -105,7 +105,13 @@ def _run_verb(verb: str, target: str, confirm: str = "") -> None:
     except httpx.HTTPError as exc:
         typer.echo(f"error: cannot reach the Ops API ({exc})", err=True)
         raise typer.Exit(code=EXIT_CONFIG) from exc
-    if str(job["state"]) != "succeeded":
+    engine = str(job.get("engine", "?"))
+    outcome = str(job["state"])
+    if engine == "simulated":
+        typer.echo(f"{outcome} — SIMULATED, nothing was deployed to a real server")
+    else:
+        typer.echo(f"{outcome} (engine: {engine})")
+    if outcome != "succeeded":
         raise typer.Exit(code=EXIT_FAILED)
 
 
@@ -159,7 +165,7 @@ def status() -> None:
     for job in jobs[:10]:
         typer.echo(
             f"  {job['id']}  {job['verb']:<10} {job['app']:<16} "
-            f"{job['state']:<10} {job['step']}"
+            f"[{job.get('engine', '?')}] {job['state']:<10} {job['step']}"
         )
     locks = cast("list[dict[str, object]]", state["locks"])
     for lock in locks:

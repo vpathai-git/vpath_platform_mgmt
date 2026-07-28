@@ -66,7 +66,7 @@ class OpsService:
         self._check_rbac(verb, role, actor, app)
         self._check_confirmation(verb, confirm)
         scope = lock_scope(verb, app)
-        job = Job(verb=verb, app=app, actor=actor, role=role)
+        job = Job(verb=verb, app=app, actor=actor, role=role, engine=self._engine.name)
         if scope is not None:
             self._locks.acquire(scope, actor, job.id)
         with self._mutex:
@@ -110,6 +110,8 @@ class OpsService:
         emit = self._emitter(job)
         with self._mutex:
             job.state = JobState.RUNNING
+        if job.engine == "simulated":
+            emit("SIMULATED RUN — no real server contact, nothing is deployed")
         try:
             result = self._engine.run(job, emit)
         except EngineFailure as exc:

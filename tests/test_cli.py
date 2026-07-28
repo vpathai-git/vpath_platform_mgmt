@@ -39,6 +39,20 @@ def test_deploy_streams_steps_and_exits_zero(wired: OpsService) -> None:
     assert "redeployApp" in result.output
 
 
+def test_deploy_output_flags_simulation(wired: OpsService) -> None:
+    result = runner.invoke(main.app, ["deploy", "sample-app"])
+    assert result.exit_code == 0, result.output
+    assert "SIMULATED" in result.output
+    assert "nothing was deployed" in result.output
+
+
+def test_status_shows_engine_per_job(wired: OpsService) -> None:
+    job = wired.submit("build", "demo", "alice", "app-dev")
+    wired.wait(job.id)
+    result = runner.invoke(main.app, ["status"])
+    assert "[simulated]" in result.output
+
+
 def test_refused_role_exits_3(
     wired: OpsService, monkeypatch: pytest.MonkeyPatch
 ) -> None:
