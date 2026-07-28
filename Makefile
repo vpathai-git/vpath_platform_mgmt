@@ -1,7 +1,7 @@
 # Makefile for common project commands
 # Run 'make help' to see available commands
 
-.PHONY: help install install-dev test test-verbose format lint type-check check scan clean run setup
+.PHONY: help install install-dev test test-verbose format lint type-check check credentials scan clean run setup
 
 # Default target
 help:
@@ -14,7 +14,8 @@ help:
 	@echo "  make format       - Format code with black"
 	@echo "  make lint         - Run linting with flake8"
 	@echo "  make type-check   - Run type checking with mypy"
-	@echo "  make check        - Run the FULL quality gate (format + lint + types + tests, same as CI)"
+	@echo "  make check        - Run the FULL quality gate (credentials + format + lint + types + tests, same as CI)"
+	@echo "  make credentials  - Fail if a credential value can reach a log, a console or a tracked file"
 	@echo "  make scan         - Scan resolved dependencies against latest CVEs (Trivy; blocks CRITICAL/HIGH)"
 	@echo "  make clean        - Remove build artifacts and caches"
 	@echo "  make run          - Run the placeholder module"
@@ -60,8 +61,15 @@ lint:
 type-check:
 	mypy src/ config/ scripts/
 
+# Credential gate — no secret value may reach a console, a log or a tracked
+# file. Runs first: it is the cheapest step and the one with the worst failure
+# mode. Point it at another checkout with --root to audit that tree.
+credentials:
+	python3 scripts/check_no_logged_credentials.py
+
 # Full quality gate — identical to CI; all steps must pass
 check:
+	python3 scripts/check_no_logged_credentials.py
 	black --check src/ tests/ config/ scripts/
 	flake8 src/ tests/ config/ scripts/ --max-line-length=88 --extend-ignore=E203 --max-complexity=10
 	mypy src/ config/ scripts/
