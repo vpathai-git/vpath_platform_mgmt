@@ -82,10 +82,15 @@ Derivation and open points: `analysis/mgmt-console/summary.md`.
 | 3 — apps | **Not started.** The console reports apps as unmanaged and names the issue that changes it. Iteration 1 (Explorer extracted and deployed) needs the server monorepo plus a live instance. |
 
 Two things are deliberately *not* guessed and are visible as such in the
-console: the `remote` (win-claas) type is **declared but unproven** until
-`analysis/mgmt-console/remote-type-survey.issue.md` closes, and **uptime is
-not measured yet** — the decided figure is "platform services healthy since",
-which no probe computes today.
+console. **Uptime is not measured yet** — the decided figure is "platform
+services healthy since", which no probe computes today. And the `remote`
+(win-claas) type is reachable but **not permitted**: its access path was
+surveyed against the server project on 2026-07-28 and is established (SSH,
+key-based, no jump host), but what the console may do on a customer production
+system is an operator decision no repository can answer. So `CONSOLE_PERMITTED`
+stays open, the transport refuses that kind outright, and the probe measures
+nothing. Knowing how to reach a machine is not permission to touch it.
+Detail: `analysis/mgmt-console/remote-type-survey.issue.md`.
 
 ### Running the console
 

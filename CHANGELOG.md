@@ -46,6 +46,23 @@ package `__init__.py` `__version__` — bump both together (see
   platform (electron-builder does not cross-compile), `make dist` both. New
   `make console` / `make console-install` run the shell from a checkout.
 
+### Changed
+- **The `remote` (win-claas) survey closed** against `vpath_server@889a6939`.
+  The type template goes to `template_version: 1`, `proven: true`, and every
+  field carries the file:line it was established from. Access is SSH,
+  key-based, with no jump host; the deploy path is the same Gradle pipeline as
+  every other target. Two of the four location questions differ from a NUC:
+  the build runs on the operator's machine rather than on the box, and images
+  live in an in-cluster registry filled by `skopeo`, with airgap enforced by
+  the `verifyAirgap` phase gate.
+- What the console may do on a customer system stays **open**, because no
+  repository can answer it — the server project documents no approval path
+  anywhere. `CONSOLE_PERMITTED` is explicitly marked open, the transport still
+  refuses the kind outright, and the probe still measures nothing. What
+  changed is the reason: from "we do not know how" to "we are not cleared to".
+  The probe now reports the access path as a measured fact and names the gap
+  `clearance`.
+
 ### Fixed
 - The wheel packaged 66 files it should not have: setuptools discovered the
   console shell's `node_modules/node-gyp/gyp/pylib/gyp` as a Python package

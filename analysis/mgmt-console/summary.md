@@ -85,7 +85,7 @@ dieser Block ist die vorbereitete Karte dafür.
 | # | Entscheidung |
 |---|---|
 | **M1** | **Deklarativ + kind-Hooks.** Ein versioniertes Template-YAML je Typ im Register-Schema (Pflichtfelder, Defaults); typspezifische Logik in den vorhandenen kind-Hooks (`transport.py`, `probe.py`). Anlage = Vorlage kopieren, Payload füllen, validieren. |
-| **M2** | **Struktur jetzt, Erhebung als Auftrag.** Das `remote`-Template (win-claas) wird mit den bekannten Feldern strukturiert und als **declared, unproven** markiert; die Feld-Erhebung ist ein eigener Auftrag → [remote-type-survey](remote-type-survey.issue.md). Kein Raten. |
+| **M2** | **Struktur jetzt, Erhebung als Auftrag.** Das `remote`-Template (win-claas) wird mit den bekannten Feldern strukturiert und als **declared, unproven** markiert; die Feld-Erhebung ist ein eigener Auftrag → [remote-type-survey](remote-type-survey.issue.md). Kein Raten. — **Erledigt 28.07.:** erhoben, Template auf v1/`proven`; die eine offene Frage (Grenzen) ist als Betreiberentscheidung erkannt, nicht als Erhebungslücke. |
 | **M3** | **Link auf den OntoGate-UI-Server.** Der Link je Instanz/App zeigt auf den OntoGate-UI-Server, der die OntoGate-Sicht **aus dem jeweiligen Projekt** liefert (Server-, Standalone-, App-/Workflow-spezifisch) — *wenn vorhanden*; fehlende Sicht wird ehrlich als fehlend gezeigt. **Nicht verifiziert:** ob ein solcher UI-Server heute existiert oder Teil des Bauauftrags wird — zu erheben (vpath_ontogate). |
 | **M4** | **Eigene Quick-Extraktion zuerst.** Arsany arbeitet parallel an seiner Extraktion (Quick-Solution). Iteration 1: **wir extrahieren die Explorer-App selbst und demonstrieren die Deploybarkeit** über die Konsole; **später Umzug auf Arsanys App-Repo als Quelle** → [explorer-quick-extraction](explorer-quick-extraction.issue.md). Die zeitweise zweite Variante ist eine **bewusste, befristete Ausnahme von Regel „keine zwei Varianten"** — vom Nutzer angeordnet, mit definiertem Ablauf (Umzug auf Arsanys Basis). |
 
@@ -154,6 +154,22 @@ MVP (drei Achsen, Ziel Ende der Woche):
   `UNREACHABLE` — es wurde nichts versucht; Transport verweigert), und
   **Uptime ist nicht gemessen** (die entschiedene Zahl „Plattformdienste gesund
   seit" berechnet heute keine Probe; der Install-Marker wird nicht umetikettiert).
+- 28.07.: **`remote`-Erhebung abgeschlossen** gegen `vpath_server@889a6939`
+  → [remote-type-survey](remote-type-survey.issue.md). Zugang belegt (SSH,
+  schlüsselbasiert, **kein** Sprunghost, Default-Keypair statt eigenem Key wie
+  beim NUC); Deploy-Pfad ist **dieselbe** Gradle-Pipeline. Zwei der vier
+  Ortsfragen weichen vom NUC ab: der **Build läuft beim Operator** (nicht auf
+  der Box) und die **Images liegen in einer In-Cluster-Registry** auf dem
+  Deploy-Host, per `skopeo` befüllt, Airgap durch `verifyAirgap` erzwungen.
+  Template auf v1, `proven: true`.
+  **Frage 3 (Grenzen) bleibt offen — als Befund, nicht als Lücke:** im
+  Serverprojekt ist kein Freigabeweg dokumentiert, weil das eine Betreiber- und
+  Kundenentscheidung ist. Deshalb bleibt `CONSOLE_PERMITTED` offen, die
+  Transportschicht **verweigert** den Typ weiterhin, und die Begründung hat
+  sich verschoben: nicht mehr „wir wissen nicht wie", sondern „wir dürfen
+  nicht". Nebenbefund fürs Serverprojekt: die Kunden-SSH-Callsites nutzen
+  `StrictHostKeyChecking=no`, obwohl der Kommentar daneben „full host-key
+  tracking" behauptet — MITM-Exposition auf einem Produktivsystem.
 - 27.07. (14:15): **Nach Jira gespiegelt** (Sync-Lauf 2, freigegebene Vorschau):
   Zielbild als Block „Stand 27.07.2026" in der Beschreibung von **EIP-222**;
   Umsetzungs-To-do als **EIP-248** („Management-Konsole MVP", unter EIP-163,

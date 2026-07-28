@@ -52,9 +52,14 @@ prefixed with the upper-cased instance name.
 
 | Field | Kinds | Meaning |
 |---|---|---|
-| `KIND` | all | `server-nuc`, `server-cloud-vm` or `standalone` |
+| `KIND` | all | `server-nuc`, `server-cloud-vm`, `standalone` or `remote` |
 | `LIFECYCLE` | all | `live` (default) or `planned` — named, not built yet |
 | `NOTES` | all | one line of free text |
+| `LOCATION` | all | location question 1 — where it lives (host + filesystem) |
+| `BUILD_PROCESS` | all | location question 2 — where its build process lives |
+| `SOURCE_REPOS` | all | location question 3 — which repos the build pulls apps from |
+| `IMAGE_REGISTRY` | all | location question 4 — where its container images live |
+| `ONTOGATE_VIEW` | all | base URL of a running OntoGate viewer for this project |
 | `SSH_HOST` | server | address the dev machine connects to |
 | `SSH_USER` | server | login user on the box |
 | `SSH_KEY` | server | private key path; omit for the ssh default |
@@ -64,10 +69,44 @@ prefixed with the upper-cased instance name.
 | `CHECKOUT` | server | server checkout **on the box**: delivery target and Gradle cwd |
 | `APP_ROOT` | standalone | app repository carrying the Electron shell |
 | `HOME` | standalone | `VPATH_STANDALONE_HOME` — runtime state, keys, KPs |
+| `CLUSTER_HOST` | remote | the customer-side cluster target |
+| `ACCESS_PROTOCOL` | remote | how it is reached — `ssh` (surveyed 2026-07-28) |
+| `JUMP_HOST` | remote | bastion, if the customer network requires one |
+| `CREDENTIALS_MODEL` | remote | which credentials model applies — structure only |
+| `DEPLOY_PATH` | remote | how installs and updates happen there |
+| `CONSOLE_PERMITTED` | remote | **what the console may do there — open, and must be stated** |
 
 Fields required for a kind are enforced when the register is read. A
 `LIFECYCLE=planned` instance is exempt: its coordinates cannot be known before
 it exists.
+
+The four location fields are optional on every kind and left blank rather than
+guessed — the console renders a blank one as *not declared*, never as an empty
+value. `ONTOGATE_VIEW` is declared rather than derived because the viewer binds
+an auto-picked loopback port, so no address is knowable in advance.
+
+### Instances are created from templates, not by hand
+
+```bash
+python -m vpath_platform_mgmt.console.api templates
+python -m vpath_platform_mgmt.console.api create mars --template nuc --set SSH_HOST=… --set SSH_USER=… --set CHECKOUT=…
+```
+
+The versioned type template (`src/vpath_platform_mgmt/instances/templates/`)
+decides which fields exist and which are mandatory. Every write is re-read
+through the loader before it is kept; a rejected edit restores the previous
+file byte for byte.
+
+### The `remote` kind is reachable but not permitted
+
+`remote` is the customer-side cluster of the CLAAS line. Its access path was
+surveyed against the server project on 2026-07-28 and is established: SSH,
+key-based, no jump host. What is **not** established is what the console may do
+on a customer production system — no repository can answer that, so
+`CONSOLE_PERMITTED` stays open and **the transport refuses this kind
+outright**. The probe reports it as `UNPROVEN` and measures nothing. Knowing
+how to reach a machine is not permission to touch it. See
+`analysis/mgmt-console/remote-type-survey.issue.md`.
 
 ### Naming — two classes
 
