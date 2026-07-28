@@ -23,6 +23,7 @@ from vpath_platform_mgmt.api.app import create_app
 from vpath_platform_mgmt.api.oidc import OidcConfig, OidcValidator
 from vpath_platform_mgmt.ops.engine import EngineAdapter, LocalEngine, SimulatedEngine
 from vpath_platform_mgmt.ops.service import OpsService
+from vpath_platform_mgmt.ops.source import SourceMaterializer
 
 ENGINE_MODES = ("simulated", "local")
 SIMULATED_STEP_DELAY = 0.8
@@ -83,6 +84,14 @@ def build_oidc_validator(env: Mapping[str, str]) -> OidcValidator | None:
     return OidcValidator(config)
 
 
+def build_materializer(env: Mapping[str, str]) -> SourceMaterializer | None:
+    """Materializer for the configured checkout, or None when there isn't one."""
+    checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
+    if not checkout:
+        return None
+    return SourceMaterializer(Path(checkout))
+
+
 def main() -> None:  # pragma: no cover - thin uvicorn wrapper
     """Serve the console; config errors abort startup loudly."""
     import uvicorn
@@ -93,6 +102,7 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
         service,
         auth_mode=os.environ.get("VPATH_MGMT_AUTH", "dev"),
         oidc_validator=build_oidc_validator(os.environ),
+        materializer=build_materializer(os.environ),
     )
     uvicorn.run(
         app,

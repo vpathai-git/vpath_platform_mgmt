@@ -106,6 +106,57 @@ def test_unknown_auth_mode_fails_loud() -> None:
         create_app(OpsService(SimulatedEngine()), auth_mode="none")
 
 
+def _archive(files: dict[str, str]) -> bytes:
+    import io
+    import tarfile
+
+    buffer = io.BytesIO()
+    with tarfile.open(fileobj=buffer, mode="w:gz") as archive:
+        for name, content in files.items():
+            data = content.encode()
+            info = tarfile.TarInfo(name)
+            info.size = len(data)
+            archive.addfile(info, io.BytesIO(data))
+    return buffer.getvalue()
+
+
+def _app_with_materializer(tmp_path: Path) -> TestClient:
+    from vpath_platform_mgmt.ops.source import SourceMaterializer
+
+    (tmp_path / "apps_infra" / "apps").mkdir(parents=True)
+    service = OpsService(SimulatedEngine())
+    return TestClient(create_app(service, materializer=SourceMaterializer(tmp_path)))
+
+
+def test_source_upload_requires_admin(tmp_path: Path) -> None:
+    client = _app_with_materializer(tmp_path)
+    body = _archive({"vpath-app.yaml": "kind: VpathApp"})
+    refused = client.post("/api/apps/demo/source", content=body, headers=APP_DEV)
+    assert refused.status_code == 403
+    ok = client.post("/api/apps/demo/source", content=body, headers=ADMIN)
+    assert ok.status_code == 201
+    assert ok.json()["file_count"] == 1
+
+
+def test_source_upload_without_checkout_is_409(client: TestClient) -> None:
+    body = _archive({"vpath-app.yaml": "kind: VpathApp"})
+    response = client.post("/api/apps/demo/source", content=body, headers=ADMIN)
+    assert response.status_code == 409
+    assert "checkout" in response.json()["detail"]
+
+
+def test_source_upload_is_audited(tmp_path: Path) -> None:
+    client = _app_with_materializer(tmp_path)
+    client.post(
+        "/api/apps/demo/source",
+        content=_archive({"vpath-app.yaml": "kind: VpathApp"}),
+        headers={**ADMIN, "X-Source-Ref": "port-x", "X-Source-Commit": "deadbeef1234"},
+    )
+    audit = client.get("/api/state", headers=ADMIN).json()["audit"]
+    assert audit[0]["action"] == "materialize"
+    assert "port-x@deadbeef" in audit[0]["result"]
+
+
 def test_engine_env_passthrough_parsing() -> None:
     """The pipeline needs VPATH_INSTALL_MODE on single-box targets."""
     from vpath_platform_mgmt.api.server import parse_engine_env

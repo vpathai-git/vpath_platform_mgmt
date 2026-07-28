@@ -50,6 +50,7 @@ class OpsService:
         self._jobs: list[Job] = []
         self._threads: dict[str, threading.Thread] = {}
         self._health: dict[str, object] | None = None
+        self._sources: dict[str, dict[str, object]] = {}
         self._mutex = threading.RLock()
 
     @property
@@ -138,6 +139,28 @@ class OpsService:
         self._audit.record(
             job.actor, job.role.value, job.verb.value, job.app, state.value
         )
+
+    def record_source(
+        self, app: str, actor: str, role: str, summary: dict[str, object]
+    ) -> None:
+        """Audit a source materialization and remember it for the next deploy."""
+        source = summary.get("source", {})
+        ref = source.get("ref", "?") if isinstance(source, dict) else "?"
+        commit = source.get("commit", "?") if isinstance(source, dict) else "?"
+        with self._mutex:
+            self._sources[app] = summary
+        self._audit.record(
+            actor,
+            role,
+            "materialize",
+            app,
+            f"{summary.get('file_count', 0)} files from {ref}@{str(commit)[:8]}",
+        )
+
+    def source_of(self, app: str) -> dict[str, object] | None:
+        """Provenance of the last source materialized for an app."""
+        with self._mutex:
+            return self._sources.get(app)
 
     def wait(self, job_id: str, timeout: float = 10.0) -> None:
         """Block until a job's thread finishes (used by tests and CLI)."""
