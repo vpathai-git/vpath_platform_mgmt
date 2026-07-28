@@ -46,6 +46,23 @@ things no amount of reading would have:
 Both failures were loud, correctly attributed, and left the platform
 untouched — the fail-hard rule doing its job on first contact.
 
+3. **GitOps is already live for this app — correcting the v1 reality check.**
+   v1 recorded GitOps as "decided, not live". The successful run shows
+   otherwise for `vpath-explorer`: `redeployApp` syncs secrets and Keycloak
+   client metadata, then **renders manifests and pushes a Deploy-of-Record
+   commit to Gitea**, printing "workload delivery is ArgoCD's (render+commit
+   → Gitea → sync)". The Argo application reports `Synced / Healthy`. The
+   imperative adapter therefore already *is* the GitOps writer for this app,
+   which strengthens decision 2's "no fourth authority" rule: the Ops API
+   must keep writing desired state through this path and never apply
+   directly.
+
+A deploy of an unchanged app is a **no-op by design**: the content hash in
+`build.hash.dirs` matches, so no image is rebuilt and Argo has nothing new to
+roll out. Verified: the pod, its start time and its image digest were
+identical before and after. Proving an actual rollout therefore requires a
+real source change — i.e. exactly the materialization step below.
+
 ## Options
 
 | Option | Weight | Pros | Cons |
