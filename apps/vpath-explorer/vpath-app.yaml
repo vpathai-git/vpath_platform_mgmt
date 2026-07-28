@@ -1,0 +1,68 @@
+apiVersion: vpath/v1
+kind: VpathApp
+metadata:
+  name: vpath-explorer
+  namespace: vpath-explorer
+  labels:
+    app.kubernetes.io/part-of: vpath
+spec:
+  deploy:
+    readinessBudget: 300
+  type: web
+  image: vpath-explorer
+  basePath: /explorer
+  port: 3007
+  auth:
+    oidcClient: vpath-explorer
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  health:
+    readiness: /explorer/api/healthz
+    liveness: /explorer/api/healthz
+    scheme: HTTPS
+  dapr:
+    appId: vpath-explorer
+    appPort: 3007
+    statestore: true
+  volumes:
+    - name: mkcert-ca
+      mountPath: /etc/ssl/certs/rootCA.pem
+      type: secret
+      sourceName: mkcert-ca
+    - name: tls-certs
+      mountPath: /certs
+      type: secret
+      sourceName: mkcert-tls
+  capabilities:
+    storageExplorer: true
+    storageAdmin: true
+  appStorage:
+    folders:
+      - name: Documents
+        path: Documents
+        shared: readwrite
+      - name: Downloads
+        path: Downloads
+        shared: readwrite
+      - name: state
+        path: .state
+        shared: private
+  ui:
+    title: Explorer
+    description: File system explorer
+    icon: folder-open
+    sidebar: true
+  build:
+    runtime: node
+    hash:
+      dirs:
+        - apps_infra/apps/vpath-explorer
+        - apps_infra/sdk
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk

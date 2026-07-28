@@ -1,0 +1,23 @@
+[project]
+name = "vpath-hello-confluence-api"
+version = "0.1.0"
+description = "Confluence Browser — VPATH Use-Case app backend (spaces + page tree)"
+requires-python = ">=3.11"
+# Curated direct deps only (CLAUDE.md §8 — never pip freeze). The platform's
+# vpath-backend-sdk brings auth/resource/credential wiring; httpx is the
+# Confluence client; uvicorn serves it.
+dependencies = [
+  "vpath-backend-sdk",
+  "httpx>=0.28.1",
+  "uvicorn>=0.51.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4.4", "pytest-asyncio>=0.23.8"]
+
+# Vendored substrate (kit/) consumed as a local path — never the network.
+[tool.uv.sources]
+vpath-backend-sdk = { path = "../../../kit/sdk-python/vpath-backend-sdk" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,53 @@
+apiVersion: vpath/v1
+kind: VpathApp
+metadata:
+  name: vpath-fortune-teller
+  namespace: vpath-fortune-teller
+  labels:
+    app.kubernetes.io/part-of: vpath
+spec:
+  deploy:
+    readinessBudget: 300
+  type: web
+  image: vpath-fortune-teller
+  basePath: /fortune
+  port: 3020
+  auth:
+    oidcClient: vpath-fortune-teller
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+  health:
+    readiness: /fortune/api/healthz
+    liveness: /fortune/api/healthz
+    scheme: HTTPS
+  dapr:
+    appId: vpath-fortune-teller
+    appPort: 3020
+  volumes:
+    - { name: mkcert-ca, mountPath: /etc/ssl/certs/rootCA.pem, type: secret, sourceName: mkcert-ca }
+    - { name: tls-certs, mountPath: /certs, type: secret, sourceName: mkcert-tls }
+  ui:
+    title: Fortune Teller
+    description: Ask the oracle a question and receive a deterministic fortune
+    icon: sparkles
+    sidebar: true
+  # This app binds NO external system — the deck is local and deterministic — so
+  # there is intentionally NO resourceRequirements block (nothing to provision
+  # or inject). The OntoGate NEED face is honestly empty (a modeled state, not a
+  # gap); contrast vpath-hello-confluence, which declares a credential need.
+  env:
+    # Dapr service invocation via the sidecar; createProxyRoute appends the
+    # request path. Target is the Python api app (appId.namespace). Read per
+    # request, never baked into the build (CLAUDE.md §5).
+    - name: VPATH_FORTUNE_API_URL
+      value: "http://localhost:3500/v1.0/invoke/vpath-fortune-teller-api.vpath-fortune-teller/method"
+  build:
+    runtime: node
+    hash:
+      dirs:
+        - apps_infra/apps/vpath-fortune-teller
+        - apps_infra/sdk
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk

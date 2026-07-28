@@ -1,0 +1,222 @@
+{
+  "model": {
+    "name": "vpath_fortune_teller_spine3",
+    "layer": "app",
+    "version": "1.0.0",
+    "extension_procedure": "ontogate_canonical_cycle",
+    "method_version": "0.10.44",
+    "generated_from": "spine.yaml",
+    "source_sha256": "75084948898a2984901d70edfe0f2131f0eee2a4893c4f0830efd624f5352af4",
+    "generated_with": "0.10.44"
+  },
+  "contracts": {
+    "C-auth-delegated": "{face: given, channel: sdk}",
+    "C-zero-header": "{face: given, channel: sdk}",
+    "C-tokens-only": "{face: given, channel: sdk}",
+    "C-proxy-via-sdk": "{face: given, channel: sdk}",
+    "C-resource-reader-via-sdk": "{face: given, channel: sdk}",
+    "C-health-via-sdk": "{face: given, channel: sdk}",
+    "C-version-via-sdk": "{face: given, channel: sdk}",
+    "C-error-boundary-via-sdk": "{face: given, channel: sdk}",
+    "C-config-fail-fast": "{face: given, channel: sdk}",
+    "C-authz-via-sdk": "{face: given, channel: sdk}",
+    "C-no-override-generated-k8s": "{face: given, channel: manifest}",
+    "C-no-handrolled-ingress": "{face: given, channel: manifest}",
+    "C-no-handbuilt-dapr-url": "{face: given, channel: manifest}",
+    "C-no-handbuilt-health-probe": "{face: given, channel: manifest}",
+    "C-no-bespoke-secret-mount": "{face: given, channel: manifest}",
+    "C-no-bespoke-tls-mount": "{face: given, channel: manifest}",
+    "C-no-hardcoded-service-dns": "{face: given, channel: manifest}",
+    "C-dual-target": "{face: given, channel: na}",
+    "C-fail-fast": "{face: given, channel: na}",
+    "C-fill-backend": "{face: fill, channel: na}",
+    "C-fill-frontend": "{face: fill, channel: na}",
+    "C-fill-manifest": "{face: fill, channel: na}",
+    "C-need-resource-requirements": "{face: need, channel: manifest}",
+    "C-need-auth-groups": "{face: need, channel: manifest}",
+    "C-need-dapr-dependson": "{face: need, channel: manifest}",
+    "C-need-app-storage": "{face: need, channel: manifest}",
+    "C-need-workflow": "{face: need, channel: manifest}",
+    "C-given-agent-factory": "{face: given, channel: sdk}",
+    "C-given-workflow-hooks": "{face: given, channel: sdk}",
+    "C-given-storage-hooks": "{face: given, channel: sdk}",
+    "C-contract-resource-json": "{face: given, channel: sdk}",
+    "C-need-agent-provider": "{face: need, channel: manifest}",
+    "C-need-shared-folders": "{face: need, channel: manifest}",
+    "C-need-deploy": "{face: need, channel: manifest}"
+  },
+  "fill": {
+    "backend": {
+      "realized": "true"
+    },
+    "frontend": {
+      "realized": "true"
+    },
+    "manifest": {
+      "realized": "true"
+    }
+  },
+  "need": {
+    "resource_requirements": {
+      "declared": "false"
+    },
+    "workflow": {
+      "declared": "false"
+    },
+    "dapr": {
+      "declared": "true"
+    },
+    "volumes": {
+      "declared": "true"
+    },
+    "auth_groups": {
+      "declared": "false"
+    },
+    "app_storage": {
+      "declared": "false"
+    }
+  },
+  "unguarded": {},
+  "requirement_seam": {
+    "status": "n/a",
+    "decision": "../../foundation/_vendor/VENDOR_PROVENANCE.md :: SEAM wired (2026-07-20)"
+  },
+  "entities": {
+    "api.server": {
+      "kind": "backend",
+      "path": "api/server.py",
+      "deps": [
+        "api.main"
+      ],
+      "resolution": "mapped"
+    },
+    "api.main": {
+      "kind": "backend",
+      "path": "api/src/main.py",
+      "deps": [
+        "api.routes"
+      ],
+      "resolution": "mapped"
+    },
+    "api.pkg": {
+      "kind": "backend",
+      "path": "api/src/fortune/__init__.py",
+      "deps": [
+        "api.deck"
+      ],
+      "resolution": "mapped"
+    },
+    "api.deck": {
+      "kind": "backend",
+      "path": "api/src/fortune/deck.py",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "api.routes": {
+      "kind": "backend",
+      "path": "api/src/fortune/routes.py",
+      "deps": [
+        "api.deck"
+      ],
+      "resolution": "mapped"
+    },
+    "web.layout": {
+      "kind": "frontend",
+      "path": "src/app/layout.tsx",
+      "deps": [
+        "web.providers"
+      ],
+      "resolution": "mapped"
+    },
+    "web.page": {
+      "kind": "frontend",
+      "path": "src/app/page.tsx",
+      "deps": [
+        "web.providers"
+      ],
+      "resolution": "mapped"
+    },
+    "web.providers": {
+      "kind": "frontend",
+      "path": "src/components/providers.tsx",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "web.proxy": {
+      "kind": "frontend",
+      "path": "src/app/api/fortune/[...path]/route.ts",
+      "deps": [
+        "web.auth"
+      ],
+      "resolution": "mapped"
+    },
+    "web.healthz": {
+      "kind": "frontend",
+      "path": "src/app/api/healthz/route.ts",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "web.version": {
+      "kind": "frontend",
+      "path": "src/app/api/version/route.ts",
+      "resolution": "mapped",
+      "deps": []
+    },
+    "web.auth": {
+      "kind": "frontend",
+      "path": "src/pages/api/auth/[...nextauth].ts",
+      "resolution": "mapped",
+      "deps": []
+    }
+  },
+  "concept_pins": {
+    "api.server": {
+      "sha256": "4d2c62a237467596001c3e11425745d99118f201f30197d3e217392763ee317f",
+      "approved": "2026-07-12"
+    },
+    "api.main": {
+      "sha256": "c71f7289f3f9b0740c8a692027c15d4e84bfc747db407feed93410a4716838d1",
+      "approved": "2026-07-12"
+    },
+    "api.pkg": {
+      "sha256": "4339d245dec01e7bf2315f6d4483ddfd8f18b793a73625ba68efe5ed5e9a8fdb",
+      "approved": "2026-07-12"
+    },
+    "api.deck": {
+      "sha256": "fe9c962f3797500789ef752ab044bef1d759660e4bfeea02c2f93879bbfb1ec6",
+      "approved": "2026-07-12"
+    },
+    "api.routes": {
+      "sha256": "a72604999c5d1fc1d86d790a50ddc723f527cebd7805a03265f28e162373324a",
+      "approved": "2026-07-12"
+    },
+    "web.layout": {
+      "sha256": "77d63f6ee32981d5c060ed5c5a48a4d6bfb55b244cd0b70fd732e800aeb914ed",
+      "approved": "2026-07-12"
+    },
+    "web.page": {
+      "sha256": "a299faf4ecc5788f1c51394d20efda10a24582a8b7de0ef638b0f2b3711ff074",
+      "approved": "2026-07-12"
+    },
+    "web.providers": {
+      "sha256": "95174a9cf68edca7e1b4884ca91879f2911307a3f332f7af27c05563746ff9a6",
+      "approved": "2026-07-12"
+    },
+    "web.proxy": {
+      "sha256": "09bf49849a39da9ed3646203c6de382f75460655448455af68d97ae7b113eb29",
+      "approved": "2026-07-12"
+    },
+    "web.healthz": {
+      "sha256": "e93e53ab06e109b343016ef092547aed8482cab94528bc24f118b7264edddce6",
+      "approved": "2026-07-12"
+    },
+    "web.version": {
+      "sha256": "a54dda7ecdea05056529d00808f79162f6a42670d04dcbd79093d782445af9ff",
+      "approved": "2026-07-12"
+    },
+    "web.auth": {
+      "sha256": "f9e27b3efb2516462d6e094f7c76c8cba12120b899d6e7c6d9763be15138c333",
+      "approved": "2026-07-12"
+    }
+  }
+}

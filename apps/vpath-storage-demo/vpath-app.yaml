@@ -1,0 +1,74 @@
+apiVersion: vpath/v1
+kind: VpathApp
+metadata:
+  name: vpath-storage-demo
+  namespace: vpath-storage-demo
+  labels:
+    app.kubernetes.io/part-of: vpath
+spec:
+  deploy:
+    readinessBudget: 420
+  type: web
+  image: vpath-storage-demo
+  basePath: /storage-demo
+  port: 3031
+  auth:
+    oidcClient: vpath-storage-demo
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+  health:
+    readiness: /storage-demo/api/healthz
+    liveness: /storage-demo/api/healthz
+    scheme: HTTPS
+  dapr:
+    appId: vpath-storage-demo
+    appPort: 3031
+  volumes:
+    - name: mkcert-ca
+      mountPath: /etc/ssl/certs/rootCA.pem
+      type: secret
+      sourceName: mkcert-ca
+    - name: tls-certs
+      mountPath: /certs
+      type: secret
+      sourceName: mkcert-tls
+  ui:
+    title: Storage Demo
+    description: Browse the storage folders this app declares
+    icon: database
+    sidebar: true
+  # Stores citizen (CITIZENS.md §3): the app DECLARES durable, app-owned folders
+  # and the explorer capability; the platform provisions and serves them. Each
+  # folder teaches one visibility mode. `shared` is one of: private, read,
+  # readwrite (server ground truth: buildSrc/.../manifest/AppManifest.kt).
+  appStorage:
+    folders:
+      - name: Notes
+        path: Notes
+        shared: private
+        description: Per-user private scratch space — visible only to its owner.
+      - name: Handbook
+        path: Handbook
+        shared: read
+        description: Team-readable reference content the app publishes read-only.
+      - name: Uploads
+        path: Uploads
+        shared: readwrite
+        description: Shared drop zone every member of the app can read and write.
+  # storageExplorer turns on the platform's read/browse surface the SDK storage
+  # hooks consume. storageAdmin (bulk/admin ops) is intentionally NOT declared —
+  # this demo only reads and creates folders. sharedFolders is also omitted on
+  # purpose: a jointly-mounted durable PVC needs a second mounter this web-only
+  # example does not carry, so declaring it would fake a capability (P6).
+  capabilities:
+    storageExplorer: true
+  build:
+    runtime: node
+    hash:
+      dirs:
+        - apps_infra/apps/vpath-storage-demo
+        - apps_infra/sdk
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk

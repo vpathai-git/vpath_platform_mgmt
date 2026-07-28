@@ -1,0 +1,47 @@
+apiVersion: vpath/v1
+kind: VpathApp
+metadata:
+  name: vpath-hello-confluence-api
+  namespace: vpath-hello-confluence
+  labels:
+    app.kubernetes.io/part-of: vpath
+spec:
+  deploy:
+    readinessBudget: 300
+  type: backend
+  image: vpath-hello-confluence-api
+  port: 8010
+  auth:
+    oidcClient: vpath-hello-confluence
+  resources:
+    requests: { memory: "128Mi", cpu: "50m" }
+    limits: { memory: "256Mi", cpu: "250m" }
+  health:
+    readiness: /health
+    liveness: /health
+    scheme: HTTP
+  dapr:
+    appId: vpath-hello-confluence-api
+    appPort: 8010
+  # The backend reads the gate-injected X-Vpath-Credential-Confluence-* headers
+  # (forwarded by the web proxy). It declares the same requirement so the gate
+  # authorizes credential use before requests reach it. No Confluence env in the pod.
+  resourceRequirements:
+    required:
+      - class: credential
+        system: confluence
+        actions: [use]
+        delivery: header
+        identityBearing: true
+      - class: connector
+        system: confluence
+        actions: [use]
+  build:
+    runtime: python
+    hash:
+      dirs:
+        - apps_infra/apps/vpath-hello-confluence-api
+        - apps_infra/sdk-python/vpath-backend-sdk
+    sdks:
+      - name: vpath-backend-sdk
+        source: apps_infra/sdk-python/vpath-backend-sdk

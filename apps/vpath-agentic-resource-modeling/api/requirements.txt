@@ -1,0 +1,5 @@
+# Standalone supervisor builds the app venv from this file, then editable-installs
+# the vendored vpath-backend-sdk (which brings fastapi/pydantic/authlib). Curated
+# direct deps only (CLAUDE.md §8 — never pip freeze). Capability facts are read
+# from a vendored, OFFLINE registry, so there is no HTTP client here.
+uvicorn>=0.51.0

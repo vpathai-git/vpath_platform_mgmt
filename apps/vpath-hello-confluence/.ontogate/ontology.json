@@ -1,0 +1,84 @@
+{
+  "model": {
+    "name": "vpath_hello_confluence_spine3",
+    "layer": "app",
+    "version": "1.0.0",
+    "extension_procedure": "ontogate_canonical_cycle",
+    "method_version": "0.10.44",
+    "generated_from": "spine.yaml",
+    "source_sha256": "b0bfdc49d906944b0049a6ac4b398d4a07787c6df977576d0b584647c89f893e",
+    "generated_with": "0.10.44"
+  },
+  "contracts": {
+    "C-auth-delegated": "{face: given, channel: sdk}",
+    "C-zero-header": "{face: given, channel: sdk}",
+    "C-tokens-only": "{face: given, channel: sdk}",
+    "C-proxy-via-sdk": "{face: given, channel: sdk}",
+    "C-resource-reader-via-sdk": "{face: given, channel: sdk}",
+    "C-health-via-sdk": "{face: given, channel: sdk}",
+    "C-version-via-sdk": "{face: given, channel: sdk}",
+    "C-error-boundary-via-sdk": "{face: given, channel: sdk}",
+    "C-config-fail-fast": "{face: given, channel: sdk}",
+    "C-authz-via-sdk": "{face: given, channel: sdk}",
+    "C-no-override-generated-k8s": "{face: given, channel: manifest}",
+    "C-no-handrolled-ingress": "{face: given, channel: manifest}",
+    "C-no-handbuilt-dapr-url": "{face: given, channel: manifest}",
+    "C-no-handbuilt-health-probe": "{face: given, channel: manifest}",
+    "C-no-bespoke-secret-mount": "{face: given, channel: manifest}",
+    "C-no-bespoke-tls-mount": "{face: given, channel: manifest}",
+    "C-no-hardcoded-service-dns": "{face: given, channel: manifest}",
+    "C-dual-target": "{face: given, channel: na}",
+    "C-fail-fast": "{face: given, channel: na}",
+    "C-fill-backend": "{face: fill, channel: na}",
+    "C-fill-frontend": "{face: fill, channel: na}",
+    "C-fill-manifest": "{face: fill, channel: na}",
+    "C-need-resource-requirements": "{face: need, channel: manifest}",
+    "C-need-auth-groups": "{face: need, channel: manifest}",
+    "C-need-dapr-dependson": "{face: need, channel: manifest}",
+    "C-need-app-storage": "{face: need, channel: manifest}",
+    "C-need-workflow": "{face: need, channel: manifest}",
+    "C-given-agent-factory": "{face: given, channel: sdk}",
+    "C-given-workflow-hooks": "{face: given, channel: sdk}",
+    "C-given-storage-hooks": "{face: given, channel: sdk}",
+    "C-contract-resource-json": "{face: given, channel: sdk}",
+    "C-need-agent-provider": "{face: need, channel: manifest}",
+    "C-need-shared-folders": "{face: need, channel: manifest}",
+    "C-need-deploy": "{face: need, channel: manifest}"
+  },
+  "fill": {
+    "backend": {
+      "realized": "true"
+    },
+    "frontend": {
+      "realized": "true"
+    },
+    "manifest": {
+      "realized": "true"
+    }
+  },
+  "need": {
+    "resource_requirements": {
+      "declared": "true"
+    },
+    "workflow": {
+      "declared": "false"
+    },
+    "dapr": {
+      "declared": "true"
+    },
+    "volumes": {
+      "declared": "true"
+    },
+    "auth_groups": {
+      "declared": "false"
+    },
+    "app_storage": {
+      "declared": "false"
+    }
+  },
+  "unguarded": {},
+  "requirement_seam": {
+    "status": "n/a",
+    "decision": "../../foundation/_vendor/VENDOR_PROVENANCE.md :: SEAM wired (2026-07-20)"
+  }
+}

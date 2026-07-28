@@ -1,0 +1,63 @@
+apiVersion: vpath/v1
+kind: VpathApp
+metadata:
+  name: vpath-workflow-demo
+  namespace: vpath-workflow-demo
+  labels:
+    app.kubernetes.io/part-of: vpath
+spec:
+  deploy:
+    readinessBudget: 420
+  type: web
+  image: vpath-workflow-demo
+  basePath: /workflow-demo
+  port: 3030
+  auth:
+    oidcClient: vpath-workflow-demo
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+  health:
+    readiness: /workflow-demo/api/healthz
+    liveness: /workflow-demo/api/healthz
+    scheme: HTTPS
+  dapr:
+    appId: vpath-workflow-demo
+    appPort: 3030
+  volumes:
+    - name: mkcert-ca
+      mountPath: /etc/ssl/certs/rootCA.pem
+      type: secret
+      sourceName: mkcert-ca
+    - name: tls-certs
+      mountPath: /certs
+      type: secret
+      sourceName: mkcert-tls
+  ui:
+    title: Workflow Demo
+    description: Configure a small agentic text-insight workflow
+    icon: workflow
+    sidebar: true
+  resourceRequirements:
+    required:
+      - class: agent-provider
+        actions: [use]
+        delivery: resource_json
+        constraints:
+          models: [gpt-5-mini]
+  workflow:
+    mode: single-user
+    autoProvision: true
+    projectNaming: "{app}-{username}"
+    pipeline:
+      - id: text-insight-demo
+        template: vpath-workflow-demo-text-insight
+  build:
+    runtime: node
+    hash:
+      dirs:
+        - apps_infra/apps/vpath-workflow-demo
+        - apps_infra/sdk
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk

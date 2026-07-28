@@ -23,6 +23,7 @@ from vpath_platform_mgmt.api.auth import (
     validate_auth_mode,
 )
 from vpath_platform_mgmt.api.oidc import OidcValidator
+from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.model import OpsError, Role
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import (
@@ -117,6 +118,8 @@ def create_app(
     auth_mode: str = "dev",
     oidc_validator: OidcValidator | None = None,
     materializer: SourceMaterializer | None = None,
+    catalog: AppCatalog | None = None,
+    platform_url: str = "",
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
@@ -142,6 +145,16 @@ def create_app(
     def submit(request: Request, body: JobRequest) -> dict[str, str]:
         """Submit a verb as a job; typed ops errors map to HTTP statuses."""
         return _submit(service, identity(request), body)
+
+    @app.get("/api/apps")
+    def list_apps(request: Request) -> dict[str, object]:
+        """Applications this management plane knows about, for the console."""
+        identity(request)
+        entries = catalog.entries() if catalog is not None else []
+        return {
+            "platform_url": platform_url,
+            "apps": [entry.to_dict(platform_url) for entry in entries],
+        }
 
     @app.post("/api/apps/{app_name}/source", status_code=201)
     async def put_source(request: Request, app_name: str) -> dict[str, object]:

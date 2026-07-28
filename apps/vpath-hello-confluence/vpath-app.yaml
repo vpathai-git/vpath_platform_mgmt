@@ -1,0 +1,61 @@
+apiVersion: vpath/v1
+kind: VpathApp
+metadata:
+  name: vpath-hello-confluence
+  namespace: vpath-hello-confluence
+  labels:
+    app.kubernetes.io/part-of: vpath
+spec:
+  deploy:
+    readinessBudget: 300
+  type: web
+  image: vpath-hello-confluence
+  basePath: /hello-confluence
+  port: 3010
+  auth:
+    oidcClient: vpath-hello-confluence
+  resources:
+    requests: { memory: "256Mi", cpu: "100m" }
+    limits: { memory: "512Mi", cpu: "500m" }
+  health:
+    readiness: /hello-confluence/api/healthz
+    liveness: /hello-confluence/api/healthz
+    scheme: HTTPS
+  dapr:
+    appId: vpath-hello-confluence
+    appPort: 3010
+  volumes:
+    - { name: mkcert-ca, mountPath: /etc/ssl/certs/rootCA.pem, type: secret, sourceName: mkcert-ca }
+    - { name: tls-certs, mountPath: /certs, type: secret, sourceName: mkcert-tls }
+  ui:
+    title: Confluence Browser
+    description: Browse the Confluence spaces and page structure you can access
+    icon: book-open
+    sidebar: true
+  # The RESOURCE REQUEST. The gate injects the user's binding as per-request
+  # X-Vpath-Credential-Confluence-* headers (delivery: header) — the pod has no
+  # Confluence env. Modeled on vpath-jira-demo; system swapped jira -> confluence.
+  resourceRequirements:
+    required:
+      - class: credential
+        system: confluence
+        actions: [use]
+        delivery: header
+        identityBearing: true
+      - class: connector
+        system: confluence
+        actions: [use]
+  env:
+    # Dapr service invocation via the sidecar; createProxyRoute appends the
+    # request path. Target is the Python api app (appId.namespace).
+    - name: VPATH_HELLO_CONFLUENCE_API_URL
+      value: "http://localhost:3500/v1.0/invoke/vpath-hello-confluence-api.vpath-hello-confluence/method"
+  build:
+    runtime: node
+    hash:
+      dirs:
+        - apps_infra/apps/vpath-hello-confluence
+        - apps_infra/sdk
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk

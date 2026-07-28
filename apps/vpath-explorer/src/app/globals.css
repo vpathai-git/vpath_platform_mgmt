@@ -1,0 +1,12 @@
+@import "@vpath/sdk/src/sidebar/design-tokens.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { --vp-content-inset: 0; } /* full-bleed: file tree pane fills edge-to-edge */
+
+body {
+  background: var(--vp-bg-base);
+  color: var(--vp-text-primary);
+}

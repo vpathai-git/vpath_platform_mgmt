@@ -22,6 +22,7 @@ from pathlib import Path
 from vpath_platform_mgmt.api.app import create_app
 from vpath_platform_mgmt.api.oidc import OidcConfig, OidcValidator
 from vpath_platform_mgmt.ops.engine import EngineAdapter, LocalEngine, SimulatedEngine
+from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import SourceMaterializer
 
@@ -92,6 +93,22 @@ def build_materializer(env: Mapping[str, str]) -> SourceMaterializer | None:
     return SourceMaterializer(Path(checkout))
 
 
+def build_catalog(env: Mapping[str, str]) -> AppCatalog:
+    """Catalog over this repo's ``apps/`` plus the server checkout, if any.
+
+    ``VPATH_MGMT_APPS_DIR`` overrides the repo folder. Both sources use the
+    same ``<dir>/<app>/vpath-app.yaml`` layout; repo apps win on name clash.
+    """
+    repo_apps = env.get("VPATH_MGMT_APPS_DIR", "") or str(
+        Path(__file__).resolve().parents[3] / "apps"
+    )
+    directories = [Path(repo_apps)]
+    checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
+    if checkout:
+        directories.append(Path(checkout) / "apps_infra" / "apps")
+    return AppCatalog(*directories)
+
+
 def main() -> None:  # pragma: no cover - thin uvicorn wrapper
     """Serve the console; config errors abort startup loudly."""
     import uvicorn
@@ -103,6 +120,8 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
         auth_mode=os.environ.get("VPATH_MGMT_AUTH", "dev"),
         oidc_validator=build_oidc_validator(os.environ),
         materializer=build_materializer(os.environ),
+        catalog=build_catalog(os.environ),
+        platform_url=os.environ.get("VPATH_MGMT_PLATFORM_URL", ""),
     )
     uvicorn.run(
         app,

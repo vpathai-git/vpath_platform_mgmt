@@ -1,0 +1,23 @@
+[project]
+name = "vpath-agentic-resource-modeling-api"
+version = "0.1.0"
+description = "Agentic Resource Modeling — VPATH example app backend (cognition modeler)"
+requires-python = ">=3.11"
+# Curated direct deps only (CLAUDE.md §8 — never pip freeze). The platform's
+# vpath-backend-sdk brings auth/fastapi/pydantic; uvicorn serves it. This app
+# models config from a VENDORED, OFFLINE registry — it binds no external system
+# at runtime, so there is no HTTP-client dependency.
+dependencies = [
+  "vpath-backend-sdk",
+  "uvicorn>=0.51.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.4.4"]
+
+# Vendored substrate (kit/) consumed as a local path — never the network.
+[tool.uv.sources]
+vpath-backend-sdk = { path = "../../../kit/sdk-python/vpath-backend-sdk" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
