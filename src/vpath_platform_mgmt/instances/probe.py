@@ -68,6 +68,9 @@ UNREACHABLE = "UNREACHABLE"
 STOPPED = "STOPPED"
 PLANNED = "PLANNED"
 DRIFT = "DRIFT"
+# Nothing was tried, because no way to try is established.  Deliberately not
+# UNREACHABLE, which would claim an attempt that never happened.
+UNPROVEN = "UNPROVEN"
 
 # The one remote payload.  Every line it prints is `key=value`; every value is
 # accompanied by the path or command it came from, so the caller can quote a
@@ -347,7 +350,28 @@ def _read_standalone(instance: Instance, timeout: int, runner: Runner) -> Readin
     return reading
 
 
+def _read_remote(instance: Instance) -> Reading:
+    """The kind hook for a customer cluster: report the gap, measure nothing.
+
+    The `remote` template is *declared, unproven* -- no access path to that
+    cluster is established.  Probing it would mean inventing one, so this
+    reports what the register declares and names the survey that would make a
+    real reading possible.  UNPROVEN is not UNREACHABLE: nothing was tried.
+    """
+    reading = Reading(instance.name, instance.kind, UNPROVEN)
+    reading.add("cluster", instance.cluster_host, instance.source)
+    reading.gap(
+        "access path",
+        "the remote type is declared but unproven -- protocol, jump host and "
+        "credentials model are open survey questions, so nothing was probed",
+        "analysis/mgmt-console/remote-type-survey.issue.md",
+    )
+    return reading
+
+
 def read_instance(instance: Instance, timeout: int, runner: Runner) -> Reading:
+    # `planned` outranks the kind: a cluster that does not exist yet is not an
+    # unproven access path, it is an instance nobody has built.
     if instance.is_planned:
         reading = Reading(instance.name, instance.kind, PLANNED)
         existing = Path(instance.home) if instance.home else None
@@ -359,6 +383,8 @@ def read_instance(instance: Instance, timeout: int, runner: Runner) -> Reading:
         else:
             reading.add("state", "declared, not built yet", instance.source)
         return reading
+    if instance.is_remote:
+        return _read_remote(instance)
     if instance.is_server:
         return _read_server(instance, timeout, runner)
     return _read_standalone(instance, timeout, runner)

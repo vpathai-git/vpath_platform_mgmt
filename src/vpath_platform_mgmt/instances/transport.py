@@ -85,6 +85,12 @@ def run(argv: Sequence[str], timeout: int = DEFAULT_TIMEOUT) -> CommandResult:
 
 def require_ssh(instance: Instance) -> None:
     """Raise unless this instance can be reached over SSH right now."""
+    if instance.is_remote:
+        raise TransportError(
+            f"{instance.name}: kind {instance.kind!r} has no established access "
+            f"path -- the remote type is declared but unproven; see "
+            f"analysis/mgmt-console/remote-type-survey.issue.md"
+        )
     if not instance.is_server:
         raise TransportError(
             f"{instance.name}: kind {instance.kind!r} has no SSH access -- "
