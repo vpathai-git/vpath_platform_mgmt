@@ -6,14 +6,14 @@ CLI and console can never disagree (docs/PLATFORM_FUNCTIONS.md, Surfaces).
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from importlib import resources
 
 from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
-from collections.abc import Callable
-
+from vpath_platform_mgmt.api import routes_apps
 from vpath_platform_mgmt.api.auth import (
     DEV_ACTOR_HEADER,
     DEV_ROLE_HEADER,
@@ -24,15 +24,13 @@ from vpath_platform_mgmt.api.auth import (
 )
 from vpath_platform_mgmt.api.oidc import OidcValidator
 from vpath_platform_mgmt.ops.apps import AppCatalog
-from vpath_platform_mgmt.ops.model import OpsError, Role
+from vpath_platform_mgmt.ops.model import OpsError
 from vpath_platform_mgmt.ops.service import OpsService
-from vpath_platform_mgmt.ops.source import (
-    SourceError,
-    SourceMaterializer,
-    SourceProvenance,
-)
+from vpath_platform_mgmt.ops.source import SourceMaterializer
 
 IdentityFn = Callable[[Request], Identity]
+
+ASSET_TYPES = {"console.css": "text/css", "console.js": "application/javascript"}
 
 
 class JobRequest(BaseModel):
@@ -43,9 +41,9 @@ class JobRequest(BaseModel):
     confirm: str = ""
 
 
-def _console_html() -> str:
+def _asset(name: str) -> str:
     package = resources.files("vpath_platform_mgmt.api")
-    return (package / "console.html").read_text(encoding="utf-8")
+    return (package / name).read_text(encoding="utf-8")
 
 
 def _dev_identity(request: Request) -> Identity:
@@ -82,35 +80,45 @@ def _submit(service: OpsService, caller: Identity, body: JobRequest) -> dict[str
     return {"job": job.id}
 
 
-def _materialize(
-    materializer: SourceMaterializer | None,
-    caller: Identity,
-    app_name: str,
-    body: bytes,
-    request: Request,
-) -> dict[str, object]:
-    if materializer is None:
-        raise HTTPException(
-            status_code=409,
-            detail="no server checkout configured — source materialization "
-            "requires VPATH_MGMT_SERVER_CHECKOUT",
-        )
-    if caller.role != Role.ADMIN.value:
-        raise HTTPException(
-            status_code=403,
-            detail="materializing app source requires role admin — refused",
-        )
-    provenance = SourceProvenance(
-        repo=request.headers.get("x-source-repo", ""),
-        ref=request.headers.get("x-source-ref", ""),
-        commit=request.headers.get("x-source-commit", ""),
-        dirty=request.headers.get("x-source-dirty", "") == "true",
-    )
-    replace = request.headers.get("x-source-replace", "") == "true"
-    try:
-        return materializer.materialize(app_name, body, provenance, replace=replace)
-    except SourceError as exc:
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+def _register_console(app: FastAPI) -> None:
+    """Console page and its static assets."""
+
+    @app.get("/", response_class=HTMLResponse)
+    def console() -> str:
+        """Serve the thin web console."""
+        return _asset("console.html")
+
+    @app.get("/{asset}", include_in_schema=False)
+    def console_asset(asset: str) -> Response:
+        """Serve console.css / console.js."""
+        media = ASSET_TYPES.get(asset)
+        if media is None:
+            raise HTTPException(status_code=404, detail="not found")
+        return Response(_asset(asset), media_type=media)
+
+
+def _register_ops(app: FastAPI, identity: IdentityFn, service: OpsService) -> None:
+    """Job submission and state."""
+
+    @app.get("/api/state")
+    def state(request: Request) -> dict[str, object]:
+        """Snapshot for the console: jobs, locks, audit, health, engine."""
+        identity(request)
+        return service.state()
+
+    @app.post("/api/jobs", status_code=202)
+    def submit(request: Request, body: JobRequest) -> dict[str, str]:
+        """Submit a verb as a job; typed ops errors map to HTTP statuses."""
+        return _submit(service, identity(request), body)
+
+    @app.get("/api/jobs/{job_id}")
+    def job_detail(request: Request, job_id: str) -> dict[str, object]:
+        """One job with its full log."""
+        identity(request)
+        job = service.job(job_id)
+        if job is None:
+            raise HTTPException(status_code=404, detail=f"no job {job_id}")
+        return job.to_dict()
 
 
 def create_app(
@@ -129,49 +137,7 @@ def create_app(
     else:
         identity = _dev_identity
     app = FastAPI(title="vpath platform mgmt — Ops API", version="0.1.0")
-
-    @app.get("/", response_class=HTMLResponse)
-    def console() -> str:
-        """Serve the thin web console."""
-        return _console_html()
-
-    @app.get("/api/state")
-    def state(request: Request) -> dict[str, object]:
-        """Snapshot for the console: jobs, locks, audit, health, engine."""
-        identity(request)
-        return service.state()
-
-    @app.post("/api/jobs", status_code=202)
-    def submit(request: Request, body: JobRequest) -> dict[str, str]:
-        """Submit a verb as a job; typed ops errors map to HTTP statuses."""
-        return _submit(service, identity(request), body)
-
-    @app.get("/api/apps")
-    def list_apps(request: Request) -> dict[str, object]:
-        """Applications this management plane knows about, for the console."""
-        identity(request)
-        entries = catalog.entries() if catalog is not None else []
-        return {
-            "platform_url": platform_url,
-            "apps": [entry.to_dict(platform_url) for entry in entries],
-        }
-
-    @app.post("/api/apps/{app_name}/source", status_code=201)
-    async def put_source(request: Request, app_name: str) -> dict[str, object]:
-        """Materialize uploaded app source into the server checkout (Admin)."""
-        caller = identity(request)
-        body = await request.body()
-        summary = _materialize(materializer, caller, app_name, body, request)
-        service.record_source(app_name, caller.actor, caller.role, summary)
-        return summary
-
-    @app.get("/api/jobs/{job_id}")
-    def job_detail(request: Request, job_id: str) -> dict[str, object]:
-        """One job with its full log."""
-        identity(request)
-        job = service.job(job_id)
-        if job is None:
-            raise HTTPException(status_code=404, detail=f"no job {job_id}")
-        return job.to_dict()
-
+    _register_ops(app, identity, service)
+    routes_apps.register(app, identity, service, catalog, materializer, platform_url)
+    _register_console(app)
     return app

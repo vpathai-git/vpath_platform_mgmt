@@ -29,6 +29,9 @@ class AppEntry:
     app_type: str = ""
     port: int | None = None
     source: str = ""
+    # Absolute location on this host. Never serialized: the console has no
+    # business knowing server paths, and the browse API resolves by app name.
+    directory: Path | None = None
 
     def to_dict(self, platform_url: str = "") -> dict[str, object]:
         """JSON view; ``url`` is empty unless a platform URL is configured."""
@@ -75,6 +78,7 @@ def entry_from_manifest(path: Path) -> AppEntry | None:
         app_type=str(spec.get("type") or ""),
         port=int(port) if isinstance(port, int) else None,
         source=path.parent.name,
+        directory=path.parent.resolve(),
     )
 
 
@@ -100,3 +104,7 @@ class AppCatalog:
                 if entry is not None and entry.name not in found:
                     found[entry.name] = entry
         return sorted(found.values(), key=lambda item: item.title.lower())
+
+    def entry(self, name: str) -> AppEntry | None:
+        """One app by manifest name."""
+        return next((item for item in self.entries() if item.name == name), None)
