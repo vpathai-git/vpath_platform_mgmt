@@ -25,6 +25,19 @@ import sync_from_template as sync  # noqa: E402
 # scrubbing, the fixtures' `git add` would corrupt the host repo's index.
 GIT_CLEAN_ENV = {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
 
+
+def fake_home(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Route every home lookup to tmp_path — cross-platform.
+
+    Setting HOME alone is ignored by ``Path.home()`` on Windows (USERPROFILE
+    wins), which silently pointed these tests at the REAL ``~/.claude`` and
+    let them overwrite the user's live hooks. Guard: never again.
+    """
+    monkeypatch.setenv("HOME", str(tmp_path))
+    monkeypatch.setenv("USERPROFILE", str(tmp_path))
+    monkeypatch.setattr(Path, "home", classmethod(lambda cls: tmp_path))
+
+
 MAKEFILE_V1 = "run:\n\techo v1\n"
 MAKEFILE_V2 = "run:\n\techo v2\n"
 CONTRIB_V1 = "alpha\nbeta\ngamma\n"
@@ -156,7 +169,7 @@ def test_statusline_decline_writes_nothing(
 ) -> None:
     # The opt-in guard: declining must leave ~/.claude completely untouched.
     # Fails loud if anyone reverts this to a silent global write.
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     monkeypatch.setattr("builtins.input", lambda *a, **k: "n")
     initp.optional_setup_context_statusline()
     assert not (tmp_path / ".claude").exists()
@@ -165,7 +178,7 @@ def test_statusline_decline_writes_nothing(
 def test_statusline_consent_merges_without_clobber(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     claude = tmp_path / ".claude"
     claude.mkdir()
     (claude / "settings.json").write_text('{"theme": "dark"}\n', encoding="utf-8")
@@ -184,7 +197,7 @@ def test_statusline_consent_merges_without_clobber(
 def test_statusline_is_idempotent(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     monkeypatch.setattr("builtins.input", lambda *a, **k: "y")
     initp.optional_setup_context_statusline()
     settings = tmp_path / ".claude" / "settings.json"
@@ -201,7 +214,7 @@ def test_statusline_is_idempotent(
 def test_hook_consent_registers_without_clobbering_other_hooks(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     claude = tmp_path / ".claude"
     claude.mkdir()
     (claude / "settings.json").write_text(
@@ -225,7 +238,7 @@ def test_hook_consent_registers_without_clobbering_other_hooks(
 def test_hook_not_duplicated_on_rerun(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     monkeypatch.setattr("builtins.input", lambda *a, **k: "y")
     initp.optional_setup_context_statusline()
     initp.optional_setup_context_statusline()
@@ -245,6 +258,6 @@ def test_context_visibility_missing_hook_asset_fails_hard(
     (fake / "assets").mkdir(parents=True)
     (fake / "assets" / "statusline-context.sh").write_text("x", encoding="utf-8")
     monkeypatch.setattr(initp, "__file__", str(fake / "init_project.py"))
-    monkeypatch.setenv("HOME", str(tmp_path))
+    fake_home(monkeypatch, tmp_path)
     with pytest.raises(FileNotFoundError):
         initp.optional_setup_context_statusline()

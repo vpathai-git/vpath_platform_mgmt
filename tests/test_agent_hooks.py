@@ -33,9 +33,17 @@ def test_codex_hooks_do_not_install_post_tool_use() -> None:
 
 def test_codex_skills_reuse_claude_skills() -> None:
     skills = REPO_ROOT / ".codex" / "skills"
-    assert skills.is_symlink()
-    assert skills.readlink() == Path("../.claude/skills")
-    assert (skills / "careful-commit" / "SKILL.md").is_file()
+    if skills.is_symlink():
+        assert skills.readlink() == Path("../.claude/skills")
+        assert (skills / "careful-commit" / "SKILL.md").is_file()
+    else:
+        # Windows checkouts without symlink support materialize the link as
+        # a text file holding the target path — the reuse contract still
+        # holds and the target must exist.
+        assert skills.read_text(encoding="utf-8").strip() == "../.claude/skills"
+        assert (
+            REPO_ROOT / ".claude" / "skills" / "careful-commit" / "SKILL.md"
+        ).is_file()
 
 
 def test_codex_stop_hook_uses_completion_chime() -> None:
