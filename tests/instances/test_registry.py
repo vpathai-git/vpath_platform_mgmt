@@ -73,6 +73,31 @@ def test_a_line_that_is_not_an_assignment_is_refused() -> None:
         parse_lines(["BOX_KIND server-nuc"], "t")
 
 
+def test_a_refused_line_is_never_echoed_back(capsys: pytest.CaptureFixture) -> None:
+    """The parse error names the place, never the line.
+
+    The register is the one file carrying an operator's access data, and this
+    message is printed to stderr by ``probe`` and ``selector`` -- so it lands in
+    whatever log the run is being teed into.  Echoing the line would put the
+    value there.  The value below is invented for this test.
+
+    Asserted against the *rendered* message, not against the format string:
+    that is the only place the leak would actually appear.
+    """
+    invented = "rd0000notarealsecret"
+    with pytest.raises(RegistryError) as excinfo:
+        parse_lines([f"BOX SSH_PASSWORD {invented}"], "t")
+    message = str(excinfo.value)
+    assert invented not in message
+    assert "t:1" in message
+    assert capsys.readouterr().out == ""
+
+
+def test_a_refused_line_still_names_the_key_when_there_is_one() -> None:
+    with pytest.raises(RegistryError, match="key 'BOX KIND' is not a bare identifier"):
+        parse_lines(["BOX KIND=server-nuc"], "t")
+
+
 def test_an_inline_comment_is_part_of_the_value() -> None:
     # Documented behaviour, and the reason the template forbids inline
     # comments: the parser must not have to guess where a value ends.

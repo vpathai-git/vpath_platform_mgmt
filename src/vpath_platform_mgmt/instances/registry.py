@@ -218,12 +218,30 @@ def parse_lines(lines: list[str], source: str) -> dict[str, str]:
             continue
         match = _LINE_RE.match(line)
         if match is None:
-            raise RegistryError(f"{source}:{number}: not a KEY=VALUE line: {line!r}")
+            raise RegistryError(
+                f"{source}:{number}: not a KEY=VALUE line -- "
+                f"{_describe_malformed(line)}"
+            )
         key = match.group("key")
         if key in values:
             raise RegistryError(f"{source}:{number}: {key} declared twice")
         values[key] = _unquote(match.group("value").strip())
     return values
+
+
+def _describe_malformed(line: str) -> str:
+    """Name a malformed register line without repeating what it carries.
+
+    The register is the one file holding an operator's access data, and this
+    message is printed to stderr by every consumer -- so it is captured into
+    whatever log the run is being teed into.  Echoing the line would put the
+    value there.  The key is named because a key is not a secret; everything
+    right of the ``=`` is described by shape only.
+    """
+    key, separator, _ = line.partition("=")
+    if separator:
+        return f"key {key.strip()!r} is not a bare identifier"
+    return f"no '=' found in {len(line)} characters"
 
 
 def _unquote(value: str) -> str:
