@@ -120,12 +120,16 @@ def test_a_rejected_edit_restores_the_previous_register(register: Path) -> None:
     assert register.read_text(encoding="utf-8") == before
 
 
-def test_an_unproven_template_still_creates(fresh: Path) -> None:
+def test_a_remote_instance_creates_from_the_surveyed_template(fresh: Path) -> None:
+    """Since the survey the remote type is evidenced, so no warning banner."""
     template = crud.create(fresh, "juno", "remote", {"CLUSTER_HOST": "cluster.example"})
 
-    assert template.proven is False
+    assert template.proven is True
     assert registry.load(fresh).get("juno").is_remote
-    assert "# UNPROVEN:" in fresh.read_text(encoding="utf-8")
+    written = fresh.read_text(encoding="utf-8")
+    assert "# UNPROVEN:" not in written
+    # The question the survey could not close is still visible to be answered.
+    assert "JUNO_CONSOLE_PERMITTED" in written
 
 
 # --- update ----------------------------------------------------------------

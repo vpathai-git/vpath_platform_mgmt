@@ -353,17 +353,27 @@ def _read_standalone(instance: Instance, timeout: int, runner: Runner) -> Readin
 def _read_remote(instance: Instance) -> Reading:
     """The kind hook for a customer cluster: report the gap, measure nothing.
 
-    The `remote` template is *declared, unproven* -- no access path to that
-    cluster is established.  Probing it would mean inventing one, so this
-    reports what the register declares and names the survey that would make a
-    real reading possible.  UNPROVEN is not UNREACHABLE: nothing was tried.
+    Since the survey (2026-07-28) the access path is no longer the unknown --
+    it is SSH, key-based, and the server project drives it that way.  What is
+    still missing is *clearance*: this is a customer production system, and
+    nobody has said what the console may do on it.  Knowing how to reach a
+    machine is not permission to touch it, so this still measures nothing.
+
+    UNPROVEN remains the honest verdict, and it is not UNREACHABLE: nothing
+    was tried.
     """
     reading = Reading(instance.name, instance.kind, UNPROVEN)
     reading.add("cluster", instance.cluster_host, instance.source)
-    reading.gap(
+    reading.add(
         "access path",
-        "the remote type is declared but unproven -- protocol, jump host and "
-        "credentials model are open survey questions, so nothing was probed",
+        instance.fields.get("ACCESS_PROTOCOL", "ssh") + " (surveyed, not used)",
+        "analysis/mgmt-console/remote-type-survey.issue.md",
+    )
+    reading.gap(
+        "clearance",
+        "the access path is established but this console has no clearance to "
+        "use it on a customer production system -- declare CONSOLE_PERMITTED, "
+        "which the survey left open because no repository can answer it",
         "analysis/mgmt-console/remote-type-survey.issue.md",
     )
     return reading

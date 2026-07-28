@@ -86,9 +86,13 @@ def run(argv: Sequence[str], timeout: int = DEFAULT_TIMEOUT) -> CommandResult:
 def require_ssh(instance: Instance) -> None:
     """Raise unless this instance can be reached over SSH right now."""
     if instance.is_remote:
+        # The survey established HOW to reach a customer cluster.  It did not
+        # establish that we may, and that is the half this refusal defends:
+        # knowing the road is not permission to drive it.
         raise TransportError(
-            f"{instance.name}: kind {instance.kind!r} has no established access "
-            f"path -- the remote type is declared but unproven; see "
+            f"{instance.name}: kind {instance.kind!r} is a customer production "
+            f"system and this console has no clearance to drive it -- the "
+            f"access path is surveyed, CONSOLE_PERMITTED is not answered; see "
             f"analysis/mgmt-console/remote-type-survey.issue.md"
         )
     if not instance.is_server:

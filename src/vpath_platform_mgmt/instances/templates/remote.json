@@ -1,61 +1,60 @@
 {
-  "template_version": "0",
+  "template_version": "1",
   "kind": "remote",
   "title": "remote customer cluster (win-claas)",
-  "proven": false,
-  "unproven_reason": "The access path, the deploy path and the limits of what the console may do on a customer system are structured here from what the server project already names -- they are NOT established. Every field below is a question to be answered by analysis/mgmt-console/remote-type-survey.issue.md, not an assertion. Version stays 0 until that survey closes.",
-  "summary": "A customer-side Windows cluster (CLAAS line). Declared so the console can carry it; unproven until surveyed. Nothing here may be treated as a working access path.",
+  "proven": true,
+  "summary": "A customer-side cluster of the CLAAS line: a remote enterprise host reached over SSH, installed by the same Gradle pipeline as every other target. Surveyed against the server project 2026-07-28 -- no field below is guessed. Two things this does NOT claim: nobody has connected to that cluster from this console, and what the console is permitted to do there is an operator decision no repository can answer (see CONSOLE_PERMITTED).",
   "fields": [
     {
       "key": "CLUSTER_HOST",
       "required": true,
       "example": "<customer-cluster-target>",
-      "comment": "the cluster target the server project carries for this line (e.g. a dehwllvpath##.claas.local style host) -- the one field the server side already names"
+      "comment": "the remote enterprise host. The server project reads the same value as REMOTE_DEPLOY_HOST out of its own gitignored config/dot_env/.env (vpath_server lib/vm.sh:412) -- declare it here, never copy the .env"
     },
     {
       "key": "ACCESS_PROTOCOL",
-      "example": "<unproven -- survey question 1: protocol>",
-      "comment": "survey question 1 (access): how the cluster is reached at all. Structure only; no value may be guessed"
+      "default": "ssh",
+      "comment": "SSH, key-based, no passwords. The pipeline routes every kubectl call through it (vpath_server lib/vm.sh:503-505, .claude/skills/reinstall/SKILL.md:411)"
     },
     {
       "key": "JUMP_HOST",
-      "example": "<unproven -- survey question 1: jump host>",
-      "comment": "survey question 1 (access): bastion the cluster is reached through, if any"
+      "example": "<none in the server project -- set only if your network adds one>",
+      "comment": "no bastion is configured: the server project connects to the host directly (vpath_server lib/vm.sh:503-505). Declare one only if the customer network actually requires it"
     },
     {
       "key": "CREDENTIALS_MODEL",
-      "example": "<unproven -- survey question 1: credentials model>",
-      "comment": "survey question 1 (access): WHICH credentials model applies. Only the structure lives here -- values stay gitignored payload"
+      "example": "operator's default SSH keypair, public key in the host's authorized_keys",
+      "comment": "key-based, no passwords; unlike the NUC path the callsite passes no -i, so the operator's ssh default/ssh_config decides the key (vpath_server lib/vm.sh:503 vs 639-643, SKILL.md:33-37). Structure only -- the key itself is never declared here"
     },
     {
       "key": "DEPLOY_PATH",
-      "example": "<unproven -- survey question 2: install/update path>",
-      "comment": "survey question 2 (deploy): how installs and updates happen there today; the server README describes an install host without internet"
+      "example": "same Gradle pipeline; build VM local to the operator, deploy over SSH",
+      "comment": "the SAME pipeline as every other target, identical from provisionBuildVM onward -- only VM lifecycle differs (vpath_server README.md:18, SKILL.md 'Windows Variant')"
     },
     {
       "key": "CONSOLE_PERMITTED",
-      "example": "<unproven -- survey question 3: health only? redeploy after which approval?>",
-      "comment": "survey question 3 (limits): what this console may do on a customer system at all. Until answered, treat as health-read only"
+      "example": "<OPEN -- state what this console may do on the customer system>",
+      "comment": "the one open question, and deliberately left open: the server project documents no approval path, change window or customer consent anywhere, because this is an operator and customer decision, not a code fact. Until it is answered the console drives nothing here -- the transport refuses this kind outright"
     },
     {
       "key": "LOCATION",
-      "example": "<unproven -- customer site / filesystem>",
-      "comment": "location question 1 -- where this instance lives (host + filesystem)"
+      "example": "<customer site> / <filesystem root on the deploy host>",
+      "comment": "location question 1 -- a remote enterprise host at the customer, not a machine we own (vpath_server README.md:16)"
     },
     {
       "key": "BUILD_PROCESS",
-      "example": "<unproven -- may differ from a NUC>",
-      "comment": "location question 2 -- where its build process lives"
+      "example": "on the operator's own machine (QEMU build VM), not on the customer host",
+      "comment": "location question 2 -- DIFFERS from a NUC. A NUC is build host and deploy host in one (vpath_server lib/vm.sh:387-392); here the build VM is local to the operator and only the deploy host is remote (SKILL.md:29-34)"
     },
     {
       "key": "SOURCE_REPOS",
-      "example": "<unproven -- may differ from a NUC>",
-      "comment": "location question 3 -- which source repositories the build pulls apps from"
+      "example": "<repo-url> <repo-url>",
+      "comment": "location question 3 -- the same sources as any other target, since it is the same pipeline (vpath_server README.md:18)"
     },
     {
       "key": "IMAGE_REGISTRY",
-      "example": "<unproven -- may differ from a NUC>",
-      "comment": "location question 4 -- where the container images live"
+      "default": "in-cluster registry on the deploy host, filled by skopeo",
+      "comment": "location question 4 -- DIFFERS from a NUC. Images are built where there is internet and written in with `skopeo copy docker-daemon: docker://`; the host itself must never reach the internet, which the verifyAirgap phase gate enforces (vpath_server README.md:18, analysis/app-ify/08-airgap-packaging.md:123-124)"
     },
     {
       "key": "ONTOGATE_VIEW",

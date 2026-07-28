@@ -180,9 +180,14 @@ def test_a_remote_instance_is_unproven_rather_than_unreachable(
     reading = probe.read_instance(loaded.get("juno"), 1, silent_runner)
 
     item = view.instance_view(loaded.get("juno"), reading)
+    measured = next(p for p in item["panels"] if p["title"] == "Measured")
+    gaps = next(p for p in item["panels"] if p["title"] == "Not establishable")
 
     assert item["generic"]["status"] == probe.UNPROVEN
-    assert any("access path" in row["label"] for row in item["panels"][2]["rows"])
+    # Since the survey the access path is a measured fact, not a gap...
+    assert any("access path" in row["label"] for row in measured["rows"])
+    # ...and what is missing is permission to use it, not knowledge of it.
+    assert any("clearance" in row["label"] for row in gaps["rows"])
 
 
 def test_a_planned_instance_is_planned_not_unproven(

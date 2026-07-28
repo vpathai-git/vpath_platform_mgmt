@@ -62,16 +62,30 @@ def test_template_required_fields_match_what_the_register_demands() -> None:
             assert key in template.required_keys, f"{template.name} is missing {key}"
 
 
-def test_remote_is_declared_unproven_with_a_reason() -> None:
+def test_every_shipped_template_is_proven() -> None:
+    """The survey closed remote's structure; nothing shipped is guesswork now."""
+    for template in templates.load_all():
+        assert template.proven is True, f"{template.name} still claims to be unproven"
+        assert template.unproven_reason == ""
+
+
+def test_remote_survived_the_survey_with_a_version_bump() -> None:
     remote = templates.load_template("remote")
-    assert remote.proven is False
-    assert "survey" in remote.unproven_reason.lower()
-    assert remote.version == "0"
+
+    assert remote.version == "1"
+    assert remote.proven is True
 
 
-def test_the_other_templates_are_proven() -> None:
-    for name in ("nuc", "cloud-vm", "standalone"):
-        assert templates.load_template(name).proven is True
+def test_what_the_console_may_do_on_a_customer_system_stays_open() -> None:
+    """The one field no repository can answer: it is an operator decision.
+
+    Marked open in the template rather than filled with a plausible default,
+    which on a customer production system is the expensive kind of guess.
+    """
+    field = templates.load_template("remote").field("CONSOLE_PERMITTED")
+
+    assert "open" in field.comment.lower()
+    assert field.required is False
 
 
 def test_every_shipped_template_offers_the_four_location_questions() -> None:
@@ -236,11 +250,41 @@ def test_stanza_writes_required_fields_and_comments_out_optional_ones() -> None:
     assert "\nALPHA_NOTES=" not in stanza
 
 
-def test_stanza_of_an_unproven_template_carries_the_warning() -> None:
-    template = templates.load_template("remote")
+def test_stanza_of_an_unproven_template_carries_the_warning(
+    template_dir: Path,
+) -> None:
+    """Nothing shipped is unproven since the survey, so this uses a stand-in.
+
+    The machinery still has to work: the next type declared before it is
+    established must carry the warning into the register the operator reads.
+    """
+    write_template(
+        template_dir,
+        "hearsay",
+        {
+            "kind": "remote",
+            "proven": False,
+            "unproven_reason": "nobody has looked yet",
+            "fields": [{"key": "CLUSTER_HOST", "required": True}],
+        },
+    )
+    template = templates.load_template("hearsay")
+
     stanza = templates.render_stanza(template, "juno", fill(template))
-    assert "# UNPROVEN:" in stanza
+
+    assert "# UNPROVEN: nobody has looked yet" in stanza
     assert "JUNO_CLUSTER_HOST=value-for-cluster_host" in stanza
+
+
+def test_stanza_of_the_surveyed_remote_carries_no_warning() -> None:
+    stanza = templates.render_stanza(
+        templates.load_template("remote"), "juno", {"CLUSTER_HOST": "cluster.example"}
+    )
+
+    assert "# UNPROVEN:" not in stanza
+    assert "JUNO_CLUSTER_HOST=cluster.example" in stanza
+    # The open field is still offered, commented out, so it is visible to fill.
+    assert "# JUNO_CONSOLE_PERMITTED=<OPEN" in stanza
 
 
 def test_stanza_falls_back_to_the_suggestion_for_a_missing_required_field() -> None:

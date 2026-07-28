@@ -91,7 +91,8 @@ def test_templates_lists_every_shipped_type(
     out = capsys.readouterr().out
     for name in ("nuc", "cloud-vm", "standalone", "remote"):
         assert name in out
-    assert "[UNPROVEN]" in out
+    # Since the remote survey closed, nothing shipped is marked unproven.
+    assert "[UNPROVEN]" not in out
 
 
 def test_templates_json_carries_the_fields_a_form_is_built_from(
@@ -100,7 +101,7 @@ def test_templates_json_carries_the_fields_a_form_is_built_from(
     assert run("--json", "templates") == api.EXIT_OK
 
     payloads = {t["name"]: t for t in json.loads(capsys.readouterr().out)}
-    assert payloads["remote"]["proven"] is False
+    assert payloads["remote"]["proven"] is True
     nuc_fields = {f["key"]: f for f in payloads["nuc"]["fields"]}
     assert nuc_fields["SSH_HOST"]["required"] is True
     assert nuc_fields["ENV_PROFILE"]["suggestion"] == "nuc"
@@ -134,9 +135,10 @@ def test_create_writes_the_instance(tmp_path: Path) -> None:
     assert registry.load(path).get("mars").ssh_host == "10.0.0.5"
 
 
-def test_creating_an_unproven_type_says_so(
+def test_creating_a_remote_names_the_surveyed_template_version(
     tmp_path: Path, capsys: pytest.CaptureFixture[str]
 ) -> None:
+    """v1 is the survey's outcome; v0 was the declared-but-unproven shape."""
     path = tmp_path / "instances.local.env"
 
     code = run(
@@ -150,8 +152,10 @@ def test_creating_an_unproven_type_says_so(
         "CLUSTER_HOST=cluster.example",
     )
 
+    out = capsys.readouterr().out
     assert code == api.EXIT_OK
-    assert "UNPROVEN:" in capsys.readouterr().out
+    assert "template remote v1" in out
+    assert "UNPROVEN:" not in out
 
 
 def test_create_without_the_mandatory_fields_is_refused(tmp_path: Path) -> None:
