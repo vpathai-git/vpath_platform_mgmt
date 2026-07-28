@@ -54,6 +54,45 @@ def mock_client(pending_polls: int = 1) -> httpx.Client:
     return httpx.Client(transport=keycloak_mock(pending_polls))
 
 
+def test_device_login_sends_pkce() -> None:
+    """The realm's client requires PKCE — challenge out, verifier back."""
+    seen: dict[str, str] = {}
+
+    def handle(request: httpx.Request) -> httpx.Response:
+        body = request.content.decode()
+        if request.url.path.endswith("openid-configuration"):
+            return httpx.Response(
+                200,
+                json={
+                    "device_authorization_endpoint": f"{ISSUER}/device",
+                    "token_endpoint": f"{ISSUER}/token",
+                },
+            )
+        if request.url.path.endswith("/device"):
+            seen["device"] = body
+            return httpx.Response(
+                200,
+                json={
+                    "device_code": "dev-code",
+                    "user_code": "AAAA",
+                    "verification_uri": f"{ISSUER}/v",
+                    "interval": 0,
+                },
+            )
+        seen["token"] = body
+        return httpx.Response(200, json={"access_token": "t", "expires_in": 300})
+
+    auth.device_login(
+        httpx.Client(transport=httpx.MockTransport(handle)),
+        ISSUER,
+        "vpath-cli",
+        echo=lambda _: None,
+    )
+    assert "code_challenge_method=S256" in seen["device"]
+    assert "code_challenge=" in seen["device"]
+    assert "code_verifier=" in seen["token"]
+
+
 def test_device_login_polls_until_token() -> None:
     lines: list[str] = []
     tokens = auth.device_login(

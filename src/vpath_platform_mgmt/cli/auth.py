@@ -8,7 +8,10 @@ user's home, never in the repo.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import json
+import secrets
 import time
 from collections.abc import Callable
 from pathlib import Path
@@ -18,6 +21,14 @@ import httpx
 DEVICE_GRANT = "urn:ietf:params:oauth:grant-type:device_code"
 DEFAULT_CLIENT_ID = "vpath-cli"
 EXPIRY_MARGIN_SECONDS = 30
+
+
+def _pkce_pair() -> tuple[str, str]:
+    """(verifier, S256 challenge) — the client requires PKCE on device flow."""
+    verifier = base64.urlsafe_b64encode(secrets.token_bytes(32)).rstrip(b"=").decode()
+    digest = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return verifier, challenge
 
 
 class AuthFlowError(Exception):
@@ -43,17 +54,18 @@ def _poll_token(
     client_id: str,
     interval: float,
     timeout_seconds: float,
+    code_verifier: str = "",
 ) -> dict[str, object]:
     deadline = time.monotonic() + timeout_seconds
+    payload = {
+        "grant_type": DEVICE_GRANT,
+        "device_code": device_code,
+        "client_id": client_id,
+    }
+    if code_verifier:
+        payload["code_verifier"] = code_verifier
     while time.monotonic() < deadline:
-        response = http.post(
-            token_endpoint,
-            data={
-                "grant_type": DEVICE_GRANT,
-                "device_code": device_code,
-                "client_id": client_id,
-            },
-        )
+        response = http.post(token_endpoint, data=payload)
         if response.status_code == 200:
             return dict(response.json())
         error = str(response.json().get("error", ""))
@@ -77,8 +89,14 @@ def device_login(
 ) -> dict[str, object]:
     """Run the device flow; returns the token response."""
     meta = discovery(http, issuer)
+    verifier, challenge = _pkce_pair()
     start = http.post(
-        meta["device_authorization_endpoint"], data={"client_id": client_id}
+        meta["device_authorization_endpoint"],
+        data={
+            "client_id": client_id,
+            "code_challenge": challenge,
+            "code_challenge_method": "S256",
+        },
     )
     if start.status_code != 200:
         raise AuthFlowError(
@@ -99,6 +117,7 @@ def device_login(
         client_id,
         interval,
         timeout_seconds,
+        code_verifier=verifier,
     )
 
 
