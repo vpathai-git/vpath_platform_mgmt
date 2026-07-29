@@ -12,6 +12,10 @@ Exit 0), Probe ehrlich (`HEALTHY`, Server-Fakten `not establishable` — es ist
 nichts installiert). Ein Befund als Draft-Issue:
 [probe-preinstall-exit](probe-preinstall-exit.issue.md). Der Server-Install
 bleibt unbeauftragt (P2).
+**Nachtrag 30.07. ~00:05:** Konsole aufs Lapdock gelegt (HP Elite x3 an
+USB-C; DP Alt Mode stand schon, fbcon klebte am display-losen
+NVIDIA-Framebuffer → `nvidia-drm fbdev=0`, reboot-fest verifiziert):
+[lapdock-console](lapdock-console.issue.md).
 **Nachtrag 29.07. ~23:45–00:00:** GPU-Auftrag ausgeführt — alle drei GPUs
 lokalisiert (iGPU · interne RTX 2060 · RTX 3090 im Razer-Core-X-eGPU an
 TB3), beide RTX CUDA-enabled (Treiber 595.84 open, CUDA 13.2, Reboot
@@ -67,6 +71,7 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
 | P0 | Zugang harmonisieren + registrieren + Probe (das Issue) | **erledigt 2026-07-29** |
 | P1 | Probe-Exit für Onboarding-Boxen (Exit 2 trotz ehrlichem HEALTHY) — [Draft](probe-preinstall-exit.issue.md) | draft, gehört zu den Registry-/Probe-Strängen |
 | P0 | Drei GPUs lokalisieren, beide RTX für AI enablen ([Issue](gpu-ai-enablement.issue.md)) | **erledigt 29.07.** — Treiber 595.84 open, CUDA 13.2, beide in nvidia-smi |
+| P0 | Konsole aufs Lapdock (USB-C) ([Issue](lapdock-console.issue.md)) | **erledigt 30.07.** — DP-2 enabled, getty tty1; Sichtprüfung am Panel: Andre |
 | P1 | mercury8: eGPU disconnected, Register-Versprechen „CUDA/ollama" unwahr — [Draft](mercury8-egpu-disconnected.issue.md); physischer Verbleib der 3060: Nutzerklärung | draft |
 | P2 | AI-Workload-Stack auf jupiter11 (ollama? Container-Toolkit? k3s-GPU?) — „grundsätzlich enablen" ist erfüllt, der Stack ist die nächste Welle | geparkt — Nutzerentscheid |
 | P2 | Server-Install auf jupiter11 (mars12-Kette als Vorlage; node-Upstream-403 und die drei offenen Server-Lanes beachten) | geparkt — nicht beauftragt |
@@ -76,6 +81,8 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
 
 - `raw/2026-07-29_2158_jupiter11-onboarding.md` — Wortlaut (redigiert) + Dekodierung
 - `raw/2026-07-29_2345_gpu-ai-enablement.md` — Wortlaut GPU-Auftrag + Dekodierung
+- `raw/2026-07-30_0005_lapdock-console.md` — Wortlaut Lapdock-Auftrag + Befund
+- `lapdock-console.issue.md` — Konsole → Lapdock via iGPU (erledigt)
 - `jupiter11-onboarding.issue.md` — das Onboarding (drei Schritte, erledigt)
 - `gpu-ai-enablement.issue.md` — GPU-Topologie + RTX-Enablement (erledigt)
 - `probe-preinstall-exit.issue.md` — Draft: Onboarding-Zustand im Probe-Exit
@@ -110,3 +117,10 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
   bewusst („grundsätzlich enablen"). Nebenbefund mercury8 (eGPU weg, 0
   nvidia-Module, Core X disconnected) als Draft gefiled, Register-Kommentar
   dort auf den gemessenen Ist-Zustand gehoben, Box nicht angefasst.
+- 30.07. ~00:05: Lapdock-Auftrag (Continuation): HP Elite x3 identifiziert,
+  DP Alt Mode war bereits ausgehandelt (EDID 1920×1080 an `card1-DP-2`);
+  Ursache fürs schwarze Panel war fbcon auf dem NVIDIA-fbdev →
+  `nvidia-drm fbdev=0` (modprobe.d + initramfs), Reboot, verifiziert:
+  einziger fbdev i915drmfb, DP-2 enabled, getty tty1 aktiv, beide RTX
+  weiter in nvidia-smi. Kein fbcon=map-Hack (bootreihenfolgeabhängig
+  fragil). Register-Kommentar um den Display-/Konsolen-Pfad ergänzt.
