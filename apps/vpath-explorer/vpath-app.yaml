@@ -53,7 +53,7 @@ spec:
         path: .state
         shared: private
   ui:
-    title: Explorer
+    title: Explorer Deployment Test
     description: File system explorer
     icon: folder-open
     sidebar: true

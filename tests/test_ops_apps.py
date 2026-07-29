@@ -4,7 +4,33 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from vpath_platform_mgmt.ops.apps import AppCatalog, entry_from_manifest
+from vpath_platform_mgmt.ops.apps import AppCatalog, AppEntry, entry_from_manifest
+
+
+def entry(name: str, base_path: str = "/demo") -> AppEntry:
+    return AppEntry(name=name, title="Demo", description="", base_path=base_path)
+
+
+def test_shell_id_strips_the_platform_naming_affixes() -> None:
+    """The platform shell selects apps by catalog id, not by app name."""
+    assert entry("vpath-explorer").shell_id == "explorer"
+    assert entry("vpath-kp-admin-web").shell_id == "kp-admin"
+    assert entry("standalone-app").shell_id == "standalone-app"
+
+
+def test_link_targets_the_shell_not_the_bare_base_path() -> None:
+    """A basePath deep link renders the app full-screen with no menu.
+
+    The platform hosts apps in an iframe inside its shell; linking straight
+    at the app's own path bypasses that chrome entirely.
+    """
+    url = entry("vpath-explorer", "/explorer").to_dict("https://10.0.0.4:30600")["url"]
+    assert url == "https://10.0.0.4:30600/?app=explorer"
+
+
+def test_link_is_empty_without_a_platform_url() -> None:
+    assert entry("vpath-explorer").to_dict()["url"] == ""
+
 
 MANIFEST = """\
 apiVersion: vpath/v1
@@ -45,9 +71,12 @@ def test_url_built_only_with_platform_url(tmp_path: Path) -> None:
     entry = entry_from_manifest(app / "vpath-app.yaml")
     assert entry is not None
     assert entry.to_dict()["url"] == ""
+    # Was the bare basePath (…/explorer), which the platform renders
+    # full-screen with no sidebar. The shell link keeps the app in the
+    # platform's iframe host, menu intact.
     assert (
         entry.to_dict("https://10.0.0.4:30600/")["url"]
-        == "https://10.0.0.4:30600/explorer"
+        == "https://10.0.0.4:30600/?app=explorer"
     )
 
 

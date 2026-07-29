@@ -33,11 +33,28 @@ class AppEntry:
     # business knowing server paths, and the browse API resolves by app name.
     directory: Path | None = None
 
+    @property
+    def shell_id(self) -> str:
+        """The id the platform shell selects an app by.
+
+        The generated app catalog derives it from the app name minus the
+        ``vpath-`` prefix and ``-web`` suffix; the platform's ingress config
+        documents the same derivation and asks that it be kept in lockstep.
+        """
+        shell_id = self.name.removeprefix("vpath-")
+        return shell_id.removesuffix("-web")
+
     def to_dict(self, platform_url: str = "") -> dict[str, object]:
-        """JSON view; ``url`` is empty unless a platform URL is configured."""
+        """JSON view; ``url`` is empty unless a platform URL is configured.
+
+        The link points at the platform SHELL (``/?app=<id>``), not at the
+        app's bare basePath. A deep link to the basePath renders the app
+        full-screen with no sidebar or shell chrome — the platform hosts apps
+        in an iframe and selects them by catalog id.
+        """
         url = ""
         if platform_url and self.base_path:
-            url = platform_url.rstrip("/") + "/" + self.base_path.lstrip("/")
+            url = f"{platform_url.rstrip('/')}/?app={self.shell_id}"
         return {
             "name": self.name,
             "title": self.title,

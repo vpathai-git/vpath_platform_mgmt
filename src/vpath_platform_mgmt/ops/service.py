@@ -157,6 +157,19 @@ class OpsService:
             f"{summary.get('file_count', 0)} files from {ref}@{str(commit)[:8]}",
         )
 
+    def installed_apps(self) -> list[str] | None:
+        """Apps installed on the server, or ``None`` if the engine cannot say.
+
+        Only a real engine knows the server's installed set; the simulated one
+        has no server to ask. ``None`` means *unknown*, which callers must
+        render as unknown — never as "not installed", which would invite an
+        install of something already running.
+        """
+        reporter = getattr(self._engine, "installed_apps", None)
+        if reporter is None:
+            return None
+        return [str(name) for name in reporter()]
+
     def source_of(self, app: str) -> dict[str, object] | None:
         """Provenance of the last source materialized for an app."""
         with self._mutex:

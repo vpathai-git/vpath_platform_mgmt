@@ -2,18 +2,12 @@
 const $ = (id) => document.getElementById(id);
 const chip = (s) =>
   ({queued: "q", running: "run", succeeded: "ok", failed: "err"})[s] || "q";
-const hdrs = () => ({
-  "Content-Type": "application/json",
-  "X-Dev-Actor": $("actor").value || "you",
-  "X-Dev-Role": $("role").value,
-});
+const hdrs = () => VpathAuth.headers();
 const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) =>
     ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
 
-let APPS = [];
-let PLATFORM = "";
-let selectedApp = null;
+/* APPS, PLATFORM and selectedApp live in store.js, which owns the catalog. */
 
 /* ---------- navigation ---------- */
 function showDash() {
@@ -35,23 +29,21 @@ async function post(body) {
   const d = await r.json();
   $("msg").textContent = r.ok ? "" : (d.detail || "error");
 }
-function submitJob() { post({verb: $("verb").value, app: $("app").value}); }
+function submitJob() {
+  const verb = $("verb").value;
+  const app = $("app").value;
+  if (!app) { $("msg").textContent = "pick an application first"; return; }
+  const picked = APPS.find((a) => a.name === app);
+  if (verb === "uninstall" && !confirmUninstall(app, picked && picked.title)) return;
+  post({verb: verb, app: app});
+}
+
 function reinstall() {
   const c = prompt("Destructive: full server reinstall.\nType REINSTALL:");
   if (c !== null) post({verb: "reinstall", app: "server", confirm: c || ""});
 }
-function deploySelected() {
-  if (!selectedApp) return;
-  $("a-msg").textContent = "submitting deploy for " + selectedApp.name + "…";
-  fetch("/api/jobs", {
-    method: "POST", headers: hdrs(),
-    body: JSON.stringify({verb: "deploy", app: selectedApp.name}),
-  }).then((r) => r.json().then((d) => {
-    $("a-msg").textContent = r.ok
-      ? "job " + d.job + " accepted — see Server Dashboard"
-      : "refused: " + (d.detail || "error");
-  }));
-}
+
+/* Install/uninstall of a selected app live in store.js. */
 const fmt = (ts) => new Date(ts * 1000).toLocaleTimeString();
 
 function render(s) {
@@ -88,101 +80,56 @@ function render(s) {
     || '<li class="dim">empty</li>';
 }
 
-/* ---------- application explorer ---------- */
-function selectApp(a, rowEl) {
-  selectedApp = a;
-  showApp();
-  document.querySelectorAll(".app-row").forEach((e) => e.classList.remove("sel"));
-  rowEl.classList.add("sel");
-  $("a-title").textContent = a.title;
-  $("a-type").textContent = a.type || "app";
-  $("a-desc").textContent = a.description || "";
-  $("a-meta").innerHTML =
-    [`name: ${esc(a.name)}`, a.base_path ? `path: ${esc(a.base_path)}` : "",
-     a.port ? `port: ${a.port}` : "", `folder: ${esc(a.source)}`]
-      .filter(Boolean).map((t) => `<span>${t}</span>`).join("");
-  const open = $("a-open");
-  open.disabled = !a.url;
-  open.title = a.url || "set VPATH_MGMT_PLATFORM_URL to enable";
-  open.onclick = () => a.url && window.open(a.url, "_blank", "noopener");
-  $("a-msg").textContent = a.url ? "" :
-    "no platform URL configured — set VPATH_MGMT_PLATFORM_URL to open apps";
-  $("f-name").textContent = "Select a file in the explorer";
-  $("f-meta").innerHTML = "";
-  $("f-body").textContent = "Pick a file on the left to inspect it.";
-  loadTree(a, rowEl);
-}
-
-async function loadTree(a, rowEl) {
-  let holder = rowEl.nextElementSibling;
-  if (holder && holder.classList.contains("tree")) { holder.remove(); return; }
-  document.querySelectorAll(".tree").forEach((e) => e.remove());
-  const r = await fetch(`/api/apps/${encodeURIComponent(a.name)}/tree`,
-    {headers: hdrs()});
-  if (!r.ok) return;
-  const d = await r.json();
-  holder = document.createElement("div");
-  holder.className = "tree";
-  d.nodes.forEach((n) => {
-    const depth = n.path.split("/").length - 1;
-    const el = document.createElement("div");
-    el.className = "tnode";
-    el.style.paddingLeft = (16 + depth * 12) + "px";
-    el.innerHTML = `<span class="ic">${n.dir ? "▸" : "·"}</span>` +
-      esc(n.path.split("/").pop());
-    el.title = n.path;
-    if (!n.dir) el.onclick = () => openFile(a, n, el);
-    holder.appendChild(el);
-  });
-  rowEl.after(holder);
-}
-
-async function openFile(a, node, el) {
-  document.querySelectorAll(".tnode").forEach((e) => e.classList.remove("sel"));
-  el.classList.add("sel");
-  const r = await fetch(
-    `/api/apps/${encodeURIComponent(a.name)}/file?path=${encodeURIComponent(node.path)}`,
-    {headers: hdrs()});
-  const d = await r.json();
-  $("f-name").textContent = node.path;
-  if (!r.ok) {
-    $("f-meta").innerHTML = "";
-    $("f-body").textContent = d.detail || "could not read file";
-    return;
-  }
-  $("f-meta").innerHTML = `<span>${d.size} bytes</span>` +
-    (d.truncated ? "<span>truncated</span>" : "");
-  $("f-body").textContent = d.content;
-}
-
-async function loadApps() {
-  const r = await fetch("/api/apps", {headers: hdrs()});
-  if (!r.ok) return;
-  const d = await r.json();
-  APPS = d.apps || [];
-  PLATFORM = d.platform_url || "";
-  const list = $("applist");
-  list.innerHTML = "";
-  if (!APPS.length) {
-    list.innerHTML = '<div class="nav-item dim">no applications found</div>';
-    return;
-  }
-  APPS.forEach((a) => {
-    const row = document.createElement("div");
-    row.className = "app-row";
-    row.innerHTML = `<span class="caret">▸</span><span class="nm">${esc(a.title)}` +
-      `</span><span class="tw">${esc(a.type || "")}</span>`;
-    row.onclick = () => selectApp(a, row);
-    list.appendChild(row);
-  });
-}
-
 async function tick() {
   try {
     const r = await fetch("/api/state", {headers: hdrs()});
+    if (r.status === 401) { signedOut("session expired — sign in again"); return; }
     if (r.ok) render(await r.json());
   } catch (e) { /* server restarting; keep polling */ }
   setTimeout(tick, 1000);
 }
-loadApps();
-tick();
+
+/* ---------- sign-in ---------- */
+function signIn() { VpathAuth.signIn().catch((e) => fatal(e)); }
+function signOut() { VpathAuth.signOut(); signedOut("signed out"); }
+
+function signedOut(why) {
+  $("whoami").textContent = why;
+  $("signin").hidden = false;
+  $("signout").hidden = true;
+}
+
+function signedIn(who) {
+  $("whoami").textContent = `${who.actor} · ${who.role}`;
+  $("signin").hidden = true;
+  $("signout").hidden = false;
+}
+
+function fatal(err) {
+  $("engine").textContent = "SIGN-IN FAILED";
+  $("engine").className = "badge err";
+  $("msg").textContent = String(err.message || err);
+}
+
+VpathAuth.init().then((session) => {
+  if (session.mode === "oidc") {
+    $("dev-identity").hidden = true;
+    $("oidc-identity").hidden = false;
+    if (session.error) {
+      const rejected = session.error.startsWith("signed in");
+      signedOut(rejected ? "token rejected" : "cannot reach Keycloak");
+      // A rejected token is worth retrying after a fix; an unreachable
+      // Keycloak is not, so only that one disables the button.
+      $("signin").disabled = !rejected;
+      fatal(new Error(session.error));
+      return;
+    }
+    if (!session.authenticated) {
+      signedOut("not signed in");
+      return;
+    }
+    signedIn(session.identity);
+  }
+  loadApps();
+  tick();
+}).catch((e) => fatal(e));

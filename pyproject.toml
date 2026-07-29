@@ -52,7 +52,10 @@ vpath = "vpath_platform_mgmt.cli.main:run"
 where = ["src"]
 
 [tool.setuptools.package-data]
-vpath_platform_mgmt = ["api/console.html"]
+# Every console asset, not just the page: console.js/css and auth.js are
+# served by the same _asset() reader and are missing from a built wheel if
+# they are not listed here.
+vpath_platform_mgmt = ["api/*.html", "api/*.css", "api/*.js"]
 
 [tool.black]
 line-length = 88

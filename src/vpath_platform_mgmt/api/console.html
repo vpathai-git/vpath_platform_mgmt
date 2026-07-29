@@ -9,13 +9,18 @@
 <body>
 <header>
   <h1>vpath console</h1><span id="engine" class="badge sim">…</span>
-  <div class="role">acting as
+  <div class="role" id="dev-identity">acting as
     <select id="role">
       <option value="app-dev">App-Entwickler</option>
       <option value="admin">Administrator</option>
       <option value="server-dev">Serverprojekt-Entwickler</option>
     </select>
     <input id="actor" value="you" size="8" aria-label="actor name">
+  </div>
+  <div class="role" id="oidc-identity" hidden>
+    <span id="whoami" class="dim">not signed in</span>
+    <button id="signin" onclick="signIn()">Sign in</button>
+    <button id="signout" onclick="signOut()" hidden>Sign out</button>
   </div>
 </header>
 
@@ -33,17 +38,22 @@
     <!-- Server dashboard -->
     <div class="view on" id="view-dash">
       <section>
-        <h2>Jobs</h2>
+        <h2>Applications</h2>
         <div class="row">
           <select id="verb">
             <option>deploy</option><option>build</option><option>health</option>
             <option>status</option><option>uninstall</option>
           </select>
-          <input id="app" value="sample-app" size="16" aria-label="app name">
+          <select id="app" aria-label="application">
+            <option value="">loading applications…</option>
+          </select>
           <button onclick="submitJob()">Run</button>
           <button class="danger" onclick="reinstall()">reinstall server…</button>
         </div>
         <div id="msg" aria-live="polite"></div>
+      </section>
+      <section>
+        <h2>Recent jobs</h2>
         <table id="jobs"></table>
       </section>
       <section>
@@ -66,12 +76,18 @@
       <section>
         <div class="title-row">
           <h3 id="a-title">—</h3><span class="chip q" id="a-type"></span>
+          <span class="chip q" id="a-state">unknown</span>
         </div>
         <div class="dim" id="a-desc"></div>
         <div class="meta" id="a-meta"></div>
         <div class="row">
           <button class="primary" id="a-open">Open app</button>
-          <button onclick="deploySelected()">Deploy this app</button>
+          <button id="a-install" onclick="deploySelected()" hidden>
+            Install on server
+          </button>
+          <button class="danger" id="a-uninstall" onclick="uninstallSelected()" hidden>
+            Uninstall from server…
+          </button>
         </div>
         <div id="a-msg" class="dim" style="font-size:12px;margin-top:8px"></div>
       </section>
@@ -83,6 +99,8 @@
     </div>
   </main>
 </div>
+<script src="/auth.js"></script>
 <script src="/console.js"></script>
+<script src="/store.js"></script>
 </body>
 </html>

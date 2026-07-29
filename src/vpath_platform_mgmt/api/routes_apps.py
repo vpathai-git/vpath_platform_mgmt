@@ -9,6 +9,7 @@ from fastapi import FastAPI, HTTPException, Request
 from vpath_platform_mgmt.api.auth import Identity
 from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.browse import AppBrowser, BrowseError
+from vpath_platform_mgmt.ops.engine import EngineFailure
 from vpath_platform_mgmt.ops.model import Role
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import (
@@ -56,15 +57,29 @@ def _register_catalog(
     identity: IdentityFn,
     catalog: AppCatalog | None,
     platform_url: str,
+    service: OpsService,
 ) -> None:
     @app.get("/api/apps")
     def list_apps(request: Request) -> dict[str, object]:
-        """Applications this management plane knows about."""
+        """The app store: what exists, and which of it is installed."""
         identity(request)
         entries = catalog.entries() if catalog is not None else []
+        try:
+            installed = service.installed_apps()
+        except EngineFailure:
+            # The store still renders, but every app reports 'unknown'
+            # rather than a guess: showing "not installed" for a running app
+            # invites an install nobody asked for.
+            installed = None
+        apps = []
+        for entry in entries:
+            row = entry.to_dict(platform_url)
+            row["installed"] = None if installed is None else entry.name in installed
+            apps.append(row)
         return {
             "platform_url": platform_url,
-            "apps": [entry.to_dict(platform_url) for entry in entries],
+            "apps": apps,
+            "installed_known": installed is not None,
         }
 
 
@@ -120,6 +135,6 @@ def register(
     platform_url: str,
 ) -> None:
     """Attach every /api/apps route to the FastAPI app."""
-    _register_catalog(app, identity, catalog, platform_url)
+    _register_catalog(app, identity, catalog, platform_url, service)
     _register_browse(app, identity, catalog)
     _register_source(app, identity, service, materializer)
