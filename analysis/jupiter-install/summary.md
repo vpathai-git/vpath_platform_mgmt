@@ -72,6 +72,7 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
 | P1 | Probe-Exit für Onboarding-Boxen (Exit 2 trotz ehrlichem HEALTHY) — [Draft](probe-preinstall-exit.issue.md) | draft, gehört zu den Registry-/Probe-Strängen |
 | P0 | Drei GPUs lokalisieren, beide RTX für AI enablen ([Issue](gpu-ai-enablement.issue.md)) | **erledigt 29.07.** — Treiber 595.84 open, CUDA 13.2, beide in nvidia-smi |
 | P0 | Konsole aufs Lapdock (USB-C) ([Issue](lapdock-console.issue.md)) | **erledigt 30.07.** — DP-2 enabled, getty tty1; Sichtprüfung am Panel: Andre |
+| P0 | Fleet-Alignment: DE-Tastatur + Lapdock-Fähigkeit auf mercury8/venus10/mars12 ([Issue](fleet-console-alignment.issue.md)) | **erledigt 30.07.** — reboot-frei; Steck-Test je Box: Andre |
 | P1 | mercury8: eGPU disconnected, Register-Versprechen „CUDA/ollama" unwahr — [Draft](mercury8-egpu-disconnected.issue.md); physischer Verbleib der 3060: Nutzerklärung | draft |
 | P2 | AI-Workload-Stack auf jupiter11 (ollama? Container-Toolkit? k3s-GPU?) — „grundsätzlich enablen" ist erfüllt, der Stack ist die nächste Welle | geparkt — Nutzerentscheid |
 | P2 | Server-Install auf jupiter11 (mars12-Kette als Vorlage; node-Upstream-403 und die drei offenen Server-Lanes beachten) | geparkt — nicht beauftragt |
@@ -83,6 +84,8 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
 - `raw/2026-07-29_2345_gpu-ai-enablement.md` — Wortlaut GPU-Auftrag + Dekodierung
 - `raw/2026-07-30_0005_lapdock-console.md` — Wortlaut Lapdock-Auftrag + Befund
 - `lapdock-console.issue.md` — Konsole → Lapdock via iGPU (erledigt)
+- `raw/2026-07-30_0035_fleet-console-alignment.md` — Wortlaut Fleet-Auftrag
+- `fleet-console-alignment.issue.md` — DE-Tastatur + Lapdock-Pfad Fleet (erledigt)
 - `jupiter11-onboarding.issue.md` — das Onboarding (drei Schritte, erledigt)
 - `gpu-ai-enablement.issue.md` — GPU-Topologie + RTX-Enablement (erledigt)
 - `probe-preinstall-exit.issue.md` — Draft: Onboarding-Zustand im Probe-Exit
@@ -127,3 +130,11 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
 - 30.07. ~00:20: Tastatur auf deutsches Layout (Installer-Default war us);
   Debian-Weg über /etc/default/keyboard + dpkg-reconfigure + setupcon —
   localectl ist auf Debian inert. Nachtrag im Lapdock-Issue.
+- 30.07. ~00:35: Fleet-Alignment (Continuation): DE-Layout live auf
+  mercury8/venus10/mars12 (reboot-frei, Produktivboxen). Lapdock-Pfad:
+  venus10/mars12 ready as-is (i915 only); mercury8s leeres /proc/fb als
+  deferred fbdev setup diagnostiziert (kein Defekt — fb kommt beim
+  Display-Hotplug) und der nvidia-drm-fbdev=0-Guard präventiv gesetzt
+  (595-Userspace liegt dort; eine zurückkehrende eGPU darf fb0 nicht
+  stehlen). terra außen vor (VM, kein Display). Physischer Steck-Test je
+  Box: Andre.
