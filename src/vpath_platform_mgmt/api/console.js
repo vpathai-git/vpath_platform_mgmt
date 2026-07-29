@@ -80,13 +80,41 @@ function render(s) {
     || '<li class="dim">empty</li>';
 }
 
+/* ---------- connection ---------- */
+const POLL_MS = 1000;
+const RETRY_MS = 5000;
+const CONN = {
+  connecting: ["connecting…", "q"],
+  connected: ["connected", "ok"],
+  disconnected: ["disconnected", "err"],
+  "signed-out": ["signed out", "q"],
+};
+let connTimer = 0;
+
+/* Badge and Connect button are two halves of one state machine: the button
+   shows exactly while the poll loop is backing off, so they cannot drift. */
+function setConn(state) {
+  $("conn").textContent = CONN[state][0];
+  $("conn").className = "badge " + CONN[state][1];
+  $("connect").hidden = state !== "disconnected";
+}
+
 async function tick() {
+  connTimer = 0;
+  let up = false;
   try {
     const r = await fetch("/api/state", {headers: hdrs()});
     if (r.status === 401) { signedOut("session expired — sign in again"); return; }
-    if (r.ok) render(await r.json());
-  } catch (e) { /* server restarting; keep polling */ }
-  setTimeout(tick, 1000);
+    if (r.ok) { render(await r.json()); up = true; }
+  } catch (e) { /* unreachable or restarting; the badge reports it */ }
+  setConn(up ? "connected" : "disconnected");
+  connTimer = setTimeout(tick, up ? POLL_MS : RETRY_MS);
+}
+
+function connectNow() {
+  if (connTimer) clearTimeout(connTimer);
+  setConn("connecting");
+  tick();
 }
 
 /* ---------- sign-in ---------- */
@@ -97,6 +125,7 @@ function signedOut(why) {
   $("whoami").textContent = why;
   $("signin").hidden = false;
   $("signout").hidden = true;
+  setConn("signed-out");
 }
 
 function signedIn(who) {

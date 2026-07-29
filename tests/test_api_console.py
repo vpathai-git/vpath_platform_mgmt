@@ -32,6 +32,20 @@ def test_console_page_serves_and_names_the_engine(client: TestClient) -> None:
     assert "vpath console" in page.text
 
 
+def test_header_shows_connection_status_with_synced_connect_button(
+    client: TestClient,
+) -> None:
+    """Badge and Connect button are two halves of one state machine."""
+    page = client.get("/").text
+    assert '<span id="conn"' in page
+    assert '<button id="connect" onclick="connectNow()"' in page
+    console = client.get("/console.js").text
+    assert '$("connect").hidden = state !== "disconnected"' in console
+    assert "function connectNow()" in console
+    assert 'setConn(up ? "connected" : "disconnected")' in console
+    assert "connTimer = setTimeout(tick, up ? POLL_MS : RETRY_MS)" in console
+
+
 def test_submit_deploy_returns_job_id_and_state_lists_it(
     client: TestClient,
 ) -> None:
