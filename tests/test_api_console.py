@@ -74,6 +74,41 @@ def test_state_fresh_query_bypasses_the_probe_cache() -> None:
     assert CountingEngine.probes == 2
 
 
+def test_instance_profile_is_loaded_without_overriding_the_environment(
+    tmp_path: Path,
+) -> None:
+    """`--instance vm5` reads .env.vm5; an explicit env var still wins."""
+    from vpath_platform_mgmt.api.server import load_profile
+
+    (tmp_path / ".env.vm5").write_text(
+        "VPATH_MGMT_ENGINE=gitops\nVPATH_MGMT_GITEA_TOKEN=from-file\n",
+        encoding="utf-8",
+    )
+    env = {"VPATH_MGMT_GITEA_TOKEN": "from-command-line"}
+    loaded = load_profile("vm5", env, root=tmp_path)
+
+    assert loaded == tmp_path / ".env.vm5"
+    assert env["VPATH_MGMT_ENGINE"] == "gitops"
+    assert env["VPATH_MGMT_GITEA_TOKEN"] == "from-command-line"
+    assert env["VPATH_MGMT_INSTANCE"] == "vm5"  # derived from the flag
+
+
+def test_no_instance_flag_leaves_the_environment_alone(tmp_path: Path) -> None:
+    from vpath_platform_mgmt.api.server import load_profile
+
+    env: dict[str, str] = {}
+    assert load_profile("", env, root=tmp_path) is None
+    assert env == {}
+
+
+def test_a_missing_profile_fails_rather_than_simulating(tmp_path: Path) -> None:
+    """Asking for a real instance must never silently serve a simulation."""
+    from vpath_platform_mgmt.api.server import load_profile
+
+    with pytest.raises(ValueError, match="no profile for instance 'vm5'"):
+        load_profile("vm5", {}, root=tmp_path)
+
+
 def test_real_engines_must_name_their_instance() -> None:
     from vpath_platform_mgmt.api.server import resolve_instance_name
 

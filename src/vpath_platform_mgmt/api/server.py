@@ -1,5 +1,10 @@
 """Entry point: build the service from environment config and serve it.
 
+``vpath-console --instance <name>`` loads that instance's ``.env.<name>``
+profile from the repo root (gitignored; see ``.env.console.example``) before
+reading anything below, so a real instance is one flag rather than a screenful
+of exports. Explicit environment variables still win over the profile.
+
 Configuration is explicit and fails hard (no silent fallbacks):
 
 - ``VPATH_MGMT_ENGINE``: ``simulated`` (default), ``local`` or ``gitops``.
@@ -27,9 +32,12 @@ Configuration is explicit and fails hard (no silent fallbacks):
 
 from __future__ import annotations
 
+import argparse
 import os
-from collections.abc import Mapping
+from collections.abc import Mapping, MutableMapping
 from pathlib import Path
+
+from dotenv import dotenv_values
 
 from vpath_platform_mgmt.api.app import create_app
 from vpath_platform_mgmt.api.auth import BrowserAuthConfig
@@ -99,6 +107,36 @@ def build_engine(env: Mapping[str, str]) -> EngineAdapter:
             raise ValueError("engine mode 'local' requires VPATH_MGMT_SERVER_CHECKOUT")
         return LocalEngine(Path(checkout), extra_env=parse_engine_env(env))
     return SimulatedEngine(step_delay=SIMULATED_STEP_DELAY)
+
+
+def repo_root() -> Path:
+    """Where instance profiles live — the checkout this package runs from."""
+    return Path(__file__).resolve().parents[3]
+
+
+def load_profile(
+    instance: str, env: MutableMapping[str, str], root: Path | None = None
+) -> Path | None:
+    """Apply ``.env.<instance>`` so a console starts without a long command line.
+
+    Real environment variables win over the file, so a one-off override on the
+    command line still works. A named profile that does not exist is an error:
+    silently falling back to the simulated default would put a console that was
+    asked for a real instance in front of a simulation.
+    """
+    if not instance:
+        return None
+    profile = (root or repo_root()) / f".env.{instance}"
+    if not profile.is_file():
+        raise ValueError(
+            f"no profile for instance '{instance}' at {profile} — copy "
+            ".env.console.example there and fill in that instance's values"
+        )
+    for key, value in dotenv_values(profile).items():
+        if value is not None:
+            env.setdefault(key, value)
+    env.setdefault("VPATH_MGMT_INSTANCE", instance)
+    return profile
 
 
 def resolve_instance_name(env: Mapping[str, str], engine_name: str) -> str:
@@ -221,6 +259,17 @@ def build_catalog(env: Mapping[str, str]) -> AppCatalog:
 def main() -> None:  # pragma: no cover - thin uvicorn wrapper
     """Serve the console; config errors abort startup loudly."""
     import uvicorn
+
+    parser = argparse.ArgumentParser(
+        prog="vpath-console",
+        description="Serve the ops console for one platform instance.",
+    )
+    parser.add_argument(
+        "--instance",
+        default=os.environ.get("VPATH_MGMT_INSTANCE", ""),
+        help="drive this instance, loading its .env.<name> profile",
+    )
+    load_profile(parser.parse_args().instance, os.environ)
 
     engine = build_engine(os.environ)
     service = OpsService(

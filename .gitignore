@@ -66,6 +66,11 @@ ehthumbs.db
 /data/processed/
 *.log
 .env
+# Console instance profiles (.env.vm5, …) carry engine and OIDC tokens.
+# Only the templates are tracked.
+.env.*
+!.env.example
+!.env.*.example
 secrets/
 *.db
 *.sqlite3
