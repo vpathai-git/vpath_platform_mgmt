@@ -12,6 +12,12 @@ Exit 0), Probe ehrlich (`HEALTHY`, Server-Fakten `not establishable` — es ist
 nichts installiert). Ein Befund als Draft-Issue:
 [probe-preinstall-exit](probe-preinstall-exit.issue.md). Der Server-Install
 bleibt unbeauftragt (P2).
+**Nachtrag 29.07. ~23:45–00:00:** GPU-Auftrag ausgeführt — alle drei GPUs
+lokalisiert (iGPU · interne RTX 2060 · RTX 3090 im Razer-Core-X-eGPU an
+TB3), beide RTX CUDA-enabled (Treiber 595.84 open, CUDA 13.2, Reboot
+überstanden): [gpu-ai-enablement](gpu-ai-enablement.issue.md). Nebenbefund:
+mercury8s eGPU ist weg (Register-Zeile war unwahr) →
+[Draft](mercury8-egpu-disconnected.issue.md).
 
 ---
 
@@ -60,14 +66,20 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
 |---|---|---|
 | P0 | Zugang harmonisieren + registrieren + Probe (das Issue) | **erledigt 2026-07-29** |
 | P1 | Probe-Exit für Onboarding-Boxen (Exit 2 trotz ehrlichem HEALTHY) — [Draft](probe-preinstall-exit.issue.md) | draft, gehört zu den Registry-/Probe-Strängen |
+| P0 | Drei GPUs lokalisieren, beide RTX für AI enablen ([Issue](gpu-ai-enablement.issue.md)) | **erledigt 29.07.** — Treiber 595.84 open, CUDA 13.2, beide in nvidia-smi |
+| P1 | mercury8: eGPU disconnected, Register-Versprechen „CUDA/ollama" unwahr — [Draft](mercury8-egpu-disconnected.issue.md); physischer Verbleib der 3060: Nutzerklärung | draft |
+| P2 | AI-Workload-Stack auf jupiter11 (ollama? Container-Toolkit? k3s-GPU?) — „grundsätzlich enablen" ist erfüllt, der Stack ist die nächste Welle | geparkt — Nutzerentscheid |
 | P2 | Server-Install auf jupiter11 (mars12-Kette als Vorlage; node-Upstream-403 und die drei offenen Server-Lanes beachten) | geparkt — nicht beauftragt |
-| P2 | Zweck der ZUSÄTZLICH gefundenen RTX 3090 und der zweiten SSD (232,9 G, unpartitioniert) klären — beides unerwähnt im Request | geparkt — Nutzerentscheid |
+| P2 | Zweite SSD (232,9 G, unpartitioniert) — Zweck klären | geparkt — Nutzerentscheid |
 
 ## Dateien
 
 - `raw/2026-07-29_2158_jupiter11-onboarding.md` — Wortlaut (redigiert) + Dekodierung
+- `raw/2026-07-29_2345_gpu-ai-enablement.md` — Wortlaut GPU-Auftrag + Dekodierung
 - `jupiter11-onboarding.issue.md` — das Onboarding (drei Schritte, erledigt)
+- `gpu-ai-enablement.issue.md` — GPU-Topologie + RTX-Enablement (erledigt)
 - `probe-preinstall-exit.issue.md` — Draft: Onboarding-Zustand im Probe-Exit
+- `mercury8-egpu-disconnected.issue.md` — Draft: Nebenbefund mercury8 ohne GPU
 - Register-Eintrag: `instances.local.env` Block `jupiter11` (gitignored)
 - Vorgänger: `../mars-install/` (Playbook + Lektionen),
   `../instance-management/` (Register, Signaletik), `../instance-status/` (Probe)
@@ -89,3 +101,12 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
   Host-Pattern, Keepalives) nachgezogen; Selector Exit 0 über die ganze
   Flotte; Probe ehrlich HEALTHY/not-establishable, Exit-2-Semantik als
   Draft-Issue gefiled statt gepatcht.
+- 29.07. ~23:45: GPU-Auftrag (Continuation): Topologie gemessen (iGPU i915 ·
+  RTX 2060 am CPU-PCIe · RTX 3090 als Dell-Karte im Razer Core X an TB3,
+  Policy iommu/stored). Enablement über den kanonischen Ubuntu-Pfad
+  (`ubuntu-drivers install` → 595-open 595.84; Secure Boot aus, kein MOK),
+  Reboot, verifiziert: beide RTX in nvidia-smi (6 GB + 24 GB, CUDA 13.2),
+  `nvidia` auf beiden gebunden, eGPU re-authorized. Kein Workload-Stack —
+  bewusst („grundsätzlich enablen"). Nebenbefund mercury8 (eGPU weg, 0
+  nvidia-Module, Core X disconnected) als Draft gefiled, Register-Kommentar
+  dort auf den gemessenen Ist-Zustand gehoben, Box nicht angefasst.
