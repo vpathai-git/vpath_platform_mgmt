@@ -85,6 +85,8 @@ build/
 # Claude agent memories are machine-local; committing them in the template
 # would propagate them into every derived project on sync
 .claude/agent-memory/
+# Launch config carries machine-local paths (venv executables)
+.claude/launch.json
 
 # Instance credentials and access material — never commit
 # (see docs/INSTANCES.md and analysis/instance-management/)
