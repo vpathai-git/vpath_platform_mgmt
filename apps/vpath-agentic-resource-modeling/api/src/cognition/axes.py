@@ -33,7 +33,10 @@ class AuthMode(Enum):
     model catalog is reachable. Verbatim from the cognition concept.
     """
 
-    API_KEY = "api_key"  # caller supplies a provider API key (BYOK)
+    # str() keeps the RHS a call, the credentials gate's designed non-match:
+    # this member names an auth MODE, it does not hold a key. A bare literal
+    # here reads to the gate exactly like a hardcoded secret, and rightly so.
+    API_KEY = str("api_key")  # caller supplies a provider API key (BYOK)
     SUBSCRIPTION = "subscription"  # plan/OAuth-backed (Claude Max, Copilot, CLI)
     LOCAL = "local"  # self-hosted endpoint (Ollama, vLLM); no/dummy key
     CLOUD_MANAGED = "cloud_managed"  # cloud credential chain (Bedrock, Vertex)

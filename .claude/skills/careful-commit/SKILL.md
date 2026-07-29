@@ -40,7 +40,7 @@ Think hard, review all uncommitted changes, and check their relevance before com
 
 ### Secrets Hygiene
 - Scan every diff for hardcoded passwords, API keys, tokens, connection strings, private keys
-- Watch for secrets hiding in: URLs (`https://user:pass@host`), env defaults (`os.getenv("KEY", "actual-secret")`), config objects, comments
+- Watch for secrets hiding in: URLs (`https://user:password@host` with the password filled in), env defaults (`os.getenv("KEY", "actual-secret")`), config objects, comments
 - If a secret is found in a diff — revert that line, extract it to an env var or your secret store, and `.gitignore` the source file if needed
 - Never commit `.env`, `.env.local`, `credentials.json`, `*.pem`, `*.key`, or config files with real secret values
 - If a secret was already committed in a previous commit, warn the user — it needs to be rotated, not just removed

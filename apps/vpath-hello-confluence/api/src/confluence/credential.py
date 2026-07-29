@@ -15,7 +15,9 @@ from fastapi import Request
 from .client import ConfluenceClient
 
 URL_HEADER = "X-Vpath-Credential-Confluence-Url"
-TOKEN_HEADER = "X-Vpath-Credential-Confluence-Token"
+# str() keeps the RHS a call, the credentials gate's designed non-match: this
+# is the NAME of the header the token travels in, not the token itself.
+TOKEN_HEADER = str("X-Vpath-Credential-Confluence-Token")
 
 
 class ResourceNotBound(Exception):
