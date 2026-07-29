@@ -1,0 +1,642 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SaaS-Betriebsökosystem — eingefärbt nach Herkunfts-Repo</title>
+<style>
+  :root {
+    --paper:#fafaf7; --card:#ffffff; --ink:#20272c; --muted:#6d747c;
+    --line:#e2e1d9; --green:#1aa053; --blue:#1666bf; --orange:#e07f00;
+    --orange-soft:#fdf3e3; --green-soft:#e9f6ee; --halo:rgba(242,140,0,.35); --dim:.25;
+    --purple:#7c3aed; --purple-soft:#f2ecfd; --blue-soft:#e7f0fb; --green-fill:#e4f4ea;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper:#15191e; --card:#1c2127; --ink:#e6e8ea; --muted:#99a1aa;
+      --line:#2c333b; --green:#34b46e; --blue:#5aa4ec; --orange:#f0a137;
+      --orange-soft:#2d2418; --green-soft:#1a2b21; --halo:rgba(240,161,55,.35);
+      --purple:#a78bfa; --purple-soft:#251e37; --blue-soft:#132234; --green-fill:#17291f;
+    }
+  }
+  html { background:var(--paper); }
+  body { font-family:"Avenir Next",Avenir,"Helvetica Neue","Segoe UI",system-ui,sans-serif;
+         color:var(--ink); background:var(--paper); margin:0; font-size:15px; line-height:1.5; }
+  /* Full viewport width — deliberate (Andre, 2026-07-27): side-by-side structures
+     must be fully visible, never trapped in a scrolling pane. Do NOT reintroduce
+     a max-width cap. */
+  .wrap { margin:0 auto; padding:28px clamp(22px,2.5vw,48px) 60px; }
+  code,.mono { font-family:ui-monospace,"SF Mono",Menlo,Consolas,monospace; font-size:.86em; }
+  header { display:flex; flex-wrap:wrap; align-items:baseline; gap:8px 14px; margin-bottom:4px; }
+  h1 { font-size:23px; font-weight:600; margin:0; letter-spacing:-.01em; }
+  .chip { display:inline-block; padding:2px 10px; border-radius:999px; font-size:12.5px;
+          font-weight:600; border:1px solid var(--line); color:var(--muted); }
+  .chip.open { color:var(--orange); border-color:var(--orange); background:var(--orange-soft); }
+  .chip.done { color:var(--green); border-color:var(--green); background:var(--green-soft); }
+  .sub { color:var(--muted); margin:2px 0 26px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--muted);
+       margin:34px 0 12px; border-bottom:1px solid var(--line); padding-bottom:6px; }
+  .grid3 { display:grid; grid-template-columns:repeat(auto-fit,minmax(240px,1fr)); gap:12px; }
+  .box { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:12px 14px; }
+  .box b { display:block; margin-bottom:4px; font-size:13.5px; }
+  .box p { margin:0; font-size:13.5px; color:var(--muted); }
+  .box .mono { display:block; margin-top:8px; font-size:11px; color:var(--muted); overflow-wrap:anywhere; }
+  .svgbox { background:var(--card); border:1px solid var(--line); border-radius:10px;
+            padding:10px 6px 2px; }
+  .stage { overflow:auto; }
+  .stage svg { display:block; }
+  .zoombar { display:flex; gap:6px; justify-content:flex-end; padding:0 8px 8px; }
+  .zoombar button { font:inherit; font-size:12px; color:var(--muted); background:var(--paper);
+                    border:1px solid var(--line); border-radius:7px; padding:2px 10px; cursor:pointer; }
+  .zoombar button:hover { color:var(--ink); border-color:var(--muted); }
+  svg text { font-family:inherit; fill:var(--ink); }
+  .node { cursor:pointer; }
+  .node rect { fill:var(--paper); stroke:var(--line); stroke-width:1.4; rx:9; }
+  .node.hub rect { stroke-dasharray:5 4; }
+  .node.fam-p rect { fill:var(--purple-soft); stroke:var(--purple); stroke-width:1.7; }
+  .node.fam-b rect { fill:var(--blue-soft); stroke:var(--blue); stroke-width:1.7; }
+  .node.fam-a rect { fill:var(--green-fill); stroke:var(--green); stroke-width:1.7; }
+  .node .t { font-size:13px; font-weight:600; }
+  .node .s { font-size:10.5px; fill:var(--muted); }
+  .node.lit rect { stroke:var(--orange); stroke-width:2; filter:drop-shadow(0 0 6px var(--halo)); }
+  .edge { stroke:var(--muted); stroke-width:1.5; fill:none; marker-end:url(#arr); }
+  .edge.bypass { stroke-dasharray:6 5; }
+  .elabel { font-size:11px; fill:var(--muted); font-style:italic; }
+  .colhead { font-size:14px; font-weight:700; letter-spacing:.06em; }
+  .colsub { font-size:11px; fill:var(--muted); }
+  .rowlab { font-size:11.5px; font-weight:600; fill:var(--muted); letter-spacing:.04em; }
+  .dim { opacity:var(--dim); }
+  .panel { margin-top:10px; padding:11px 14px; border-left:3px solid var(--orange);
+           background:var(--card); border-radius:0 10px 10px 0; font-size:13.5px; min-height:20px; }
+  .panel b { color:var(--orange); }
+  .panel .hint { color:var(--muted); font-style:italic; }
+  table { width:100%; border-collapse:collapse; font-size:13.5px; background:var(--card);
+          border:1px solid var(--line); border-radius:10px; overflow:hidden; }
+  th,td { text-align:left; padding:8px 12px; border-bottom:1px solid var(--line); vertical-align:top; }
+  tr:last-child td { border-bottom:none; }
+  th { font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); }
+  .note { font-size:13.5px; color:var(--muted); margin:10px 2px 0; }
+  .lead { font-size:14.5px; margin:0 0 14px; }
+  .phases { display:flex; flex-wrap:wrap; gap:6px; align-items:center; font-size:13px; }
+  .ph { padding:5px 12px; border:1px solid var(--line); border-radius:8px; background:var(--card); }
+  .ph.now { border-color:var(--green); color:var(--green); background:var(--green-soft); font-weight:600; }
+  .phases .arr { color:var(--muted); }
+  .cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(320px,1fr)); gap:14px; }
+  .dcard { background:var(--card); border:1px solid var(--line); border-radius:10px; padding:14px 16px; }
+  .dcard h3 { margin:0 0 2px; font-size:15px; display:flex; gap:8px; align-items:baseline; }
+  .dcard .q { color:var(--muted); font-size:13px; margin:0 0 10px; }
+  .opt { display:flex; gap:10px; padding:8px 10px; border-radius:8px; margin-bottom:6px;
+         border:1px solid transparent; font-size:13.5px; }
+  .opt .l { flex:none; width:22px; height:22px; border-radius:50%; border:1.5px solid var(--muted);
+            color:var(--muted); font-size:12px; font-weight:700; display:flex;
+            align-items:center; justify-content:center; }
+  .opt.rec { border-color:var(--green); background:var(--green-soft); }
+  .opt.rec .l { border-color:var(--green); color:var(--green); }
+  .opt .c { color:var(--muted); }
+  .rec-chip { color:var(--green); font-weight:700; font-size:12px; white-space:nowrap; }
+  ul.park { margin:0; padding-left:20px; font-size:13.5px; color:var(--muted); }
+  ul.park li { margin-bottom:4px; }
+  h3.figcap { font-size:15px; font-weight:600; margin:26px 0 8px; }
+  .legend { display:flex; flex-wrap:wrap; gap:6px 18px; align-items:center;
+            font-size:13px; color:var(--muted); margin:0; }
+  .legend span { display:inline-flex; align-items:center; gap:7px; }
+  .legend i { width:14px; height:14px; border-radius:4px; display:inline-block;
+              background:var(--paper); border:1.7px solid var(--line); }
+  .legend i.p { background:var(--purple-soft); border-color:var(--purple); }
+  .legend i.a { background:var(--green-fill); border-color:var(--green); }
+  .legend i.b { background:var(--blue-soft); border-color:var(--blue); }
+  #fig2 .edge { marker-end:url(#arr2); }
+  footer { margin-top:40px; padding-top:12px; border-top:1px solid var(--line);
+           font-size:11.5px; color:var(--muted); }
+  footer .mono { display:block; overflow-wrap:anywhere; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>SaaS-Betriebsökosystem — eingefärbt nach Herkunfts-Repo</h1>
+  <span class="chip">vpath_platform_mgmt · analysis/saas-ops-ontology</span>
+  <span class="chip">2026-07-28 23:49</span>
+  <span class="chip open">Diskussion offen</span>
+</header>
+<p class="sub">Das Gesamtbild des Plattformbetriebs in etablierter Terminologie — und was daraus für unsere Welt folgt.</p>
+
+<h2>Worum es geht</h2>
+<p class="lead">Wie managt eine moderne SaaS-Plattform ihren Betrieb? Unsere Plattform existiert in zwei
+Geschmacksrichtungen (Server = hosted, Standalone = self-managed), hostet Apps in Containern (Frontend-,
+Backend-, Workflow-Anteile), und jeder Baustein lebt dreifach: als Repository, als baubares Artefakt, als
+laufende Instanz. Diese Seite legt das Gesamtbild in Standardterminologie aus — NIST als Definitionsrahmen
+plus die konsolidierte DevOps-Sprache der Cloud-Anbieter — und mappt es auf unsere Welt.
+Diese Variante färbt jedes Element nach seinem Herkunfts-Repo ein und stellt dasselbe Bild einmal in
+Standard- und einmal in unserer Sprache dar.</p>
+<div class="grid3">
+  <div class="box"><b>Rahmen</b><p>NIST als Definitionsrahmen plus die konsolidierte DevOps-Sprache der
+    Cloud-Anbieter — ein Komposit, kein Einzeldokument.</p></div>
+  <div class="box"><b>Leitstern</b><p>Die Plattform ändert sich selten, Apps bauen beliebig, weil die
+    Plattform alles bereitstellt.</p></div>
+  <div class="box"><b>Befund</b><p>Nichts muss erfunden werden — jedes Element hat einen etablierten Namen,
+    ein etabliertes Artefakt und eine etablierte Strategie.</p></div>
+</div>
+
+<h2>Woher das kommt</h2>
+<div class="grid3">
+  <div class="box"><b>Konzept</b><p>Blaupause, Kern-Ontologie, Matrix, Mapping, Spannungen.</p>
+    <span class="mono">analysis/saas-ops-ontology/nist-devops-ecosystem.concept.md</span></div>
+  <div class="box"><b>Anfrage verbatim</b><p>Die Ausgangsfrage im Wortlaut, vor jeder Interpretation.</p>
+    <span class="mono">analysis/saas-ops-ontology/raw/2026-07-28_1951_saas-ops-ontology.md</span></div>
+  <div class="box"><b>VPATH-Ist-Struktur</b><p>Repos, Pin-Kanten, verified 2026-07-27.</p>
+    <span class="mono">claas_demo/workspace.yaml</span></div>
+  <div class="box"><b>Normativer Rahmen</b><p>Cloud-Definition, Referenzarchitektur und Akteure,
+    Container-Stack, Software-Fabrik, Konfigurations- und Bestandsführung.</p>
+    <span class="mono">NIST SP 800-145 · SP 500-292 · SP 800-190 · SP 800-218 SSDF · SP 800-53 CM</span></div>
+  <div class="box"><b>Konsolidierte Betriebs-Sprache</b><p>Die gelebte Sprache der Cloud-Anbieter — Artefakt,
+    Lebenszyklus, Lieferkette, Plattform, Betrieb.</p>
+    <span class="mono">OCI (Image/Digest/Image Index) · Twelve-Factor (Build→Release→Run) · SemVer ·
+    SLSA/SBOM/in-toto · CNCF Platform Engineering (Golden Path) · OpenGitOps · DORA · SRE/ITIL</span></div>
+</div>
+
+<h2>Struktur — zweimal dasselbe Bild, eingefärbt nach Herkunfts-Repo</h2>
+<div class="legend">
+  <span><i class="p"></i>Lila = aus dem Platform-Repo</span>
+  <span><i class="a"></i>Grün = aus dem App-Repo</span>
+  <span><i class="b"></i>Blau = aus dem Pipeline-Repo (Bauengine)</span>
+  <span><i></i>Grau = aus keinem der drei (geteilte Infrastruktur &amp; Akteure)</span>
+</div>
+<p class="note">Auffällig: Environments/GitOps-Soll-Zustand kommen im Standardbild aus einer vierten Quelle
+— einem Environment-/Config-Repo; Registry und Day-2 sind betriebene Infrastruktur, kein Repo-Erzeugnis.</p>
+
+<h3 class="figcap">Standardbild (NIST/Cloud-Terminologie)</h3>
+<div class="figure" id="fig1">
+<div class="svgbox">
+<div class="zoombar"><button data-z="-">&minus;</button><button data-z="0">Fit</button><button data-z="+">+</button></div>
+<div class="stage">
+<svg viewBox="0 0 1420 650" width="100%" role="img">
+  <defs>
+    <marker id="arr" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <!-- Spaltenköpfe -->
+  <text class="colhead" x="372" y="38" text-anchor="middle">SOURCE</text>
+  <text class="colsub" x="372" y="56" text-anchor="middle">Zuhause: SCM</text>
+  <text class="colhead" x="712" y="38" text-anchor="middle">ARTIFACT</text>
+  <text class="colsub" x="712" y="56" text-anchor="middle">Zuhause: Registry</text>
+  <text class="colhead" x="1152" y="38" text-anchor="middle">INSTANCE</text>
+  <text class="colsub" x="1152" y="56" text-anchor="middle">Zuhause: Environment</text>
+
+  <!-- Prozesspfeile zwischen den Spalten -->
+  <text class="elabel" x="542" y="24" text-anchor="middle">CI: Build+Test</text>
+  <path class="edge" data-e="flow-ci" d="M492,38 L582,38"/>
+  <text class="elabel" x="882" y="24" text-anchor="middle">Release + Promotion</text>
+  <path class="edge" data-e="flow-release" d="M832,38 L922,38"/>
+  <text class="elabel" x="792" y="606" text-anchor="middle">Betriebs-Loop: Observe → Incident → Fix</text>
+  <path class="edge" data-e="flow-loop" d="M1122,616 L462,616"/>
+
+  <!-- Zeilenbeschriftung -->
+  <text class="rowlab" transform="rotate(-90 240 150)" x="240" y="150" text-anchor="middle">Plattform</text>
+  <text class="rowlab" transform="rotate(-90 240 250)" x="240" y="250" text-anchor="middle">Buildpipeline</text>
+  <text class="rowlab" transform="rotate(-90 240 350)" x="240" y="350" text-anchor="middle">App</text>
+
+  <!-- Kanten -->
+  <path class="edge" data-e="actpt-psrc" d="M222,242 L262,160"/>
+  <path class="edge" data-e="actpt-bsrc" d="M222,250 L262,250"/>
+  <path class="edge" data-e="actat-asrc" d="M222,350 L262,350"/>
+
+  <path class="edge" data-e="psrc-part" d="M482,150 L602,150"/>
+  <text class="elabel" x="562" y="142" text-anchor="middle">CI</text>
+  <path class="edge" data-e="bsrc-bart" d="M482,250 L602,250"/>
+  <text class="elabel" x="562" y="242" text-anchor="middle">CI</text>
+  <path class="edge" data-e="asrc-aart" d="M482,350 L602,350"/>
+  <text class="elabel" x="562" y="342" text-anchor="middle">CI</text>
+
+  <path class="edge" data-e="bart-asrc" d="M652,280 C610,312 500,310 452,320"/>
+  <text class="elabel" x="660" y="300" text-anchor="middle">Template wird instanziiert</text>
+
+  <path class="edge" data-e="binst-part" d="M942,240 L822,160"/>
+  <path class="edge" data-e="binst-aart" d="M942,260 L822,340"/>
+  <text class="elabel" x="958" y="206">führt Builds aus</text>
+
+  <path class="edge" data-e="part-registry" d="M822,168 L872,168 L872,436 L822,436"/>
+  <path class="edge" data-e="aart-registry" d="M712,380 L712,420"/>
+  <text class="elabel" x="722" y="402">liegt in</text>
+
+  <path class="edge" data-e="registry-env" d="M822,460 L942,460"/>
+  <text class="elabel" x="872" y="452" text-anchor="middle">Promotion</text>
+  <path class="edge" data-e="gitops-env" d="M1182,448 L1122,448"/>
+  <text class="elabel" x="1152" y="440" text-anchor="middle">steuert</text>
+  <path class="edge" data-e="env-psaas" d="M942,440 L902,440 L902,150 L942,150"/>
+  <path class="edge" data-e="env-ainst" d="M1032,420 L1032,380"/>
+  <text class="elabel" x="1042" y="402">Deployment</text>
+
+  <path class="edge" data-e="part-pself" d="M712,120 L712,72 L1332,72 L1332,120"/>
+  <text class="elabel" x="1060" y="64" text-anchor="middle">Distribution-Kanal</text>
+
+  <path class="edge" data-e="part-contract" d="M602,168 L542,168 L542,448 L482,448"/>
+  <path class="edge" data-e="contract-asrc" d="M372,420 L372,380"/>
+  <text class="elabel" x="392" y="402">Apps bauen dagegen</text>
+
+  <path class="edge" data-e="psaas-ops" d="M1122,160 L1152,160 L1152,516"/>
+  <text class="elabel" x="1142" y="508" text-anchor="end">beobachtet</text>
+  <path class="edge" data-e="ainst-ops" d="M1122,350 L1172,350 L1172,516"/>
+
+  <path class="edge" data-e="psaas-actec" d="M1032,120 L1032,88 L137,88 L137,120"/>
+  <path class="edge" data-e="pself-actec" d="M1252,120 L1252,104 L152,104 L152,120"/>
+  <text class="elabel" x="128" y="116" text-anchor="end">nutzt</text>
+
+  <path class="edge" data-e="ops-asrc" d="M262,534 L30,534 L30,398 L250,398 L250,368 L262,368"/>
+  <path class="edge" data-e="ops-psrc" d="M262,556 L14,556 L14,202 L320,202 L320,180"/>
+  <text class="elabel" x="150" y="510" text-anchor="middle">Feedback-Loop</text>
+
+  <!-- Akteure -->
+  <g class="node" data-id="actec"><rect x="52" y="120" width="170" height="60" rx="9"/>
+    <text class="t" x="137" y="156" text-anchor="middle">Endkunde / Betreiber</text></g>
+  <g class="node" data-id="actpt"><rect x="52" y="220" width="170" height="60" rx="9"/>
+    <text class="t" x="137" y="247" text-anchor="middle">Platform-Team</text>
+    <text class="s" x="137" y="264" text-anchor="middle">(Provider)</text></g>
+  <g class="node" data-id="actat"><rect x="52" y="320" width="170" height="60" rx="9"/>
+    <text class="t" x="137" y="347" text-anchor="middle">App-Teams</text>
+    <text class="s" x="137" y="364" text-anchor="middle">(Consumer)</text></g>
+
+  <!-- Zeile Plattform -->
+  <g class="node fam-p" data-id="psrc"><rect x="262" y="120" width="220" height="60" rx="9"/>
+    <text class="t" x="372" y="156" text-anchor="middle">Platform-Repo</text></g>
+  <g class="node fam-p" data-id="part"><rect x="602" y="120" width="220" height="60" rx="9"/>
+    <text class="t" x="712" y="156" text-anchor="middle">Platform-Release-Set</text></g>
+  <g class="node fam-p" data-id="psaas"><rect x="942" y="120" width="180" height="60" rx="9"/>
+    <text class="t" x="1032" y="156" text-anchor="middle">SaaS-Instanz (Server)</text></g>
+  <g class="node fam-p" data-id="pself"><rect x="1182" y="120" width="180" height="60" rx="9"/>
+    <text class="t" x="1272" y="147" text-anchor="middle">Self-managed Installation</text>
+    <text class="s" x="1272" y="164" text-anchor="middle">(Standalone)</text></g>
+
+  <!-- Zeile Buildpipeline -->
+  <g class="node fam-b" data-id="bsrc"><rect x="262" y="220" width="220" height="60" rx="9"/>
+    <text class="t" x="372" y="256" text-anchor="middle">Pipeline-as-Code-Repo</text></g>
+  <g class="node fam-b" data-id="bart"><rect x="602" y="220" width="220" height="60" rx="9"/>
+    <text class="t" x="712" y="247" text-anchor="middle">Pipeline-Templates</text>
+    <text class="s" x="712" y="264" text-anchor="middle">(versioniert)</text></g>
+  <g class="node fam-b" data-id="binst"><rect x="942" y="220" width="180" height="60" rx="9"/>
+    <text class="t" x="1032" y="247" text-anchor="middle">CI/CD-Dienst</text>
+    <text class="s" x="1032" y="264" text-anchor="middle">(Runner-Flotte)</text></g>
+
+  <!-- Zeile App -->
+  <g class="node fam-a" data-id="asrc"><rect x="262" y="320" width="220" height="60" rx="9"/>
+    <text class="t" x="372" y="347" text-anchor="middle">App-Repo</text>
+    <text class="s" x="372" y="364" text-anchor="middle">(Golden-Path-Scaffold)</text></g>
+  <g class="node fam-a" data-id="aart"><rect x="602" y="320" width="220" height="60" rx="9"/>
+    <text class="t" x="712" y="347" text-anchor="middle">OCI Image Index (multi-arch)</text>
+    <text class="s" x="712" y="364" text-anchor="middle">+ SBOM</text></g>
+  <g class="node fam-a" data-id="ainst"><rect x="942" y="320" width="180" height="60" rx="9"/>
+    <text class="t" x="1032" y="347" text-anchor="middle">Workloads</text>
+    <text class="s" x="1032" y="364" text-anchor="middle">web / API / workflow</text></g>
+
+  <!-- Querschichten -->
+  <g class="node hub fam-p" data-id="contract"><rect x="262" y="420" width="220" height="56" rx="9"/>
+    <text class="t" x="372" y="454" text-anchor="middle">Platform Contract</text></g>
+  <g class="node hub" data-id="registry"><rect x="602" y="420" width="220" height="56" rx="9"/>
+    <text class="t" x="712" y="454" text-anchor="middle">Registry (Artifact Store)</text></g>
+  <g class="node hub" data-id="env"><rect x="942" y="420" width="180" height="56" rx="9"/>
+    <text class="t" x="1032" y="445" text-anchor="middle">Environments</text>
+    <text class="s" x="1032" y="461" text-anchor="middle">dev → staging → prod</text></g>
+  <g class="node hub" data-id="gitops"><rect x="1182" y="420" width="180" height="56" rx="9"/>
+    <text class="t" x="1272" y="454" text-anchor="middle">GitOps-Soll-Zustand</text></g>
+  <g class="node hub" data-id="ops"><rect x="262" y="516" width="1100" height="56" rx="9"/>
+    <text class="t" x="812" y="550" text-anchor="middle">Day-2: Observability · SLO · Incident · CVE</text></g>
+</svg>
+</div>
+</div>
+<div class="panel"><span class="hint">Klicke einen Knoten — Nachbarn bleiben hell, Details erscheinen hier.</span></div>
+</div>
+
+<h3 class="figcap">Dasselbe Bild in unserer Sprache (VPATH heute)</h3>
+<div class="figure" id="fig2">
+<div class="svgbox">
+<div class="zoombar"><button data-z="-">&minus;</button><button data-z="0">Fit</button><button data-z="+">+</button></div>
+<div class="stage">
+<svg viewBox="0 0 1420 650" width="100%" role="img">
+  <defs>
+    <marker id="arr2" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" style="fill:var(--muted)"/>
+    </marker>
+  </defs>
+
+  <!-- Spaltenköpfe -->
+  <text class="colhead" x="372" y="38" text-anchor="middle">SOURCE</text>
+  <text class="colsub" x="372" y="56" text-anchor="middle">Zuhause: SCM</text>
+  <text class="colhead" x="712" y="38" text-anchor="middle">ARTIFACT</text>
+  <text class="colsub" x="712" y="56" text-anchor="middle">Zuhause: Registry</text>
+  <text class="colhead" x="1152" y="38" text-anchor="middle">INSTANCE</text>
+  <text class="colsub" x="1152" y="56" text-anchor="middle">Zuhause: Environment</text>
+
+  <!-- Prozesspfeile zwischen den Spalten -->
+  <text class="elabel" x="542" y="24" text-anchor="middle">CI: Build+Test</text>
+  <path class="edge" data-e="flow-ci" d="M492,38 L582,38"/>
+  <text class="elabel" x="882" y="24" text-anchor="middle">Release + Promotion</text>
+  <path class="edge" data-e="flow-release" d="M832,38 L922,38"/>
+  <text class="elabel" x="792" y="606" text-anchor="middle">Betriebs-Loop: Observe → Incident → Fix</text>
+  <path class="edge" data-e="flow-loop" d="M1122,616 L462,616"/>
+
+  <!-- Zeilenbeschriftung -->
+  <text class="rowlab" transform="rotate(-90 240 150)" x="240" y="150" text-anchor="middle">Plattform</text>
+  <text class="rowlab" transform="rotate(-90 240 250)" x="240" y="250" text-anchor="middle">Buildpipeline</text>
+  <text class="rowlab" transform="rotate(-90 240 350)" x="240" y="350" text-anchor="middle">App</text>
+
+  <!-- Kanten -->
+  <path class="edge" data-e="vactpt-vpsrc" d="M222,242 L262,160"/>
+  <path class="edge" data-e="vactpt-vbsrc" d="M222,250 L262,250"/>
+  <path class="edge" data-e="vactat-vasrc" d="M222,350 L262,350"/>
+
+  <path class="edge" data-e="vpsrc-vpart" d="M482,150 L602,150"/>
+  <text class="elabel" x="562" y="142" text-anchor="middle">CI</text>
+  <path class="edge" data-e="vbsrc-vbart" d="M482,250 L602,250"/>
+  <text class="elabel" x="562" y="242" text-anchor="middle">CI</text>
+  <path class="edge" data-e="vasrc-vaart" d="M482,350 L602,350"/>
+  <text class="elabel" x="562" y="342" text-anchor="middle">CI</text>
+
+  <path class="edge" data-e="vbart-vasrc" d="M652,280 C610,312 500,310 452,320"/>
+  <text class="elabel" x="660" y="300" text-anchor="middle">Template wird instanziiert</text>
+
+  <path class="edge" data-e="vbinst-vpart" d="M942,240 L822,160"/>
+  <path class="edge" data-e="vbinst-vaart" d="M942,260 L822,340"/>
+  <text class="elabel" x="958" y="206">führt Builds aus</text>
+
+  <path class="edge" data-e="vpart-vregistry" d="M822,168 L872,168 L872,436 L822,436"/>
+  <path class="edge" data-e="vaart-vregistry" d="M712,380 L712,420"/>
+  <text class="elabel" x="722" y="402">liegt in</text>
+
+  <path class="edge" data-e="vregistry-venv" d="M822,460 L942,460"/>
+  <text class="elabel" x="872" y="452" text-anchor="middle">Promotion</text>
+  <path class="edge" data-e="vgitops-venv" d="M1182,448 L1122,448"/>
+  <text class="elabel" x="1152" y="440" text-anchor="middle">steuert</text>
+  <path class="edge" data-e="venv-vpsaas" d="M942,440 L902,440 L902,150 L942,150"/>
+  <path class="edge" data-e="venv-vainst" d="M1032,420 L1032,380"/>
+  <text class="elabel" x="1042" y="402">Deployment</text>
+
+  <path class="edge" data-e="vpart-vpself" d="M712,120 L712,72 L1332,72 L1332,120"/>
+  <text class="elabel" x="1060" y="64" text-anchor="middle">Distribution-Kanal</text>
+
+  <path class="edge" data-e="vpart-vcontract" d="M602,168 L542,168 L542,448 L482,448"/>
+  <path class="edge" data-e="vcontract-vasrc" d="M372,420 L372,380"/>
+  <text class="elabel" x="392" y="402">Apps bauen dagegen</text>
+
+  <path class="edge" data-e="vpsaas-vops" d="M1122,160 L1152,160 L1152,516"/>
+  <text class="elabel" x="1142" y="508" text-anchor="end">beobachtet</text>
+  <path class="edge" data-e="vainst-vops" d="M1122,350 L1172,350 L1172,516"/>
+
+  <path class="edge" data-e="vpsaas-vactec" d="M1032,120 L1032,88 L137,88 L137,120"/>
+  <path class="edge" data-e="vpself-vactec" d="M1252,120 L1252,104 L152,104 L152,120"/>
+  <text class="elabel" x="128" y="116" text-anchor="end">nutzt</text>
+
+  <path class="edge" data-e="vops-vasrc" d="M262,534 L30,534 L30,398 L250,398 L250,368 L262,368"/>
+  <path class="edge" data-e="vops-vpsrc" d="M262,556 L14,556 L14,202 L320,202 L320,180"/>
+  <text class="elabel" x="150" y="510" text-anchor="middle">Feedback-Loop</text>
+
+  <!-- Akteure -->
+  <g class="node" data-id="vactec"><rect x="52" y="120" width="170" height="60" rx="9"/>
+    <text class="t" x="137" y="146" text-anchor="middle">Endkunde / Betreiber</text>
+    <text class="s" style="font-size:9px" x="137" y="163" text-anchor="middle">Demo, Kunden-Installationen</text></g>
+  <g class="node" data-id="vactpt"><rect x="52" y="220" width="170" height="60" rx="9"/>
+    <text class="t" x="137" y="256" text-anchor="middle">Plattform-Team</text></g>
+  <g class="node" data-id="vactat"><rect x="52" y="320" width="170" height="60" rx="9"/>
+    <text class="t" x="137" y="346" text-anchor="middle">App-Teams</text>
+    <text class="s" style="font-size:9px" x="137" y="363" text-anchor="middle">z. B. Demo-Apps 1–6</text></g>
+
+  <!-- Zeile Plattform -->
+  <g class="node fam-p" data-id="vpsrc"><rect x="262" y="120" width="220" height="60" rx="9"/>
+    <text class="t" x="372" y="146" text-anchor="middle">vpath_server (Monorepo)</text>
+    <text class="s" style="font-size:9px" x="372" y="163" text-anchor="middle">ein Repo für Server + Standalone</text></g>
+  <g class="node fam-p" data-id="vpart"><rect x="602" y="120" width="220" height="60" rx="9"/>
+    <text class="t" x="712" y="143" text-anchor="middle">Server-Release</text>
+    <text class="s" style="font-size:9px" x="712" y="157" text-anchor="middle">Images · Helm-Chart · SDKs ·</text>
+    <text class="s" style="font-size:9px" x="712" y="168" text-anchor="middle">Electron-/Airgap-Bundle</text></g>
+  <g class="node fam-p" data-id="vpsaas"><rect x="942" y="120" width="180" height="60" rx="9"/>
+    <text class="t" x="1032" y="146" text-anchor="middle">Server-Installation</text>
+    <text class="s" style="font-size:9px" x="1032" y="163" text-anchor="middle">Cluster: install.sh / goReinstall</text></g>
+  <g class="node fam-p" data-id="vpself"><rect x="1182" y="120" width="180" height="60" rx="9"/>
+    <text class="t" x="1272" y="146" text-anchor="middle">Standalone-Installation</text>
+    <text class="s" style="font-size:9px" x="1272" y="163" text-anchor="middle">Electron-App · bare-Linux-Install</text></g>
+
+  <!-- Zeile Buildpipeline -->
+  <g class="node fam-b" data-id="vbsrc"><rect x="262" y="220" width="220" height="60" rx="9"/>
+    <text class="t" x="372" y="240" text-anchor="middle">Bau-Quellen (heute verzahnt)</text>
+    <text class="s" style="font-size:9px" x="372" y="253" text-anchor="middle">platform_infra (im server) ·</text>
+    <text class="s" style="font-size:9px" x="372" y="263" text-anchor="middle">kit-Skripte (im app_template) ·</text>
+    <text class="s" style="font-size:9px" x="372" y="273" text-anchor="middle">platform_mgmt</text></g>
+  <g class="node fam-b" data-id="vbart"><rect x="602" y="220" width="220" height="60" rx="9"/>
+    <text class="t" x="712" y="246" text-anchor="middle">Kit-Release + Base-Images</text>
+    <text class="s" style="font-size:9px" x="712" y="263" text-anchor="middle">kit/VERSION · workflow-base u. a.</text></g>
+  <g class="node fam-b" data-id="vbinst"><rect x="942" y="220" width="180" height="60" rx="9"/>
+    <text class="t" x="1032" y="243" text-anchor="middle">Bau-Ausführung</text>
+    <text class="s" style="font-size:9px" x="1032" y="257" text-anchor="middle">goReinstall · install.sh ·</text>
+    <text class="s" style="font-size:9px" x="1032" y="268" text-anchor="middle">CI-Runner · doctor/check</text></g>
+
+  <!-- Zeile App -->
+  <g class="node fam-a" data-id="vasrc"><rect x="262" y="320" width="220" height="60" rx="9"/>
+    <text class="t" x="372" y="346" text-anchor="middle">App-Repo (Template-Stamp)</text>
+    <text class="s" style="font-size:9px" x="372" y="363" text-anchor="middle">vpath-app.yaml · kit/ · eigener Code</text></g>
+  <g class="node fam-a" data-id="vaart"><rect x="602" y="320" width="220" height="60" rx="9"/>
+    <text class="t" x="712" y="346" text-anchor="middle">App-Images: FE / API / Workflow</text>
+    <text class="s" style="font-size:9px" x="712" y="363" text-anchor="middle">arch-spezifisch, heute ohne Image Index</text></g>
+  <g class="node fam-a" data-id="vainst"><rect x="942" y="320" width="180" height="60" rx="9"/>
+    <text class="t" x="1032" y="346" text-anchor="middle">Laufende App</text>
+    <text class="s" style="font-size:9px" x="1032" y="363" text-anchor="middle">Container im Server bzw. Standalone</text></g>
+
+  <!-- Querschichten -->
+  <g class="node hub fam-p" data-id="vcontract"><rect x="262" y="420" width="220" height="56" rx="9"/>
+    <text class="t" x="372" y="444" text-anchor="middle">Kit + vendored SDK-Substrat</text>
+    <text class="s" style="font-size:9px" x="372" y="460" text-anchor="middle">heute: Lockstep kit/VERSION ↔ Server-SHA</text></g>
+  <g class="node hub" data-id="vregistry"><rect x="602" y="420" width="220" height="56" rx="9"/>
+    <text class="t" x="712" y="444" text-anchor="middle">Registry-Rolle: UNBESETZT</text>
+    <text class="s" style="font-size:9px" x="712" y="460" text-anchor="middle">stattdessen Vendoring + Source-SHA-Pins</text></g>
+  <g class="node hub" data-id="venv"><rect x="942" y="420" width="180" height="56" rx="9"/>
+    <text class="t" x="1032" y="439" text-anchor="middle">Instanzen &amp; Profile</text>
+    <text class="s" style="font-size:9px" x="1032" y="451" text-anchor="middle">instances.local.env ·</text>
+    <text class="s" style="font-size:9px" x="1032" y="461" text-anchor="middle">dot_env-Profile ·</text>
+    <text class="s" style="font-size:9px" x="1032" y="471" text-anchor="middle">~/.vpath/standalone</text></g>
+  <g class="node hub" data-id="vgitops"><rect x="1182" y="420" width="180" height="56" rx="9"/>
+    <text class="t" x="1272" y="441" text-anchor="middle">Soll-Zustand: verteilt</text>
+    <text class="s" style="font-size:9px" x="1272" y="455" text-anchor="middle">Pin-Manifeste · config-Profile ·</text>
+    <text class="s" style="font-size:9px" x="1272" y="466" text-anchor="middle">workspace.yaml (Übersicht)</text></g>
+  <g class="node hub" data-id="vops"><rect x="262" y="516" width="1100" height="56" rx="9"/>
+    <text class="t" x="812" y="540" text-anchor="middle">Day-2 heute</text>
+    <text class="s" style="font-size:9px" x="812" y="556" text-anchor="middle">platform_mgmt: Status-Probe · doctor · Health-Check</text></g>
+</svg>
+</div>
+</div>
+<div class="panel"><span class="hint">Klicke einen Knoten — Nachbarn bleiben hell, Details erscheinen hier.</span></div>
+</div>
+
+<h2>Übersetzung: VPATH → Standard</h2>
+<table>
+  <tr><th>VPATH</th><th>Standardsprache</th></tr>
+  <tr><td>Plattform (vpath_server)</td><td>Internal Developer Platform; innen PaaS, außen SaaS</td></tr>
+  <tr><td>Server-Variante</td><td>hosted/SaaS deployment model</td></tr>
+  <tr><td>Standalone</td><td>self-managed distribution desselben Releases</td></tr>
+  <tr><td>App = FE + BE + Workflow</td><td>Workload-Set (web/API/batch)</td></tr>
+  <tr><td>Kanonischer Anteil</td><td>Golden Path + Platform Capabilities</td></tr>
+  <tr><td>„App baut nichts selbst"</td><td>Thin App</td></tr>
+  <tr><td>Repo / Binary / Instanz</td><td>Source / Artifact / Instance (Build→Release→Run)</td></tr>
+  <tr><td>Buildpipeline</td><td>Golden-Pipeline-Templates + CI/CD-Dienst</td></tr>
+  <tr><td>Gepinnte SHAs</td><td>Dependency Pinning; Standard-Kopplungspunkt wäre die Registry (Digest)</td></tr>
+  <tr><td>Image-Labels mit Pins</td><td>SLSA Provenance / Attestation</td></tr>
+  <tr><td>„Plattform selten, Apps beliebig"</td><td>Stable Contract: SemVer + Deprecation + Skew-Fenster</td></tr>
+  <tr><td>ARM vs. x86</td><td>Multi-Platform-Build unter einem OCI Image Index</td></tr>
+</table>
+
+<h2>Entscheidungen</h2>
+<div class="cards">
+
+  <div class="dcard">
+    <h3>E1 · Kopplungspunkt: Registry statt Source-Pins? <span class="chip open">offen</span></h3>
+    <p class="q">Heute pinnen Konsumenten Quell-Commits (git-SHA, Vendoring); der Standard koppelt über
+      Registry + Artefakt-Digest.</p>
+    <div class="opt rec"><span class="l">A</span><div>Registry + Digest-Pins + Provenance einführen
+      <span class="c">— Pin-Arithmetik wird zur Registry-Abfrage; Konsumenten bauen Produzenten nicht mehr
+      mit.</span></div><span class="rec-chip">★ Empfehlung (Zielbild)</span></div>
+    <div class="opt"><span class="l">B</span><div>Source-Pins beibehalten und härten
+      <span class="c">— funktioniert, aber jeder Konsument bleibt Mit-Bauer und Drift bleibt
+      Handarbeit.</span></div></div>
+    <div class="opt"><span class="l">C</span><div>Hybrid — Registry zuerst nur für Plattform-Artefakte
+      <span class="c">— kleinster Schritt, zwei Kopplungsmechanismen leben übergangsweise
+      parallel.</span></div></div>
+  </div>
+
+  <div class="dcard">
+    <h3>E2 · Platform Contract explizit machen? <span class="chip open">offen</span></h3>
+    <p class="q">Lockstep (Kit ↔ Server auf demselben SHA) erzwingt Gleichzeitigkeit statt Kompatibilität.</p>
+    <div class="opt rec"><span class="l">A</span><div>Versionierter Contract + Deprecation Policy +
+      Skew-Fenster (N-2) <span class="c">— Apps müssen nicht mehr im Gleichschritt mit der Plattform laufen;
+      genau der Mechanismus hinter dem Leitstern.</span></div><span class="rec-chip">★ Empfehlung (Zielbild)</span></div>
+    <div class="opt"><span class="l">B</span><div>Lockstep beibehalten
+      <span class="c">— maximale Konsistenz, aber jede Plattform-Änderung zwingt alle Apps sofort
+      mit.</span></div></div>
+    <div class="opt"><span class="l">C</span><div>Contract nur für das Kit/SDK, Rest bleibt Lockstep
+      <span class="c">— entkoppelt die App-Seite zuerst, Plattform-Interna folgen später.</span></div></div>
+  </div>
+
+  <div class="dcard">
+    <h3>E3 · Multi-Arch unter einen Digest? <span class="chip done">entschieden: A</span></h3>
+    <p class="q">Arch-spezifische Builds sind heute sichtbar; der Standard versteckt sie im Artefakt.
+    <b>Andre 2026-07-29:</b> Option A als neuer Demand auf dem Serverprojekt
+    (<code>todo/oci-multiarch-build/</code>) — Worktree-Linie, absichern, Big-Bang-Einführung.</p>
+    <div class="opt rec"><span class="l">A</span><div>OCI Image Index (Manifest List) einführen
+      <span class="c">— ARM64/x86_64 unter einem Tag/Digest; kein Konsument spricht mehr über
+      Architektur.</span></div><span class="rec-chip">★ Empfehlung</span></div>
+    <div class="opt"><span class="l">B</span><div>Arch-spezifische Tags beibehalten
+      <span class="c">— sichtbare Komplexität in jedem Deployment und jeder Pin-Stelle bleibt.</span></div></div>
+  </div>
+
+</div>
+
+<h2>Geparkt (bewusst später)</h2>
+<ul class="park">
+  <li>Wiki-Kapitel: Konzept später als Vault-Inhalt übernehmen (der Strang liegt seit 2026-07-29 in vpath_platform_mgmt)</li>
+  <li>Tenancy-Modell der Server-Variante (Single- vs. Multi-Tenant) — für die Ontologie egal, für den Betrieb später nicht</li>
+  <li>FinOps-/Kosten-Dimension — bewusst ausgeklammert</li>
+  <li>Build-on-deploy vs. build-once-promote als eigener Umbau-Strang (Spannung 3 im Konzept)</li>
+</ul>
+
+<footer>
+  Quelle: analysis/saas-ops-ontology/ (raw → concept → diese Seite) · Standards: NIST SP
+  800-145/500-292/800-190/800-218/800-53-CM, OCI, Twelve-Factor, SemVer, SLSA/SBOM, CNCF Platforms,
+  OpenGitOps, DORA, SRE/ITIL · Erstellt 2026-07-28 23:49 · Wegwerf-Artefakt, wird pro Iteration
+  überschrieben
+</footer>
+
+</div>
+<script>
+  const EDGES = [
+    ["actpt","psrc"], ["actpt","bsrc"], ["actat","asrc"],
+    ["psrc","part"], ["bsrc","bart"], ["asrc","aart"],
+    ["bart","asrc"], ["binst","aart"], ["binst","part"],
+    ["part","registry"], ["aart","registry"], ["registry","env"],
+    ["gitops","env"], ["env","psaas"], ["env","ainst"],
+    ["part","pself"], ["part","contract"], ["contract","asrc"],
+    ["psaas","ops"], ["ainst","ops"], ["psaas","actec"],
+    ["pself","actec"], ["ops","asrc"], ["ops","psrc"],
+    ["vactpt","vpsrc"], ["vactpt","vbsrc"], ["vactat","vasrc"],
+    ["vpsrc","vpart"], ["vbsrc","vbart"], ["vasrc","vaart"],
+    ["vbart","vasrc"], ["vbinst","vaart"], ["vbinst","vpart"],
+    ["vpart","vregistry"], ["vaart","vregistry"], ["vregistry","venv"],
+    ["vgitops","venv"], ["venv","vpsaas"], ["venv","vainst"],
+    ["vpart","vpself"], ["vpart","vcontract"], ["vcontract","vasrc"],
+    ["vpsaas","vops"], ["vainst","vops"], ["vpsaas","vactec"],
+    ["vpself","vactec"], ["vops","vasrc"], ["vops","vpsrc"]
+  ];
+  const INFO = {
+    psrc: ["Platform-Repo", "Quelle der Plattform. Ein Codebase für beide Geschmacksrichtungen — die Variante ist eine Verpackungsfrage am Pipeline-Ende, nie ein Fork (Twelve-Factor I)."],
+    part: ["Platform-Release-Set", "Unveränderliches Set aus Images (Digest-adressiert), Charts, SDKs, Distribution-Bundles + Release-Metadaten (SBOM, Provenance, Notes). Kanäle: stable/beta/LTS."],
+    psaas: ["SaaS-Instanz (Server)", "Vom Anbieter betriebene Installation — hosted deployment model (NIST 800-145). Kontinuierlich deploybar, GitOps-verwaltet."],
+    pself: ["Self-managed Installation (Standalone)", "Dasselbe Release als Distribution-Artefakt (Installer, Airgap-Bundle, Desktop-Verpackung). Support-Matrix pro Version, Upgrade-Pfade, Migrationsskripte gehören zum Release."],
+    bsrc: ["Pipeline-as-Code-Repo", "Die goldene Pipeline als Template-Familie im eigenen Repo. Apps kopieren sie nie — sie instanziieren Template + Version."],
+    bart: ["Pipeline-Templates (versioniert)", "Releaste Templates + Builder-Images. Pipeline-Updates rollen als Template-Releases über alle Apps aus — versioniert, mit Deprecation-Fenster."],
+    binst: ["CI/CD-Dienst (Runner-Flotte)", "Die Pipeline als betriebene Plattform-Capability: Runner, Scheduler, Secrets. Hat selbst Source/Artifact/Instance — sie ist ein Produkt, kein Skript."],
+    asrc: ["App-Repo (Golden-Path-Scaffold)", "Enthält nur den Business-Logic-Kern + deklaratives Application Manifest + dünne Pipeline-Instanziierung. „Kanonische App\" = Thin App auf dem Paved Road."],
+    aart: ["OCI Image Index (multi-arch) + SBOM", "Pro Workload ein Image Index: ARM64 und x86_64 unter EINEM Tag/Digest — Arch ist eine Dimension des Artefakts, nie der App. Jedes Artefakt trägt SBOM + SLSA-Provenance."],
+    ainst: ["Workloads: web / API / workflow", "Frontend = stateless web workload, Backend = API service, Workflow = batch/workflow jobs (jeder Step ein Container). Ein Set unter gemeinsamem Lebenszyklus."],
+    contract: ["Platform Contract", "Die versionierte Garantie-Oberfläche: SDKs, Base Images, Manifest-Schema, Runtime-Services. SemVer + Deprecation Policy + Version-Skew-Fenster (N-2, Vorbild Kubernetes). DER Mechanismus hinter „Plattform selten, Apps beliebig\"."],
+    registry: ["Registry (Artifact Store)", "Der Standard-Kopplungspunkt zwischen Produzent und Konsument: gepinnt wird der Artefakt-Digest, nicht der Quell-Checkout. Identität ist der Digest, nie das Label."],
+    env: ["Environments (dev→staging→prod)", "Erstklassige Objekte; Unterschied ist NUR Config. Dasselbe Release wird promotet, nie neu gebaut (build once, deploy many)."],
+    gitops: ["GitOps-Soll-Zustand", "Was wo läuft, steht deklarativ in Git und wird kontinuierlich abgeglichen. „Was läuft wo\" ist eine Abfrage, kein Gerücht; Rollback ist ein Revert."],
+    ops: ["Day-2: Observability · SLO · Incident · CVE", "Metrics/Logs/Traces als geschenkte Capability; SLO/Error Budget steuert Änderungstempo; CVE-Triage ist eine SBOM-Abfrage; Base-Image-Refresh rebuildet die Welt, Apps merken es nicht."],
+    actpt: ["Platform-Team (Provider)", "Betreibt die Plattform als Produkt; besitzt Platform-Repo und Pipeline-Familie. Nach innen PaaS-Provider, nach außen SaaS-Provider — dieselbe Organisation in Doppelrolle."],
+    actat: ["App-Teams (Consumer)", "Konsumieren die Plattform als PaaS; besitzen nur ihre App-Repos. Verhältnis zum Platform-Team = Cloud-Provider/Consumer-Verhältnis mit Vertrag, nicht Zuruf."],
+    actec: ["Endkunde / Betreiber", "Konsumiert SaaS (Server) oder betreibt selbst (Standalone). Compliance-Blick von außen auf SBOM, Provenance, Konfigurationsstand."],
+    vpsrc: ["vpath_server (Monorepo) — ein Repo für Server + Standalone", "Das Platform-Repo. Ein Codebase für beide Geschmacksrichtungen; hostet zusätzlich den App-Katalog unter apps_infra/apps/."],
+    vpart: ["Server-Release — Images · Helm-Chart · SDKs · Electron-/Airgap-Bundle", "Was aus dem Platform-Repo herauskommt: Container-Images, Helm-Chart, App-Manifeste, Workflow-Templates, SDKs (Python/Java/TypeScript), Electron-Standalone, OCI-Airgap-Bundle."],
+    vpsaas: ["Server-Installation — Cluster: install.sh / goReinstall", "Die gehostete Instanz. Heute wird beim Installieren gebaut (build-on-deploy) statt ein fertiges Release promotet — Spannung 3 des Konzepts."],
+    vpself: ["Standalone-Installation — Electron-App · bare-Linux-Install", "Dieselbe Plattform als self-managed Variante: Desktop-Verpackung bzw. linux_install-Strecke; Standalone-Home unter ~/.vpath/standalone."],
+    vcontract: ["Kit + vendored SDK-Substrat — heute: Lockstep kit/VERSION ↔ Server-SHA", "Unser heutiger Plattform-Contract ist implizit: das Kit pinnt einen Server-Commit, check_lockstep.py erzwingt Gleichschritt. Standardbild wäre ein versionierter Contract mit Skew-Fenster — Karte 2."],
+    vbsrc: ["Bau-Quellen (heute verzahnt) — platform_infra (im server) · kit-Skripte (im app_template) · platform_mgmt", "Die Bauengine hat heute KEIN eigenes Repo: sie liegt verteilt im Server-Monorepo (platform_infra/docker), im App-Template (kit-Skripte, check.sh) und in vpath_platform_mgmt (Build/Deploy/Health-Pipeline). Genau die Verzahnung, die das Standardbild trennt."],
+    vbart: ["Kit-Release + Base-Images — kit/VERSION · workflow-base u. a.", "Versionierte Bau-Artefakte: das Kit als gestempeltes Release im App-Repo, Base-Images (z. B. workflow-base) aus platform_infra."],
+    vbinst: ["Bau-Ausführung — goReinstall · install.sh · CI-Runner · doctor/check", "Wo gebaut wird: Gradle-Strecke und install.sh auf der Zielmaschine, GitHub-Actions-Runner in den Repos, doctor/check-Gates im Kit."],
+    vasrc: ["App-Repo (Template-Stamp) — vpath-app.yaml · kit/ · eigener Code", "Vom App-Template gestempelt: Manifest (vpath-app.yaml), einvendiertes Kit, dazu der app-eigene Business-Logic-Code — Frontend, API, Workflow."],
+    vaart: ["App-Images: FE / API / Workflow — arch-spezifisch, heute ohne Image Index", "Pro Anteil ein Container-Image. ARM64 vs. x86_64 ist heute sichtbar (arch-spezifische Builds) — der OCI Image Index aus Karte 3 würde das unter einen Digest schieben."],
+    vainst: ["Laufende App — Container im Server bzw. Standalone", "Die App-Workloads als laufende Container in einer Server-Instanz (apps_infra/apps/<app>) oder in der Standalone-Umgebung."],
+    vregistry: ["Registry-Rolle: UNBESETZT — stattdessen Vendoring + Source-SHA-Pins", "Der Standard-Kopplungspunkt existiert bei uns nicht: kein PyPI-Publish, kein zentraler Image-Store als Vertragsfläche. Konsumenten pinnen Quell-Commits und vendorn Bäume — Karte 1."],
+    venv: ["Instanzen & Profile — instances.local.env · dot_env-Profile · ~/.vpath/standalone", "Unsere Environments: das Instanzen-Register in platform_mgmt, die committeten config/dot_env-Profile des Servers, das Standalone-Home."],
+    vgitops: ["Soll-Zustand: verteilt — Pin-Manifeste · config-Profile · workspace.yaml (Übersicht)", "Einen deklarativen, kontinuierlich abgeglichenen Soll-Zustand gibt es nicht an einer Stelle: Pins in den Repos, Profile im Server, die Gesamtsicht im Koordinations-Workspace."],
+    vops: ["Day-2 heute — platform_mgmt: Status-Probe · doctor · Health-Check", "Betriebswerkzeuge existieren punktuell (Instanz-Register, Status-Probe, doctor-Gates); SLO/Incident-Loop und SBOM-getriebene CVE-Antwort sind noch nicht besetzt."],
+    vactpt: ["Plattform-Team", "Besitzt Server-Monorepo und Bau-Strecke; betreibt die Instanzen. Provider-Rolle nach innen wie außen."],
+    vactat: ["App-Teams — z. B. Demo-Apps 1–6", "Bauen Apps per Template-Stamp gegen das Kit. Konsumenten der Plattform."],
+    vactec: ["Endkunde / Betreiber — Demo, Kunden-Installationen", "Nutzt die gehostete Instanz oder betreibt die Standalone-Variante selbst."]
+  };
+  const HINT = '<span class="hint">Klicke einen Knoten — Nachbarn bleiben hell, Details erscheinen hier.</span>';
+  const resets = [];
+  document.querySelectorAll(".figure").forEach(fig => {
+    const nodes = fig.querySelectorAll(".node"), edges = fig.querySelectorAll(".edge");
+    const panel = fig.querySelector(".panel");
+    let active = null;
+    function reset() {
+      active = null;
+      nodes.forEach(n => n.classList.remove("dim","lit"));
+      edges.forEach(e => e.classList.remove("dim"));
+      panel.innerHTML = HINT;
+    }
+    resets.push(reset);
+    nodes.forEach(n => n.addEventListener("click", ev => {
+      ev.stopPropagation();
+      const id = n.dataset.id;
+      if (active === id) return reset();
+      active = id;
+      const keep = new Set([id]);
+      EDGES.forEach(([a,b]) => { if (a===id) keep.add(b); if (b===id) keep.add(a); });
+      nodes.forEach(m => { m.classList.toggle("dim", !keep.has(m.dataset.id));
+                           m.classList.toggle("lit", m.dataset.id===id); });
+      edges.forEach(e => e.classList.toggle("dim", !e.dataset.e.split("-").includes(id)));
+      panel.innerHTML = "<b>" + INFO[id][0] + "</b> — " + INFO[id][1];
+    }));
+    // Zoom: 100% = fit to full container width; above that, .stage scrolls/pans.
+    const stageSvg = fig.querySelector(".stage svg");
+    let zoom = 100;
+    function setZoom(z) { zoom = Math.max(100, Math.min(400, z)); stageSvg.style.width = zoom + "%"; }
+    fig.querySelectorAll(".zoombar button").forEach(b => b.addEventListener("click", ev => {
+      ev.stopPropagation();
+      setZoom(b.dataset.z === "0" ? 100 : zoom + (b.dataset.z === "+" ? 25 : -25));
+    }));
+  });
+  document.body.addEventListener("click", () => resets.forEach(r => r()));
+</script>
+</body>
+</html>
