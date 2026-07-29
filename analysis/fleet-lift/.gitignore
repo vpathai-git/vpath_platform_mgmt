@@ -1,0 +1,15 @@
+# This repository already ignores every *.log (root .gitignore:67), so nothing
+# under logs/ is tracked. The rules below are therefore not what keeps the big
+# logs out today — they are a standing refusal, so that a later `git add -f`
+# cannot quietly pull them in.
+#
+# Why they must never be forced in: each *-deploy.log carries a literal
+# `[info] Secret: <value>` line — the install pipeline still prints a credential
+# in plaintext (the Stream-75 finding; reproduced on all four boxes on
+# 2026-07-29). The same files also hold a few thousand long opaque strings per
+# box (mostly image digests) that were not individually cleared.
+#
+# The logs stay on disk under logs/ as this run's evidence; the decisive lines
+# are quoted in the report instead.
+logs/*-deploy.log
+logs/*-deliver.log

@@ -1,0 +1,1691 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Workflow
+metadata:
+  annotations:
+    workflows.argoproj.io/pod-name-format: v2
+  creationTimestamp: "2026-07-27T05:05:46Z"
+  generateName: legacy-upload-run-001-
+  generation: 107
+  labels:
+    vpath.io/kp-id: vpath-legacy-upload-admin-alain
+    vpath.io/run-id: run-001
+    vpath.io/workflow-id: legacy-upload
+    workflows.argoproj.io/completed: "false"
+    workflows.argoproj.io/phase: Running
+  name: legacy-upload-run-001-c85w4
+  namespace: kp-vpath-legacy-upload-admin-alain
+  resourceVersion: "379304"
+  uid: 802990c3-5df1-4407-a862-75129ef03918
+spec:
+  arguments:
+    parameters:
+    - name: kp-id
+      value: vpath-legacy-upload-admin-alain
+    - name: run-id
+      value: run-001
+    - name: pvc_size
+      value: 5Gi
+    - name: memory_limit
+      value: 1Gi
+    - name: deadline
+      value: "14400"
+    - name: PDF_PROCESSOR_MODE
+      value: md_file
+    - name: PDF_PROCESSOR_ANALYZE_IMAGES
+      value: "true"
+    - name: TEXT_FLATTENING_POPULATE_KG
+      value: "false"
+    - name: PARAGRAPH_EXTRACTION_POPULATE_KG
+      value: "false"
+  podGC:
+    deleteDelayDuration: 2m0s
+    strategy: OnWorkflowCompletion
+  workflowTemplateRef:
+    name: legacy-upload
+status:
+  artifactGCStatus:
+    notSpecified: true
+  artifactRepositoryRef:
+    artifactRepository: {}
+    default: true
+  conditions:
+  - status: "False"
+    type: PodRunning
+  finishedAt: null
+  nodes:
+    legacy-upload-run-001-c85w4:
+      children:
+      - legacy-upload-run-001-c85w4-3797532486
+      displayName: legacy-upload-run-001-c85w4
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4
+      name: legacy-upload-run-001-c85w4
+      outboundNodes:
+      - legacy-upload-run-001-c85w4-787128798
+      phase: Failed
+      progress: 0/1
+      resourcesDuration:
+        cpu: 1439
+        memory: 14396
+      startedAt: "2026-07-27T05:05:46Z"
+      templateName: legacy-upload-pipeline
+      templateScope: local/
+      type: DAG
+    legacy-upload-run-001-c85w4-385204623:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-414071195
+      displayName: copy-predefined-system-description
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-385204623
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.copy-predefined-system-description
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-copy-predefined-system-description
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-414071195:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-4292620326
+      displayName: office-conversion
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-414071195
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.office-conversion
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-office-conversion
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-707988531:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-787128798
+      displayName: summarize-the-system
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-707988531
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.summarize-the-system
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-summarize-the-system
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-787128798:
+      boundaryID: legacy-upload-run-001-c85w4
+      displayName: finalize
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-787128798
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.finalize
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: finalize
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-1701211569:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-2351953816
+      displayName: document-structure-extraction
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-1701211569
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.document-structure-extraction
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-document-structure-extraction
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-2243490648:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-707988531
+      displayName: extract-glossary
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-2243490648
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.extract-glossary
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-extract-glossary
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-2351953816:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-2243490648
+      displayName: paragraph-extraction
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-2351953816
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.paragraph-extraction
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-paragraph-extraction
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-2683130253:
+      displayName: legacy-upload-run-001-c85w4.onExit
+      finishedAt: "2026-07-27T09:06:09Z"
+      hostNodeName: mercury8
+      id: legacy-upload-run-001-c85w4-2683130253
+      message: Step exceeded its deadline
+      name: legacy-upload-run-001-c85w4.onExit
+      nodeFlag:
+        hooked: true
+      phase: Failed
+      progress: 0/1
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: write-provenance
+      templateScope: local/
+      type: Pod
+    legacy-upload-run-001-c85w4-3666774812:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-1701211569
+      displayName: text-flattening
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-3666774812
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.text-flattening
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-text-flattening
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-3740246938:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-385204623
+      displayName: data-copy
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-3740246938
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.data-copy
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-data-copy
+      templateScope: local/
+      type: Skipped
+    legacy-upload-run-001-c85w4-3797532486:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-3740246938
+      displayName: init
+      finishedAt: "2026-07-27T09:05:51Z"
+      hostNodeName: mercury8
+      id: legacy-upload-run-001-c85w4-3797532486
+      message: Pod was active on the node longer than the specified deadline
+      name: legacy-upload-run-001-c85w4.init
+      outputs:
+        exitCode: "137"
+      phase: Failed
+      progress: 0/1
+      resourcesDuration:
+        cpu: 1439
+        memory: 14396
+      startedAt: "2026-07-27T05:05:46Z"
+      templateName: init
+      templateScope: local/
+      type: Pod
+    legacy-upload-run-001-c85w4-4292620326:
+      boundaryID: legacy-upload-run-001-c85w4
+      children:
+      - legacy-upload-run-001-c85w4-3666774812
+      displayName: pdf-processing
+      finishedAt: "2026-07-27T09:05:59Z"
+      id: legacy-upload-run-001-c85w4-4292620326
+      message: 'omitted: depends condition not met'
+      name: legacy-upload-run-001-c85w4.pdf-processing
+      nodeFlag: {}
+      phase: Omitted
+      startedAt: "2026-07-27T09:05:59Z"
+      templateName: step-pdf-processing
+      templateScope: local/
+      type: Skipped
+  phase: Running
+  progress: 0/2
+  resourcesDuration:
+    cpu: 1439
+    memory: 14396
+  startedAt: "2026-07-27T05:05:46Z"
+  storedTemplates:
+    namespaced/legacy-upload/finalize:
+      container:
+        args:
+        - |
+          set -e
+          echo "=== Finalize: Pushing outputs to Gitea ==="
+          KP_ID="{{workflow.parameters.kp-id}}"
+          RUN_ID="{{workflow.parameters.run-id}}"
+          OUTPUT_DIR="/workspace/output/${RUN_ID}"
+          if [ ! -d "$OUTPUT_DIR" ]; then
+            echo "No output at $OUTPUT_DIR — nothing to push"
+            exit 0
+          fi
+          if [ -z "$GITEA_USERNAME" ] || [ -z "$GITEA_PASSWORD" ]; then
+            echo "ERROR: Gitea credentials missing; cannot persist workflow outputs"
+            exit 1
+          fi
+          GITEA_HOST="gitea.gitea.svc.cluster.local"
+          REPO_URL="https://${GITEA_USERNAME}:${GITEA_PASSWORD}@${GITEA_HOST}/kp-data/${KP_ID}-workspace.git"
+          git config --global user.email "pipeline@vpath.local"
+          git config --global user.name "vpath-pipeline"
+          git config --global http.sslVerify false
+          REPO_DIR="/tmp/workspace-repo"
+          if ! git clone --depth 1 "$REPO_URL" "$REPO_DIR"; then
+            echo "ERROR: Unable to clone pre-provisioned output repository: kp-data/${KP_ID}-workspace"
+            exit 1
+          fi
+          mkdir -p "${REPO_DIR}/output/${RUN_ID}"
+          cd "$OUTPUT_DIR"
+          find . -type f -size -10M \
+            -exec sh -c 'mkdir -p "'"${REPO_DIR}/output/${RUN_ID}"'/$(dirname "$1")" && cp "$1" "'"${REPO_DIR}/output/${RUN_ID}"'/$1"' _ {} \;
+          cd "$REPO_DIR"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No files to push"
+          else
+            PUSHED=$(git diff --cached --numstat | wc -l)
+            git commit -m "Pipeline run ${RUN_ID}: ${PUSHED} artifacts"
+            git push
+            echo "Pushed ${PUSHED} files to Gitea"
+          fi
+          echo "Finalize complete"
+        command:
+        - sh
+        - -c
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        name: ""
+        resources: {}
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+      inputs: {}
+      metadata: {}
+      name: finalize
+      outputs: {}
+    namespaced/legacy-upload/init:
+      container:
+        args:
+        - |
+          echo "=== Init: Copying inputs to workspace ==="
+          mkdir -p /workspace/inputs/raw_documents
+          if [ -d /inputs ]; then
+            find /inputs -mindepth 1 -maxdepth 1 -exec cp -R {} /workspace/inputs/raw_documents/ \;
+          fi
+          echo "Init complete — $(find /workspace/inputs -type f | wc -l) files staged"
+        command:
+        - sh
+        - -c
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        name: ""
+        resources: {}
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: init
+      outputs: {}
+    namespaced/legacy-upload/legacy-upload-pipeline:
+      dag:
+        tasks:
+        - arguments: {}
+          name: init
+          template: init
+        - arguments: {}
+          dependencies:
+          - init
+          name: data-copy
+          template: step-data-copy
+        - arguments: {}
+          dependencies:
+          - data-copy
+          name: copy-predefined-system-description
+          template: step-copy-predefined-system-description
+        - arguments: {}
+          dependencies:
+          - copy-predefined-system-description
+          name: office-conversion
+          template: step-office-conversion
+        - arguments: {}
+          dependencies:
+          - office-conversion
+          name: pdf-processing
+          template: step-pdf-processing
+        - arguments: {}
+          dependencies:
+          - pdf-processing
+          name: text-flattening
+          template: step-text-flattening
+        - arguments: {}
+          dependencies:
+          - text-flattening
+          name: document-structure-extraction
+          template: step-document-structure-extraction
+        - arguments: {}
+          dependencies:
+          - document-structure-extraction
+          name: paragraph-extraction
+          template: step-paragraph-extraction
+        - arguments: {}
+          dependencies:
+          - paragraph-extraction
+          name: extract-glossary
+          template: step-extract-glossary
+        - arguments: {}
+          dependencies:
+          - extract-glossary
+          name: summarize-the-system
+          template: step-summarize-the-system
+        - arguments: {}
+          dependencies:
+          - summarize-the-system
+          name: finalize
+          template: finalize
+      inputs: {}
+      metadata: {}
+      name: legacy-upload-pipeline
+      outputs: {}
+    namespaced/legacy-upload/step-copy-predefined-system-description:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 002_copy_predefined_system_description
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-copy-predefined-system-description
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-data-copy:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 001_data_copy
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-data-copy
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-document-structure-extraction:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 006_document_structure_extraction
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"document-structure-extraction"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-document-structure-extraction
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-extract-glossary:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 008_extract_glossary
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"extract-glossary"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-extract-glossary
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-office-conversion:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 003_office_conversion
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 200m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-office-conversion
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-paragraph-extraction:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 007_paragraph_extraction
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"paragraph-extraction"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-paragraph-extraction
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-pdf-processing:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 004_pdf_processing
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"pdf-processing"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-pdf-processing
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-summarize-the-system:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 009_summarize_the_system
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"summarize-the-system"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-summarize-the-system
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/step-text-flattening:
+      container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 005_text_flattening
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-text-flattening
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    namespaced/legacy-upload/write-provenance:
+      container:
+        args:
+        - |-
+          echo "=== Writing Provenance ===" && mkdir -p /workspace/output && cat > /workspace/output/provenance.json << PROV
+          {
+            "pipeline": "{{workflow.name}}",
+            "status": "{{workflow.status}}",
+            "startedAt": "{{workflow.creationTimestamp}}",
+            "finishedAt": "{{workflow.status}}",
+            "parameters": {{workflow.parameters}}
+          }
+          PROV
+          echo "Provenance written"
+        command:
+        - sh
+        - -c
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        name: ""
+        resources: {}
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+      inputs: {}
+      metadata: {}
+      name: write-provenance
+      outputs: {}
+  storedWorkflowTemplateSpec:
+    activeDeadlineSeconds: 14400
+    arguments:
+      parameters:
+      - description: Knowledge Project identifier
+        name: kp-id
+        value: vpath-legacy-upload-admin-alain
+      - description: Pipeline run identifier
+        name: run-id
+        value: run-001
+      - description: Workspace Storage
+        enum:
+        - 1Gi
+        - 5Gi
+        - 10Gi
+        - 20Gi
+        name: pvc_size
+        value: 5Gi
+      - description: Memory Limit
+        enum:
+        - 512Mi
+        - 1Gi
+        - 2Gi
+        - 4Gi
+        name: memory_limit
+        value: 1Gi
+      - description: Max Runtime
+        enum:
+        - "3600"
+        - "7200"
+        - "14400"
+        - "28800"
+        name: deadline
+        value: "14400"
+      - description: PDF Processing Mode
+        enum:
+        - md_file
+        - raw_text
+        name: PDF_PROCESSOR_MODE
+        value: md_file
+      - description: Analyze Images in PDFs
+        enum:
+        - "true"
+        - "false"
+        name: PDF_PROCESSOR_ANALYZE_IMAGES
+        value: "true"
+      - description: Text to Knowledge Graph
+        enum:
+        - "true"
+        - "false"
+        name: TEXT_FLATTENING_POPULATE_KG
+        value: "false"
+      - description: Paragraph Extraction to KG
+        enum:
+        - "true"
+        - "false"
+        name: PARAGRAPH_EXTRACTION_POPULATE_KG
+        value: "false"
+    entrypoint: legacy-upload-pipeline
+    onExit: write-provenance
+    podGC:
+      deleteDelayDuration: 2m0s
+      strategy: OnWorkflowCompletion
+    serviceAccountName: workflow-runner
+    templates:
+    - dag:
+        tasks:
+        - arguments: {}
+          name: init
+          template: init
+        - arguments: {}
+          dependencies:
+          - init
+          name: data-copy
+          template: step-data-copy
+        - arguments: {}
+          dependencies:
+          - data-copy
+          name: copy-predefined-system-description
+          template: step-copy-predefined-system-description
+        - arguments: {}
+          dependencies:
+          - copy-predefined-system-description
+          name: office-conversion
+          template: step-office-conversion
+        - arguments: {}
+          dependencies:
+          - office-conversion
+          name: pdf-processing
+          template: step-pdf-processing
+        - arguments: {}
+          dependencies:
+          - pdf-processing
+          name: text-flattening
+          template: step-text-flattening
+        - arguments: {}
+          dependencies:
+          - text-flattening
+          name: document-structure-extraction
+          template: step-document-structure-extraction
+        - arguments: {}
+          dependencies:
+          - document-structure-extraction
+          name: paragraph-extraction
+          template: step-paragraph-extraction
+        - arguments: {}
+          dependencies:
+          - paragraph-extraction
+          name: extract-glossary
+          template: step-extract-glossary
+        - arguments: {}
+          dependencies:
+          - extract-glossary
+          name: summarize-the-system
+          template: step-summarize-the-system
+        - arguments: {}
+          dependencies:
+          - summarize-the-system
+          name: finalize
+          template: finalize
+      inputs: {}
+      metadata: {}
+      name: legacy-upload-pipeline
+      outputs: {}
+    - container:
+        args:
+        - |
+          echo "=== Init: Copying inputs to workspace ==="
+          mkdir -p /workspace/inputs/raw_documents
+          if [ -d /inputs ]; then
+            find /inputs -mindepth 1 -maxdepth 1 -exec cp -R {} /workspace/inputs/raw_documents/ \;
+          fi
+          echo "Init complete — $(find /workspace/inputs -type f | wc -l) files staged"
+        command:
+        - sh
+        - -c
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        name: ""
+        resources: {}
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: init
+      outputs: {}
+    - container:
+        args:
+        - |
+          set -e
+          echo "=== Finalize: Pushing outputs to Gitea ==="
+          KP_ID="{{workflow.parameters.kp-id}}"
+          RUN_ID="{{workflow.parameters.run-id}}"
+          OUTPUT_DIR="/workspace/output/${RUN_ID}"
+          if [ ! -d "$OUTPUT_DIR" ]; then
+            echo "No output at $OUTPUT_DIR — nothing to push"
+            exit 0
+          fi
+          if [ -z "$GITEA_USERNAME" ] || [ -z "$GITEA_PASSWORD" ]; then
+            echo "ERROR: Gitea credentials missing; cannot persist workflow outputs"
+            exit 1
+          fi
+          GITEA_HOST="gitea.gitea.svc.cluster.local"
+          REPO_URL="https://${GITEA_USERNAME}:${GITEA_PASSWORD}@${GITEA_HOST}/kp-data/${KP_ID}-workspace.git"
+          git config --global user.email "pipeline@vpath.local"
+          git config --global user.name "vpath-pipeline"
+          git config --global http.sslVerify false
+          REPO_DIR="/tmp/workspace-repo"
+          if ! git clone --depth 1 "$REPO_URL" "$REPO_DIR"; then
+            echo "ERROR: Unable to clone pre-provisioned output repository: kp-data/${KP_ID}-workspace"
+            exit 1
+          fi
+          mkdir -p "${REPO_DIR}/output/${RUN_ID}"
+          cd "$OUTPUT_DIR"
+          find . -type f -size -10M \
+            -exec sh -c 'mkdir -p "'"${REPO_DIR}/output/${RUN_ID}"'/$(dirname "$1")" && cp "$1" "'"${REPO_DIR}/output/${RUN_ID}"'/$1"' _ {} \;
+          cd "$REPO_DIR"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No files to push"
+          else
+            PUSHED=$(git diff --cached --numstat | wc -l)
+            git commit -m "Pipeline run ${RUN_ID}: ${PUSHED} artifacts"
+            git push
+            echo "Pushed ${PUSHED} files to Gitea"
+          fi
+          echo "Finalize complete"
+        command:
+        - sh
+        - -c
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        name: ""
+        resources: {}
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+      inputs: {}
+      metadata: {}
+      name: finalize
+      outputs: {}
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 001_data_copy
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-data-copy
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 002_copy_predefined_system_description
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 64Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-copy-predefined-system-description
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 003_office_conversion
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 200m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-office-conversion
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 004_pdf_processing
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"pdf-processing"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 1Gi
+          requests:
+            cpu: 500m
+            memory: 512Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-pdf-processing
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 005_text_flattening
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 256Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-text-flattening
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 006_document_structure_extraction
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"document-structure-extraction"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-document-structure-extraction
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 007_paragraph_extraction
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"paragraph-extraction"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 250m
+            memory: 256Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-paragraph-extraction
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 008_extract_glossary
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"extract-glossary"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-extract-glossary
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - python
+        - entrypoint.py
+        - --stage
+        - 009_summarize_the_system
+        - --kp-id
+        - '{{workflow.parameters.kp-id}}'
+        - --run-id
+        - '{{workflow.parameters.run-id}}'
+        command:
+        - /usr/local/bin/airgapped-entrypoint.sh
+        env:
+        - name: OPENAI_BASE_URL
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_ENDPOINT
+              name: kp-agent-creds
+        - name: OPENAI_API_KEY
+          valueFrom:
+            secretKeyRef:
+              key: VPATH_LLM_API_KEY
+              name: kp-agent-creds
+        - name: VPATH_AGENT_PROVIDER
+          value: basic-llm
+        - name: VPATH_AGENT_MODEL
+          value: gpt-5-mini
+        - name: VPATH_AGENT_LLM_PROVIDER
+          value: openai
+        - name: VPATH_AGENT_CONTRACT_JSON
+          value: '{"model":"gpt-5-mini","provider":"basic-llm","step":"summarize-the-system"}'
+        envFrom:
+        - configMapRef:
+            name: kp-env
+        - secretRef:
+            name: gitea-creds
+            optional: true
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        imagePullPolicy: IfNotPresent
+        name: ""
+        resources:
+          limits:
+            memory: 512Mi
+          requests:
+            cpu: 100m
+            memory: 128Mi
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+        - mountPath: /inputs
+          name: inputs
+          readOnly: true
+      inputs: {}
+      metadata: {}
+      name: step-summarize-the-system
+      outputs: {}
+      retryStrategy:
+        backoff:
+          duration: 30s
+          factor: 2
+          maxDuration: 5m
+        limit: 2
+        retryPolicy: OnFailure
+    - container:
+        args:
+        - |-
+          echo "=== Writing Provenance ===" && mkdir -p /workspace/output && cat > /workspace/output/provenance.json << PROV
+          {
+            "pipeline": "{{workflow.name}}",
+            "status": "{{workflow.status}}",
+            "startedAt": "{{workflow.creationTimestamp}}",
+            "finishedAt": "{{workflow.status}}",
+            "parameters": {{workflow.parameters}}
+          }
+          PROV
+          echo "Provenance written"
+        command:
+        - sh
+        - -c
+        image: legacy-upload@sha256:4ba868d13e254484ac7ad392f167eb8b0c89b95cd4f95bacd1c9d3d51e7f1379
+        name: ""
+        resources: {}
+        volumeMounts:
+        - mountPath: /workspace
+          name: workspace
+      inputs: {}
+      metadata: {}
+      name: write-provenance
+      outputs: {}
+    ttlStrategy:
+      secondsAfterFailure: 259200
+      secondsAfterSuccess: 3600
+    volumes:
+    - name: workspace
+      persistentVolumeClaim:
+        claimName: kp-workspace
+    - name: inputs
+      persistentVolumeClaim:
+        claimName: kp-inputs
+    workflowTemplateRef:
+      name: legacy-upload
+  taskResultsCompletionStatus:
+    legacy-upload-run-001-c85w4-2683130253: false
+    legacy-upload-run-001-c85w4-3797532486: true
