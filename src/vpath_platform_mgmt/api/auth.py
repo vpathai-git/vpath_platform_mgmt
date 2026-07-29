@@ -33,6 +33,50 @@ class AuthError(Exception):
         self.message = message
 
 
+@dataclass(frozen=True)
+class BrowserAuthConfig:
+    """What the browser needs in order to sign in.
+
+    Served by ``GET /api/auth-config``, which is deliberately unauthenticated:
+    a client that cannot yet authenticate has to be told how. It carries only
+    public discovery data — an issuer URL and a public client id — never a
+    secret.
+    """
+
+    mode: str
+    issuer: str = ""
+    client_id: str = ""
+
+    def to_dict(self) -> dict[str, str]:
+        """JSON view; dev mode advertises nothing beyond the mode itself."""
+        if self.mode != "oidc":
+            return {"mode": self.mode}
+        return {
+            "mode": self.mode,
+            "issuer": self.issuer,
+            "client_id": self.client_id,
+        }
+
+
+def validate_browser_auth(config: BrowserAuthConfig) -> None:
+    """Refuse an oidc console the browser could never complete a login against."""
+    if config.mode != "oidc":
+        return
+    missing = [
+        name
+        for name, value in (
+            ("VPATH_MGMT_OIDC_ISSUER", config.issuer),
+            ("VPATH_MGMT_OIDC_CLIENT_ID", config.client_id),
+        )
+        if not value
+    ]
+    if missing:
+        raise ValueError(
+            f"oidc auth requires {' and '.join(missing)} — without it the "
+            "console loads but no browser can ever sign in"
+        )
+
+
 def dev_identity(actor: str | None, role: str | None) -> Identity:
     """Build an identity from dev headers; refuse if either is missing."""
     if not actor or not role:

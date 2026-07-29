@@ -13,14 +13,18 @@ from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
+from vpath_platform_mgmt.api import kc_proxy as kc_proxy_module
 from vpath_platform_mgmt.api import routes_apps
+from vpath_platform_mgmt.api.kc_proxy import KeycloakProxy
 from vpath_platform_mgmt.api.auth import (
     DEV_ACTOR_HEADER,
     DEV_ROLE_HEADER,
     AuthError,
+    BrowserAuthConfig,
     Identity,
     dev_identity,
     validate_auth_mode,
+    validate_browser_auth,
 )
 from vpath_platform_mgmt.api.oidc import OidcValidator
 from vpath_platform_mgmt.ops.apps import AppCatalog
@@ -30,7 +34,12 @@ from vpath_platform_mgmt.ops.source import SourceMaterializer
 
 IdentityFn = Callable[[Request], Identity]
 
-ASSET_TYPES = {"console.css": "text/css", "console.js": "application/javascript"}
+ASSET_TYPES = {
+    "console.css": "text/css",
+    "console.js": "application/javascript",
+    "auth.js": "application/javascript",
+    "store.js": "application/javascript",
+}
 
 
 class JobRequest(BaseModel):
@@ -121,6 +130,23 @@ def _register_ops(app: FastAPI, identity: IdentityFn, service: OpsService) -> No
         return job.to_dict()
 
 
+def _register_identity(
+    app: FastAPI, identity: IdentityFn, browser_auth: BrowserAuthConfig
+) -> None:
+    """How to sign in, and who the caller turned out to be."""
+
+    @app.get("/api/auth-config")
+    def auth_config() -> dict[str, str]:
+        """Public discovery data so the browser can start a login."""
+        return browser_auth.to_dict()
+
+    @app.get("/api/me")
+    def me(request: Request) -> dict[str, str]:
+        """The caller's identity and the role their token actually grants."""
+        caller = identity(request)
+        return {"actor": caller.actor, "role": caller.role}
+
+
 def create_app(
     service: OpsService,
     auth_mode: str = "dev",
@@ -128,16 +154,24 @@ def create_app(
     materializer: SourceMaterializer | None = None,
     catalog: AppCatalog | None = None,
     platform_url: str = "",
+    browser_auth: BrowserAuthConfig | None = None,
+    kc_proxy: KeycloakProxy | None = None,
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
+    browser_auth = browser_auth or BrowserAuthConfig(mode=auth_mode)
+    validate_browser_auth(browser_auth)
     identity: IdentityFn
     if auth_mode == "oidc" and oidc_validator is not None:
         identity = _oidc_identity_fn(oidc_validator)
     else:
         identity = _dev_identity
     app = FastAPI(title="vpath platform mgmt — Ops API", version="0.1.0")
+    _register_identity(app, identity, browser_auth)
     _register_ops(app, identity, service)
     routes_apps.register(app, identity, service, catalog, materializer, platform_url)
+    # Ahead of the console's catch-all asset route, which would swallow it.
+    if kc_proxy is not None:
+        kc_proxy_module.register(app, kc_proxy)
     _register_console(app)
     return app

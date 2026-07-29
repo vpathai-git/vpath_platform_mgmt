@@ -12,11 +12,14 @@ from cryptography.hazmat.primitives.asymmetric import rsa
 from fastapi.testclient import TestClient
 
 from vpath_platform_mgmt.api import create_app
-from vpath_platform_mgmt.api.auth import AuthError
+from vpath_platform_mgmt.api.auth import AuthError, BrowserAuthConfig
 from vpath_platform_mgmt.api.oidc import OidcConfig, OidcValidator
 from vpath_platform_mgmt.ops import OpsService, SimulatedEngine
 
 ISSUER = "https://10.0.0.4:30600/keycloak/realms/vpath"
+# An oidc console must also be signable-into from a browser, so create_app
+# now requires the public client alongside the token validator.
+BROWSER_AUTH = BrowserAuthConfig("oidc", ISSUER, "vpath-console")
 
 PRIVATE_KEY = rsa.generate_private_key(public_exponent=65537, key_size=2048)
 PUBLIC_KEY = PRIVATE_KEY.public_key()
@@ -35,11 +38,13 @@ def make_token(
     issuer: str = ISSUER,
     expires_in: float = 300.0,
     groups: list[str] | None = None,
+    issued_in: float = 0.0,
 ) -> str:
     claims: dict[str, object] = {
         "iss": issuer,
         "sub": "user-uuid",
         "preferred_username": username,
+        "iat": time.time() + issued_in,
         "exp": time.time() + expires_in,
         "realm_access": {"roles": ["default-roles-vpath", *roles]},
     }
@@ -92,6 +97,37 @@ def test_token_without_platform_role_is_refused(validator: OidcValidator) -> Non
         validator.identity(f"Bearer {make_token([])}")
 
 
+def test_token_issued_a_moment_in_the_future_is_accepted(
+    validator: OidcValidator,
+) -> None:
+    """One second of clock skew must not lock every user out.
+
+    Keycloak and this host each run NTP and still differ by a second or two;
+    with no leeway PyJWT rejects the token as 'not yet valid (iat)' and the
+    console reports a failed sign-in for a perfectly good login.
+    """
+    token = make_token(["admin"], issued_in=5.0)
+    assert validator.identity(f"Bearer {token}").role == "admin"
+
+
+def test_token_from_far_in_the_future_is_still_refused() -> None:
+    """Leeway is for skew, not a licence to accept anything."""
+    validator = OidcValidator(
+        OidcConfig(issuer=ISSUER, leeway_seconds=60.0), jwk_client=FakeJwks()
+    )
+    with pytest.raises(AuthError, match="token rejected"):
+        validator.identity(f"Bearer {make_token(['admin'], issued_in=3600.0)}")
+
+
+def test_expired_beyond_the_leeway_is_refused() -> None:
+    validator = OidcValidator(
+        OidcConfig(issuer=ISSUER, leeway_seconds=60.0), jwk_client=FakeJwks()
+    )
+    token = make_token(["admin"], expires_in=-600.0)
+    with pytest.raises(AuthError, match="token rejected"):
+        validator.identity(f"Bearer {token}")
+
+
 def test_expired_token_is_refused(validator: OidcValidator) -> None:
     token = make_token(["app-dev"], expires_in=-60.0)
     with pytest.raises(AuthError, match="token rejected"):
@@ -114,9 +150,45 @@ def test_jwks_url_derived_from_issuer() -> None:
     assert config.jwks_url == ISSUER + "/protocol/openid-connect/certs"
 
 
+def test_jwks_url_override_changes_only_the_fetch_location() -> None:
+    """The API may reach Keycloak by a route the browser never uses.
+
+    Overriding where keys are fetched must not weaken the issuer check: the
+    token still has to claim the public issuer.
+    """
+    tunnelled = (
+        "https://127.0.0.1:18600/keycloak/realms/vpath" "/protocol/openid-connect/certs"
+    )
+    config = OidcConfig(issuer=ISSUER, jwks_url_override=tunnelled)
+    assert config.jwks_url == tunnelled
+    assert config.issuer == ISSUER
+
+
+def test_build_oidc_validator_passes_the_jwks_override() -> None:
+    from vpath_platform_mgmt.api.server import build_oidc_validator
+
+    validator = build_oidc_validator(
+        {
+            "VPATH_MGMT_AUTH": "oidc",
+            "VPATH_MGMT_OIDC_ISSUER": ISSUER,
+            "VPATH_MGMT_OIDC_JWKS_URL": "https://127.0.0.1:18600/certs",
+            "VPATH_MGMT_OIDC_INSECURE_TLS": "1",
+        }
+    )
+    assert validator is not None
+    assert validator._config.jwks_url == "https://127.0.0.1:18600/certs"
+
+
 def test_oidc_app_accepts_token_and_runs_verbs(validator: OidcValidator) -> None:
     service = OpsService(SimulatedEngine())
-    client = TestClient(create_app(service, auth_mode="oidc", oidc_validator=validator))
+    client = TestClient(
+        create_app(
+            service,
+            auth_mode="oidc",
+            oidc_validator=validator,
+            browser_auth=BROWSER_AUTH,
+        )
+    )
     bearer = {"Authorization": f"Bearer {make_token(['admin'])}"}
     assert client.get("/api/state", headers=bearer).status_code == 200
     accepted = client.post(
@@ -131,10 +203,19 @@ def test_oidc_app_rejects_dev_headers_and_bad_tokens(
     validator: OidcValidator,
 ) -> None:
     service = OpsService(SimulatedEngine())
-    client = TestClient(create_app(service, auth_mode="oidc", oidc_validator=validator))
+    client = TestClient(
+        create_app(
+            service,
+            auth_mode="oidc",
+            oidc_validator=validator,
+            browser_auth=BROWSER_AUTH,
+        )
+    )
     dev_headers = {"X-Dev-Actor": "eve", "X-Dev-Role": "admin"}
     assert client.get("/api/state", headers=dev_headers).status_code == 401
-    stale = {"Authorization": f"Bearer {make_token(['admin'], expires_in=-1)}"}
+    # Beyond the skew leeway: a token one second past expiry is deliberately
+    # still accepted, so staleness has to be unambiguous to prove refusal.
+    stale = {"Authorization": f"Bearer {make_token(['admin'], expires_in=-600)}"}
     assert client.get("/api/state", headers=stale).status_code == 401
 
 
@@ -143,6 +224,9 @@ def test_oidc_mode_with_real_engine_is_allowed(validator: OidcValidator) -> None
         name = "local"
 
     app = create_app(
-        OpsService(RealishEngine()), auth_mode="oidc", oidc_validator=validator
+        OpsService(RealishEngine()),
+        auth_mode="oidc",
+        oidc_validator=validator,
+        browser_auth=BROWSER_AUTH,
     )
     assert app.title

@@ -187,3 +187,32 @@ def test_build_engine_config_validation() -> None:
         build_engine({"VPATH_MGMT_ENGINE": "warp"})
     with pytest.raises(ValueError, match="requires VPATH_MGMT_SERVER_CHECKOUT"):
         build_engine({"VPATH_MGMT_ENGINE": "local"})
+
+
+GITOPS_ENV = {
+    "VPATH_MGMT_ENGINE": "gitops",
+    "VPATH_MGMT_GITEA_URL": "https://gitea.internal",
+    "VPATH_MGMT_GITEA_TOKEN": "gt",
+    "VPATH_MGMT_K8S_URL": "https://10.0.0.4:6443",
+    "VPATH_MGMT_K8S_TOKEN": "kt",
+}
+
+
+def test_gitops_engine_is_built_from_env() -> None:
+    engine = build_engine(dict(GITOPS_ENV))
+    assert engine.name == "gitops"
+
+
+@pytest.mark.parametrize("missing", sorted(set(GITOPS_ENV) - {"VPATH_MGMT_ENGINE"}))
+def test_gitops_engine_fails_hard_on_missing_config(missing: str) -> None:
+    env = {key: value for key, value in GITOPS_ENV.items() if key != missing}
+    with pytest.raises(ValueError, match=f"requires {missing}"):
+        build_engine(env)
+
+
+def test_dev_auth_is_refused_with_the_gitops_engine() -> None:
+    """A header-trust identity must never gate a real deploy."""
+    from vpath_platform_mgmt.api.auth import validate_auth_mode
+
+    with pytest.raises(ValueError, match="refusing dev auth with a real engine"):
+        validate_auth_mode("dev", "gitops", has_validator=False)

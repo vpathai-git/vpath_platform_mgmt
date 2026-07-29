@@ -15,6 +15,10 @@
   }
 }
 * { box-sizing: border-box; }
+/* Author rules like `.role { display: flex }` outrank the user-agent's
+   `[hidden] { display: none }`, so the attribute alone does not hide a
+   styled element. Everything that toggles `hidden` from JS depends on this. */
+[hidden] { display: none !important; }
 body { margin: 0; background: var(--paper); color: var(--ink);
   font: 14px/1.5 var(--sans); height: 100vh; display: flex; flex-direction: column; }
 

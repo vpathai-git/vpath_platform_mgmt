@@ -51,13 +51,27 @@ class OidcConfig:
     issuer: str
     audience: str | None = None
     insecure_tls: bool = False
+    # Where the signing keys are FETCHED FROM, when that is not where the
+    # issuer says they live. The issuer is an identity assertion and is still
+    # matched against the token exactly; this is only a network path. It is
+    # needed whenever the API reaches Keycloak by a different route than the
+    # browser does — an overlay, a tunnel, or an in-cluster service name.
+    jwks_url_override: str = ""
+    # Tolerance for clock skew between Keycloak and this host, in seconds.
+    # Without it a token whose `iat` is even one second ahead is refused —
+    # which is exactly what a healthy pair of NTP-synced machines produces.
+    # RFC 7519 §4.1.4/4.1.5 allows a small leeway for this. It applies to
+    # `exp` too, so a token stays usable this long past expiry; keep it small.
+    leeway_seconds: float = 60.0
     group_roles: Mapping[str, Role] = field(
         default_factory=lambda: dict(DEFAULT_GROUP_ROLES)
     )
 
     @property
     def jwks_url(self) -> str:
-        """Keycloak realm JWKS endpoint derived from the issuer."""
+        """Where to fetch signing keys: the override, else derived from issuer."""
+        if self.jwks_url_override:
+            return self.jwks_url_override
         return self.issuer.rstrip("/") + "/protocol/openid-connect/certs"
 
 
@@ -118,6 +132,7 @@ class OidcValidator:
                 algorithms=SIGNING_ALGORITHMS,
                 issuer=self._config.issuer,
                 audience=self._config.audience,
+                leeway=self._config.leeway_seconds,
                 options={
                     "require": ["exp", "iss"],
                     "verify_aud": self._config.audience is not None,
