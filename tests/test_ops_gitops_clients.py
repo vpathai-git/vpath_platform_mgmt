@@ -48,6 +48,25 @@ def test_gitea_requires_a_base_url_and_token() -> None:
         GiteaClient("https://gitea.test", "o", "r", "")
 
 
+def test_gitea_ping_reports_reachability_without_raising() -> None:
+    assert gitea(lambda _: httpx.Response(200, json={})).ping() is True
+    assert gitea(lambda _: httpx.Response(503)).ping() is False
+
+    def down(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route to host")
+
+    assert gitea(down).ping() is False
+
+
+def test_argo_ping_reports_reachability_without_raising() -> None:
+    assert argo(lambda _: httpx.Response(200, json={})).ping() is True
+
+    def down(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("tunnel is gone")
+
+    assert argo(down).ping() is False
+
+
 def test_get_file_decodes_content_and_sha() -> None:
     client = gitea(lambda _: httpx.Response(200, json=file_body("hello")))
     found = client.get_file("installed-set.json")

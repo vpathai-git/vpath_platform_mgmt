@@ -78,6 +78,17 @@ class ArgoClient:
             raise ArgoError(f"cluster-unreachable: {what} response is not an object")
         return body
 
+    def ping(self) -> bool:
+        """Whether the Kubernetes API answers at all — reachability, not health.
+
+        Short timeout: this runs inside the console's state poll, and a down
+        box must not stall that poll for the client's full request timeout.
+        """
+        try:
+            return self._client.get("/version", timeout=3.0).status_code == 200
+        except httpx.HTTPError:
+            return False
+
     def _app_path(self, name: str) -> str:
         return f"{ARGO_API}/namespaces/{self._namespace}/applications/{name}"
 

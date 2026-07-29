@@ -41,6 +41,19 @@ def test_local_engine_requires_existing_checkout(tmp_path: Path) -> None:
         LocalEngine(tmp_path / "missing")
 
 
+def test_simulated_engine_is_always_reachable() -> None:
+    assert SimulatedEngine().reachable() is True
+
+
+def test_local_engine_reachable_tracks_the_checkout(tmp_path: Path) -> None:
+    checkout = tmp_path / "workspace"
+    checkout.mkdir()
+    engine = LocalEngine(checkout)
+    assert engine.reachable() is True
+    checkout.rmdir()
+    assert engine.reachable() is False
+
+
 def test_local_engine_command_substitutes_app(tmp_path: Path) -> None:
     engine = LocalEngine(tmp_path)
     assert engine.command(Verb.DEPLOY, "my-app") == [

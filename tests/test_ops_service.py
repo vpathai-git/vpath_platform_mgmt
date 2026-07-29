@@ -33,6 +33,9 @@ class GateEngine:
         assert self.release.wait(timeout=5.0), "gate never released"
         return None
 
+    def reachable(self) -> bool:
+        return True
+
 
 class FailingEngine:
     """Engine whose verbs always fail."""
@@ -42,6 +45,9 @@ class FailingEngine:
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         emit("about to fail")
         raise EngineFailure("boom: exit 1")
+
+    def reachable(self) -> bool:
+        return True
 
 
 def make_service() -> OpsService:
@@ -177,3 +183,31 @@ def test_job_lookup_and_state_shape() -> None:
     snapshot = service.state()
     assert snapshot["engine"] == "simulated"
     assert snapshot["jobs"][0]["id"] == job.id
+
+
+def test_instance_probe_is_cached_until_ttl_expires(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The console polls every second; the box must not be probed that often."""
+    import time
+
+    probes: list[float] = []
+
+    class CountingEngine(SimulatedEngine):
+        def reachable(self) -> bool:
+            probes.append(1)
+            return True
+
+    service = OpsService(CountingEngine(), instance_name="vm5")
+    now = {"t": 1000.0}
+    monkeypatch.setattr(time, "time", lambda: now["t"])
+
+    first = service.state()["instance"]
+    assert first == {"name": "vm5", "reachable": True, "checked_at": 1000.0}
+    service.state()
+    assert len(probes) == 1  # within TTL: served from cache
+    now["t"] += 11.0
+    service.state()
+    assert len(probes) == 2  # TTL expired: probed again
+    service.state(fresh=True)
+    assert len(probes) == 3  # fresh always probes

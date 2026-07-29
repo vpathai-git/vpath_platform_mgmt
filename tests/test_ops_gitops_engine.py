@@ -24,6 +24,25 @@ CASCADE = {
 HEALTHY = {"status": {"sync": {"status": "Synced"}, "health": {"status": "Healthy"}}}
 
 
+class Door:
+    """A door (Gitea or the cluster) that is either up or down."""
+
+    def __init__(self, up: bool) -> None:
+        self.up = up
+
+    def ping(self) -> bool:
+        return self.up
+
+
+def test_reachable_needs_both_doors() -> None:
+    def engine(gitea_up: bool, argo_up: bool) -> GitOpsEngine:
+        return GitOpsEngine(Door(gitea_up), Door(argo_up))
+
+    assert engine(True, True).reachable() is True
+    assert engine(False, True).reachable() is False
+    assert engine(True, False).reachable() is False
+
+
 class FakeRecord:
     """An in-memory Deploy-of-Record plus the cluster that reconciles it."""
 

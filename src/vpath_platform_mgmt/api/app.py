@@ -110,10 +110,10 @@ def _register_ops(app: FastAPI, identity: IdentityFn, service: OpsService) -> No
     """Job submission and state."""
 
     @app.get("/api/state")
-    def state(request: Request) -> dict[str, object]:
-        """Snapshot for the console: jobs, locks, audit, health, engine."""
+    def state(request: Request, fresh: bool = False) -> dict[str, object]:
+        """Snapshot for the console; ``fresh`` forces an instance re-probe."""
         identity(request)
-        return service.state()
+        return service.state(fresh=fresh)
 
     @app.post("/api/jobs", status_code=202)
     def submit(request: Request, body: JobRequest) -> dict[str, str]:

@@ -9,6 +9,8 @@ Configuration is explicit and fails hard (no silent fallbacks):
   ``VPATH_MGMT_GITEA_URL`` + ``VPATH_MGMT_GITEA_TOKEN`` for the
   Deploy-of-Record and ``VPATH_MGMT_K8S_URL`` + ``VPATH_MGMT_K8S_TOKEN`` to
   observe ArgoCD reconciliation.
+- ``VPATH_MGMT_INSTANCE``: register name of the instance this console
+  drives (e.g. ``vm5``). Required for real engines; ``sim`` when simulated.
 - ``VPATH_MGMT_AUTH``: ``dev`` (default) or ``oidc``. ``dev`` is refused
   with a real engine; ``oidc`` requires ``VPATH_MGMT_OIDC_ISSUER`` and
   accepts ``VPATH_MGMT_OIDC_AUDIENCE`` plus, for self-signed dev platforms
@@ -97,6 +99,24 @@ def build_engine(env: Mapping[str, str]) -> EngineAdapter:
             raise ValueError("engine mode 'local' requires VPATH_MGMT_SERVER_CHECKOUT")
         return LocalEngine(Path(checkout), extra_env=parse_engine_env(env))
     return SimulatedEngine(step_delay=SIMULATED_STEP_DELAY)
+
+
+def resolve_instance_name(env: Mapping[str, str], engine_name: str) -> str:
+    """Which declared instance this console drives (register name, e.g. vm5).
+
+    Real engines must be told — silently guessing which box a console talks
+    to is the most expensive mistake this tooling can make. The simulated
+    engine has no box, so it gets a truthful default.
+    """
+    name = env.get("VPATH_MGMT_INSTANCE", "")
+    if name:
+        return name
+    if engine_name == "simulated":
+        return "sim"
+    raise ValueError(
+        f"engine mode '{engine_name}' requires VPATH_MGMT_INSTANCE — name "
+        "the instance this console drives (see instances.local.env)"
+    )
 
 
 def parse_engine_env(env: Mapping[str, str]) -> dict[str, str]:
@@ -203,7 +223,9 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
     import uvicorn
 
     engine = build_engine(os.environ)
-    service = OpsService(engine)
+    service = OpsService(
+        engine, instance_name=resolve_instance_name(os.environ, engine.name)
+    )
     app = create_app(
         service,
         auth_mode=os.environ.get("VPATH_MGMT_AUTH", "dev"),

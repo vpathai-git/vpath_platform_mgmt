@@ -78,6 +78,17 @@ class GiteaClient:
         except httpx.HTTPError as exc:
             raise GiteaError(f"Gitea {method} {path} failed: {exc}") from exc
 
+    def ping(self) -> bool:
+        """Whether the Gitea API answers at all — reachability, not health.
+
+        Short timeout: this runs inside the console's state poll, and a down
+        box must not stall that poll for the client's full write timeout.
+        """
+        try:
+            return self._client.get("/api/v1/version", timeout=3.0).status_code == 200
+        except httpx.HTTPError:
+            return False
+
     def get_file(self, path: str) -> GiteaFile:
         """Read a file, or fail hard if it is absent or not a file."""
         response = self._request("GET", path, params={"ref": self._branch})

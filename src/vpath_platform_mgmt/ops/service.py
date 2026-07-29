@@ -34,6 +34,10 @@ from vpath_platform_mgmt.ops.model import (
 
 MAX_JOBS_KEPT = 100
 
+# The console polls state every second; probing a tunnelled box that often
+# would hammer it. A probe older than this is refreshed inline.
+PROBE_TTL_SECONDS = 10.0
+
 
 class OpsService:
     """Submits, guards, executes, and reports jobs."""
@@ -43,10 +47,14 @@ class OpsService:
         engine: EngineAdapter,
         locks: LockManager | None = None,
         audit: AuditLog | None = None,
+        instance_name: str = "",
     ) -> None:
         self._engine = engine
         self._locks = locks or LockManager()
         self._audit = audit or AuditLog()
+        self._instance = instance_name
+        self._probe_reachable: bool | None = None
+        self._probe_at = 0.0
         self._jobs: list[Job] = []
         self._threads: dict[str, threading.Thread] = {}
         self._health: dict[str, object] | None = None
@@ -186,17 +194,33 @@ class OpsService:
         with self._mutex:
             return next((job for job in self._jobs if job.id == job_id), None)
 
-    def state(self) -> dict[str, object]:
-        """One snapshot for the console: jobs, locks, audit, health, engine."""
+    def state(self, fresh: bool = False) -> dict[str, object]:
+        """One snapshot for the console: jobs, locks, audit, health, instance.
+
+        ``fresh`` bypasses the probe cache — the console's Connect button
+        must be able to force a real look at the box, not read a stale verdict.
+        """
         with self._mutex:
             jobs = [job.to_dict() for job in self._jobs]
             health = self._health
         return {
             "engine": self.engine_name,
+            "instance": self._instance_state(fresh),
             "jobs": jobs,
             "locks": self._locks.snapshot(),
             "audit": self._audit.entries(),
             "health": health,
+        }
+
+    def _instance_state(self, fresh: bool) -> dict[str, object]:
+        """Name and cached reachability of the instance this engine drives."""
+        if fresh or time.time() - self._probe_at > PROBE_TTL_SECONDS:
+            self._probe_reachable = self._engine.reachable()
+            self._probe_at = time.time()
+        return {
+            "name": self._instance,
+            "reachable": self._probe_reachable,
+            "checked_at": self._probe_at,
         }
 
 

@@ -18,7 +18,7 @@ SERVER_DEV = {"X-Dev-Actor": "sam", "X-Dev-Role": "server-dev"}
 
 @pytest.fixture()
 def client() -> TestClient:
-    return TestClient(create_app(OpsService(SimulatedEngine())))
+    return TestClient(create_app(OpsService(SimulatedEngine(), instance_name="sim")))
 
 
 def test_requests_without_dev_headers_are_401(client: TestClient) -> None:
@@ -40,10 +40,48 @@ def test_header_shows_connection_status_with_synced_connect_button(
     assert '<span id="conn"' in page
     assert '<button id="connect" onclick="connectNow()"' in page
     console = client.get("/console.js").text
-    assert '$("connect").hidden = state !== "disconnected"' in console
+    assert (
+        '$("connect").hidden = state !== "disconnected" && state !== "unreachable"'
+        in console
+    )
     assert "function connectNow()" in console
-    assert 'setConn(up ? "connected" : "disconnected")' in console
-    assert "connTimer = setTimeout(tick, up ? POLL_MS : RETRY_MS)" in console
+    assert 'next = inst.reachable ? "connected" : "unreachable"' in console
+    assert 'CONN[state][0] + " · " + instance' in console  # instance name shown
+    assert '"?fresh=1"' in console  # Connect forces a real re-probe
+
+
+def test_state_names_the_instance_and_its_reachability(client: TestClient) -> None:
+    state = client.get("/api/state", headers=APP_DEV).json()
+    assert state["instance"]["name"] == "sim"
+    assert state["instance"]["reachable"] is True
+
+
+def test_state_fresh_query_bypasses_the_probe_cache() -> None:
+    class CountingEngine(SimulatedEngine):
+        probes = 0
+
+        def reachable(self) -> bool:
+            type(self).probes += 1
+            return True
+
+    engine = CountingEngine()
+    client = TestClient(create_app(OpsService(engine, instance_name="sim")))
+    client.get("/api/state", headers=APP_DEV)
+    client.get("/api/state", headers=APP_DEV)
+    assert CountingEngine.probes == 1  # second read served from cache
+    client.get("/api/state?fresh=1", headers=APP_DEV)
+    assert CountingEngine.probes == 2
+
+
+def test_real_engines_must_name_their_instance() -> None:
+    from vpath_platform_mgmt.api.server import resolve_instance_name
+
+    assert resolve_instance_name({}, "simulated") == "sim"
+    assert resolve_instance_name({"VPATH_MGMT_INSTANCE": "vm5"}, "gitops") == "vm5"
+    with pytest.raises(ValueError, match="requires VPATH_MGMT_INSTANCE"):
+        resolve_instance_name({}, "gitops")
+    with pytest.raises(ValueError, match="requires VPATH_MGMT_INSTANCE"):
+        resolve_instance_name({}, "local")
 
 
 def test_submit_deploy_returns_job_id_and_state_lists_it(

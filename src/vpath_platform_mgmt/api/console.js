@@ -86,35 +86,47 @@ const RETRY_MS = 5000;
 const CONN = {
   connecting: ["connecting…", "q"],
   connected: ["connected", "ok"],
+  unreachable: ["unreachable", "err"],
   disconnected: ["disconnected", "err"],
   "signed-out": ["signed out", "q"],
 };
 let connTimer = 0;
 
 /* Badge and Connect button are two halves of one state machine: the button
-   shows exactly while the poll loop is backing off, so they cannot drift. */
-function setConn(state) {
-  $("conn").textContent = CONN[state][0];
+   shows exactly while the connection is down, so they cannot drift.
+   `connected`/`unreachable` speak about the instance (named next to the
+   status); `disconnected` means this console's own backend is gone. */
+function setConn(state, instance) {
+  $("conn").textContent =
+    instance ? CONN[state][0] + " · " + instance : CONN[state][0];
   $("conn").className = "badge " + CONN[state][1];
-  $("connect").hidden = state !== "disconnected";
+  $("connect").hidden = state !== "disconnected" && state !== "unreachable";
 }
 
-async function tick() {
+async function tick(fresh) {
   connTimer = 0;
-  let up = false;
+  let next = "disconnected";
+  let name = "";
   try {
-    const r = await fetch("/api/state", {headers: hdrs()});
+    const r = await fetch("/api/state" + (fresh ? "?fresh=1" : ""),
+      {headers: hdrs()});
     if (r.status === 401) { signedOut("session expired — sign in again"); return; }
-    if (r.ok) { render(await r.json()); up = true; }
-  } catch (e) { /* unreachable or restarting; the badge reports it */ }
-  setConn(up ? "connected" : "disconnected");
-  connTimer = setTimeout(tick, up ? POLL_MS : RETRY_MS);
+    if (r.ok) {
+      const s = await r.json();
+      render(s);
+      const inst = s.instance || {};
+      name = inst.name || "";
+      next = inst.reachable ? "connected" : "unreachable";
+    }
+  } catch (e) { /* backend gone or restarting; the badge reports it */ }
+  setConn(next, name);
+  connTimer = setTimeout(tick, next === "disconnected" ? RETRY_MS : POLL_MS);
 }
 
 function connectNow() {
   if (connTimer) clearTimeout(connTimer);
   setConn("connecting");
-  tick();
+  tick(true);
 }
 
 /* ---------- sign-in ---------- */

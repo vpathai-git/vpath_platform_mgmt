@@ -39,6 +39,10 @@ class GitOpsEngine:
         self._gitea = gitea
         self._argo = argo
 
+    def reachable(self) -> bool:
+        """Both doors must answer: the record (Gitea) and the cluster (k8s)."""
+        return self._gitea.ping() and self._argo.ping()
+
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         """Dispatch one verb; every failure is an ``EngineFailure``."""
         handlers = {

@@ -38,6 +38,10 @@ class EngineAdapter(Protocol):
         """Execute the job; return an optional structured result."""
         ...  # pragma: no cover - protocol signature
 
+    def reachable(self) -> bool:
+        """Whether the instance this engine drives currently answers."""
+        ...  # pragma: no cover - protocol signature
+
 
 SIMULATED_STEPS: dict[Verb, list[str]] = {
     Verb.BUILD: [
@@ -67,6 +71,10 @@ class SimulatedEngine:
 
     def __init__(self, step_delay: float = 0.0) -> None:
         self._step_delay = step_delay
+
+    def reachable(self) -> bool:
+        """The simulated instance is this process; it is always there."""
+        return True
 
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         """Walk the verb's steps; health-like verbs return an all-pass verdict."""
@@ -120,6 +128,10 @@ class LocalEngine:
         # VPATH_INSTALL_MODE=nuc, otherwise lib/vm.sh aborts with
         # "run_build_vm called on deploy VM". Passed in, never guessed.
         self._extra_env = dict(extra_env or {})
+
+    def reachable(self) -> bool:
+        """The instance is this host; reachable while its checkout exists."""
+        return self._checkout.is_dir()
 
     def command(self, verb: Verb, app: str) -> list[str]:
         """Argv for a verb, with the app name substituted."""
