@@ -32,7 +32,7 @@ async function post(body) {
 function submitJob() {
   const verb = $("verb").value;
   const app = $("app").value;
-  if (!app) { $("msg").textContent = "pick an application first"; return; }
+  if (!app) { $("msg").textContent = "Pick an application first"; return; }
   const picked = APPS.find((a) => a.name === app);
   if (verb === "uninstall" && !confirmUninstall(app, picked && picked.title)) return;
   post({verb: verb, app: app});
@@ -68,23 +68,23 @@ function render(s) {
   $("locks").innerHTML = locks.length
     ? locks.map((l) => `<li><span class="mono">${esc(l.scope)}</span> — ` +
         `${esc(l.holder)} <span class="dim">since ${fmt(l.since)}</span></li>`).join("")
-    : '<li class="dim">none held</li>';
+    : '<li class="dim">None held</li>';
   $("audit").innerHTML = (s.audit || []).slice(0, 15).map((a) =>
     `<li><span class="mono dim">${fmt(a.at)}</span> ` +
     `<span class="mono">${esc(a.action)}</span> ${esc(a.target)} — ` +
     `${esc(a.actor)} (${esc(a.role)}): <b>${esc(a.result)}</b></li>`).join("")
-    || '<li class="dim">empty</li>';
+    || '<li class="dim">Empty</li>';
 }
 
 /* ---------- connection ---------- */
 const POLL_MS = 1000;
 const RETRY_MS = 5000;
 const CONN = {
-  connecting: ["connecting…", "q"],
-  connected: ["connected", "ok"],
-  unreachable: ["unreachable", "err"],
-  disconnected: ["disconnected", "err"],
-  "signed-out": ["signed out", "q"],
+  connecting: ["Connecting…", "q"],
+  connected: ["Connected", "ok"],
+  unreachable: ["Unreachable", "err"],
+  disconnected: ["Disconnected", "err"],
+  "signed-out": ["Signed out", "q"],
 };
 let connTimer = 0;
 
@@ -106,7 +106,7 @@ async function tick(fresh) {
   try {
     const r = await fetch("/api/state" + (fresh ? "?fresh=1" : ""),
       {headers: hdrs()});
-    if (r.status === 401) { signedOut("session expired — sign in again"); return; }
+    if (r.status === 401) { signedOut("Session expired — sign in again"); return; }
     if (r.ok) {
       const s = await r.json();
       render(s);
@@ -127,7 +127,7 @@ function connectNow() {
 
 /* ---------- sign-in ---------- */
 function signIn() { VpathAuth.signIn().catch((e) => fatal(e)); }
-function signOut() { VpathAuth.signOut(); signedOut("signed out"); }
+function signOut() { VpathAuth.signOut(); signedOut("Signed out"); }
 
 function signedOut(why) {
   $("whoami").textContent = why;
@@ -143,7 +143,7 @@ function signedIn(who) {
 }
 
 function fatal(err) {
-  $("conn").textContent = "SIGN-IN FAILED";
+  $("conn").textContent = "Sign-in failed";
   $("conn").className = "badge err";
   $("msg").textContent = String(err.message || err);
 }
@@ -154,7 +154,7 @@ VpathAuth.init().then((session) => {
     $("oidc-identity").hidden = false;
     if (session.error) {
       const rejected = session.error.startsWith("signed in");
-      signedOut(rejected ? "token rejected" : "cannot reach Keycloak");
+      signedOut(rejected ? "Token rejected" : "Cannot reach Keycloak");
       // A rejected token is worth retrying after a fix; an unreachable
       // Keycloak is not, so only that one disables the button.
       $("signin").disabled = !rejected;
@@ -162,7 +162,7 @@ VpathAuth.init().then((session) => {
       return;
     }
     if (!session.authenticated) {
-      signedOut("not signed in");
+      signedOut("Not signed in");
       return;
     }
     signedIn(session.identity);

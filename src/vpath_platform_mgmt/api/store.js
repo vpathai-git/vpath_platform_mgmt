@@ -11,7 +11,7 @@ let APPS = [];
 let PLATFORM = "";
 let selectedApp = null;
 
-const INSTALLED_LABEL = {true: "installed", false: "not installed", null: "unknown"};
+const INSTALLED_LABEL = {true: "Installed", false: "Not installed", null: "Unknown"};
 
 function confirmUninstall(name, title) {
   return confirm(
@@ -25,14 +25,14 @@ function forSelected(verb) {
   if (!selectedApp) return;
   if (verb === "uninstall" &&
       !confirmUninstall(selectedApp.name, selectedApp.title)) return;
-  $("a-msg").textContent = `submitting ${verb} for ${selectedApp.name}…`;
+  $("a-msg").textContent = `Submitting ${verb} for ${selectedApp.name}…`;
   fetch("/api/jobs", {
     method: "POST", headers: hdrs(),
     body: JSON.stringify({verb: verb, app: selectedApp.name}),
   }).then((r) => r.json().then((d) => {
     $("a-msg").textContent = r.ok
-      ? "job " + d.job + " accepted — see Recent jobs"
-      : "refused: " + (d.detail || "error");
+      ? "Job " + d.job + " accepted — see Recent jobs"
+      : "Refused: " + (d.detail || "error");
     if (r.ok) setTimeout(loadApps, 4000);
   }));
 }
@@ -70,10 +70,10 @@ function selectApp(a, rowEl) {
   showInstallButtons(a);
   const open = $("a-open");
   open.disabled = !a.url;
-  open.title = a.url || "set VPATH_MGMT_PLATFORM_URL to enable";
+  open.title = a.url || "Set VPATH_MGMT_PLATFORM_URL to enable";
   open.onclick = () => a.url && window.open(a.url, "_blank", "noopener");
   $("a-msg").textContent = a.url ? "" :
-    "no platform URL configured — set VPATH_MGMT_PLATFORM_URL to open apps";
+    "No platform URL configured — set VPATH_MGMT_PLATFORM_URL to open apps";
   $("f-name").textContent = "Select a file in the explorer";
   $("f-meta").innerHTML = "";
   $("f-body").textContent = "Pick a file on the left to inspect it.";
@@ -114,11 +114,11 @@ async function openFile(a, node, el) {
   $("f-name").textContent = node.path;
   if (!r.ok) {
     $("f-meta").innerHTML = "";
-    $("f-body").textContent = d.detail || "could not read file";
+    $("f-body").textContent = d.detail || "Could not read file";
     return;
   }
   $("f-meta").innerHTML = `<span>${d.size} bytes</span>` +
-    (d.truncated ? "<span>truncated</span>" : "");
+    (d.truncated ? "<span>Truncated</span>" : "");
   $("f-body").textContent = d.content;
 }
 
@@ -131,7 +131,7 @@ function fillAppPicker() {
   picker.innerHTML = APPS.length
     ? APPS.map((a) =>
         `<option value="${esc(a.name)}">${esc(a.title || a.name)}</option>`).join("")
-    : '<option value="">no applications found</option>';
+    : '<option value="">No applications found</option>';
   if (chosen && APPS.some((a) => a.name === chosen)) picker.value = chosen;
 }
 
@@ -145,7 +145,7 @@ async function loadApps() {
   const list = $("applist");
   list.innerHTML = "";
   if (!APPS.length) {
-    list.innerHTML = '<div class="nav-item dim">no applications found</div>';
+    list.innerHTML = '<div class="nav-item dim">No applications found</div>';
     return;
   }
   APPS.forEach((a) => {

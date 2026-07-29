@@ -29,7 +29,7 @@ def test_requests_without_dev_headers_are_401(client: TestClient) -> None:
 def test_console_page_serves(client: TestClient) -> None:
     page = client.get("/")
     assert page.status_code == 200
-    assert "vpath console" in page.text
+    assert "VPath Console" in page.text
     assert 'id="engine"' not in page.text  # the conn badge names the instance now
 
 

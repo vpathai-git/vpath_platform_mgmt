@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>vpath console</title>
+<title>VPath Console</title>
 <link rel="stylesheet" href="/console.css">
 </head>
 <body>
 <header>
-  <h1>vpath console</h1>
-  <span id="conn" class="badge q">connecting…</span>
+  <h1>VPath Console</h1>
+  <span id="conn" class="badge q">Connecting…</span>
   <button id="connect" onclick="connectNow()" hidden>Connect</button>
-  <div class="role" id="dev-identity">acting as
+  <div class="role" id="dev-identity">Acting as
     <select id="role">
       <option value="app-dev">App-Entwickler</option>
       <option value="admin">Administrator</option>
@@ -20,7 +20,7 @@
     <input id="actor" value="you" size="8" aria-label="actor name">
   </div>
   <div class="role" id="oidc-identity" hidden>
-    <span id="whoami" class="dim">not signed in</span>
+    <span id="whoami" class="dim">Not signed in</span>
     <button id="signin" onclick="signIn()">Sign in</button>
     <button id="signout" onclick="signOut()" hidden>Sign out</button>
   </div>
@@ -43,14 +43,17 @@
         <h2>Applications</h2>
         <div class="row">
           <select id="verb">
-            <option>deploy</option><option>build</option><option>health</option>
-            <option>status</option><option>uninstall</option>
+            <option value="deploy">Deploy</option>
+            <option value="build">Build</option>
+            <option value="health">Health</option>
+            <option value="status">Status</option>
+            <option value="uninstall">Uninstall</option>
           </select>
           <select id="app" aria-label="application">
-            <option value="">loading applications…</option>
+            <option value="">Loading applications…</option>
           </select>
           <button onclick="submitJob()">Run</button>
-          <button class="danger" onclick="reinstall()">reinstall server…</button>
+          <button class="danger" onclick="reinstall()">Reinstall server…</button>
         </div>
         <div id="msg" aria-live="polite"></div>
       </section>
@@ -60,12 +63,12 @@
       </section>
       <section>
         <h2>Platform health</h2>
-        <div id="healthline" class="dim">no health run yet</div>
+        <div id="healthline" class="dim">No health run yet</div>
         <div class="gates" id="gates"></div>
       </section>
       <section>
         <h2>Locks</h2>
-        <ul id="locks"><li class="dim">none held</li></ul>
+        <ul id="locks"><li class="dim">None held</li></ul>
       </section>
       <section>
         <h2>Audit trail</h2>
@@ -78,7 +81,7 @@
       <section>
         <div class="title-row">
           <h3 id="a-title">—</h3><span class="chip q" id="a-type"></span>
-          <span class="chip q" id="a-state">unknown</span>
+          <span class="chip q" id="a-state">Unknown</span>
         </div>
         <div class="dim" id="a-desc"></div>
         <div class="meta" id="a-meta"></div>
