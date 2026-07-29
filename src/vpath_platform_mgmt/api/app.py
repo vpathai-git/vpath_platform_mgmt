@@ -31,6 +31,7 @@ from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.model import OpsError
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import SourceMaterializer
+from vpath_platform_mgmt.ops.served_catalog import ServedCatalogReader
 from vpath_platform_mgmt.ops.tunnel import TunnelError
 
 IdentityFn = Callable[[Request], Identity]
@@ -170,6 +171,7 @@ def create_app(
     platform_url: str = "",
     browser_auth: BrowserAuthConfig | None = None,
     kc_proxy: KeycloakProxy | None = None,
+    served_catalog: ServedCatalogReader | None = None,
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
@@ -183,7 +185,9 @@ def create_app(
     app = FastAPI(title="vpath platform mgmt — Ops API", version="0.1.0")
     _register_identity(app, identity, browser_auth)
     _register_ops(app, identity, service)
-    routes_apps.register(app, identity, service, catalog, materializer, platform_url)
+    routes_apps.register(
+        app, identity, service, catalog, materializer, platform_url, served_catalog
+    )
     # Ahead of the console's catch-all asset route, which would swallow it.
     if kc_proxy is not None:
         kc_proxy_module.register(app, kc_proxy)

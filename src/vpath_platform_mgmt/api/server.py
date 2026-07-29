@@ -49,6 +49,7 @@ from vpath_platform_mgmt.ops.gitea import GiteaClient
 from vpath_platform_mgmt.ops.gitops_engine import GitOpsEngine
 from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.service import OpsService
+from vpath_platform_mgmt.ops.served_catalog import ServedCatalogReader
 from vpath_platform_mgmt.ops.source import SourceMaterializer
 from vpath_platform_mgmt.ops.tunnel import TunnelConfig, TunnelError
 from vpath_platform_mgmt.ops.tunnel import from_env as tunnel_from_env
@@ -255,6 +256,15 @@ def build_materializer(env: Mapping[str, str]) -> SourceMaterializer | None:
     return SourceMaterializer(Path(checkout))
 
 
+def build_served_catalog(env: Mapping[str, str]) -> ServedCatalogReader | None:
+    """Reader for the platform's own catalog, when we know where it lives."""
+    platform_url = env.get("VPATH_MGMT_PLATFORM_URL", "")
+    if not platform_url:
+        return None
+    insecure = env.get("VPATH_MGMT_INSECURE_TLS", "").lower() in TRUTHY
+    return ServedCatalogReader(platform_url, verify_tls=not insecure)
+
+
 def build_catalog(env: Mapping[str, str]) -> AppCatalog:
     """Catalog over this repo's ``apps/`` plus the server checkout, if any.
 
@@ -301,6 +311,7 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
         platform_url=os.environ.get("VPATH_MGMT_PLATFORM_URL", ""),
         browser_auth=build_browser_auth(os.environ),
         kc_proxy=build_kc_proxy(os.environ),
+        served_catalog=build_served_catalog(os.environ),
     )
     uvicorn.run(
         app,

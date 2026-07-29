@@ -135,6 +135,34 @@ function fillAppPicker() {
   if (chosen && APPS.some((a) => a.name === chosen)) picker.value = chosen;
 }
 
+/* Two different catalogs, kept visibly apart: what this console can see on
+   disk, and what the platform actually serves its users. They are not the
+   same population by design, so only the overlap is compared — and an
+   unreadable platform says so, because "offers nothing" and "could not ask"
+   look identical in a summary line and mean opposite things. */
+function showCatalogState(c) {
+  const el = $("catalog-state");
+  if (!c) { el.innerHTML = ""; return; }
+  const parts = [`<span>${c.total} here</span>`];
+  parts.push(`<span>${c.installed_here === null
+    ? "install state unknown" : c.installed_here + " installed"}</span>`);
+  const p = c.platform;
+  if (p) {
+    parts.push(`<span>${p.served_total} in the platform catalog</span>`);
+    if (p.only_on_platform) parts.push(`<span>${p.only_on_platform} not visible here</span>`);
+    const bad = (p.label_mismatches || []).length;
+    parts.push(bad
+      ? `<span class="chip err">${bad} label mismatch${bad > 1 ? "es" : ""}</span>`
+      : '<span class="chip ok">labels match</span>');
+  } else {
+    parts.push(`<span class="dim">platform catalog: ${esc(c.platform_error || "unknown")}</span>`);
+  }
+  el.innerHTML = parts.join("");
+  el.title = (p && (p.label_mismatches || []).length)
+    ? p.label_mismatches.map((m) => `${m.name}: here "${m.here}", platform "${m.platform}"`).join("\n")
+    : "";
+}
+
 async function loadApps() {
   const r = await fetch("/api/apps", {headers: hdrs()});
   if (!r.ok) return;
@@ -142,6 +170,7 @@ async function loadApps() {
   APPS = d.apps || [];
   PLATFORM = d.platform_url || "";
   fillAppPicker();
+  showCatalogState(d.catalog);
   const list = $("applist");
   list.innerHTML = "";
   if (!APPS.length) {

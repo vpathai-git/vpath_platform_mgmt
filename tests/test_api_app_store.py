@@ -36,6 +36,67 @@ def catalog_with(tmp_path: Path, names: dict[str, str]) -> AppCatalog:
     return AppCatalog(tmp_path)
 
 
+def _served(handler: object) -> object:
+    import httpx
+
+    from vpath_platform_mgmt.ops.served_catalog import ServedCatalogReader
+
+    return ServedCatalogReader(
+        "https://platform",
+        client=httpx.Client(transport=httpx.MockTransport(handler)),  # type: ignore
+    )
+
+
+def _state(tmp_path: Path, served: object | None) -> dict:
+    app = create_app(
+        OpsService(SimulatedEngine()),
+        catalog=catalog_with(tmp_path, {"vpath-explorer": "Explorer"}),
+        served_catalog=served,  # type: ignore[arg-type]
+    )
+    return TestClient(app).get("/api/apps", headers=DEV).json()["catalog"]
+
+
+def test_catalog_state_reports_counts_and_the_platform_catalog(tmp_path: Path) -> None:
+    """The Applications view must show both catalogs, kept apart."""
+    import httpx
+
+    state = _state(
+        tmp_path,
+        _served(
+            lambda _: httpx.Response(
+                200, json=[{"name": "vpath-explorer", "label": "Renamed"}]
+            )
+        ),
+    )
+    assert state["total"] == 1
+    assert state["platform"]["served_total"] == 1
+    assert state["platform"]["shared"] == 1
+    # The drift /api/version can never show: same app, different label.
+    assert state["platform"]["label_mismatches"][0]["platform"] == "Renamed"
+
+
+def test_an_unreadable_platform_catalog_says_so_instead_of_showing_none(
+    tmp_path: Path,
+) -> None:
+    """'Offers nothing' and 'could not ask' mean opposite things."""
+    import httpx
+
+    def down(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route to host")
+
+    state = _state(tmp_path, _served(down))
+    assert state["platform"] is None
+    assert "did not answer" in state["platform_error"]
+
+
+def test_catalog_state_without_a_platform_url_names_the_reason(
+    tmp_path: Path,
+) -> None:
+    state = _state(tmp_path, None)
+    assert state["platform"] is None
+    assert state["platform_error"] == "no platform URL configured"
+
+
 class ReportingEngine(SimulatedEngine):
     """Simulated engine that also reports an installed set.
 
