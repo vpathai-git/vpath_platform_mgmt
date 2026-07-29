@@ -16,8 +16,10 @@ if TYPE_CHECKING:
     from _thread import RLock as RLockT
 
 from vpath_platform_mgmt.ops.audit import AuditLog
-from vpath_platform_mgmt.ops.engine import EngineAdapter, EngineFailure
+from vpath_platform_mgmt.ops.engine import EngineAdapter, EngineFailure, Reach
+from vpath_platform_mgmt.ops import tunnel
 from vpath_platform_mgmt.ops.locks import LockManager
+from vpath_platform_mgmt.ops.tunnel import TunnelConfig, TunnelError
 from vpath_platform_mgmt.ops.model import (
     DESTRUCTIVE_VERBS,
     ROLE_RANK,
@@ -36,7 +38,7 @@ MAX_JOBS_KEPT = 100
 
 # The console polls state every second; probing a tunnelled box that often
 # would hammer it. A probe older than this is refreshed inline.
-PROBE_TTL_SECONDS = 10.0
+PROBE_TTL = 10.0
 
 
 class OpsService:
@@ -48,12 +50,14 @@ class OpsService:
         locks: LockManager | None = None,
         audit: AuditLog | None = None,
         instance_name: str = "",
+        tunnel_config: TunnelConfig | None = None,
     ) -> None:
         self._engine = engine
         self._locks = locks or LockManager()
         self._audit = audit or AuditLog()
         self._instance = instance_name
-        self._probe_reachable: bool | None = None
+        self._tunnel = tunnel_config
+        self._reach: Reach | None = None
         self._probe_at = 0.0
         self._jobs: list[Job] = []
         self._threads: dict[str, threading.Thread] = {}
@@ -165,6 +169,30 @@ class OpsService:
             f"{summary.get('file_count', 0)} files from {ref}@{str(commit)[:8]}",
         )
 
+    def start_tunnel(self, actor: str, role_name: str) -> str:
+        """Open the instance's SSH tunnel. Admin only, and always audited.
+
+        This is the one action that starts a process on the console's host, so
+        it is gated exactly like a destructive verb: a refusal is recorded, and
+        so is every success.
+        """
+        role = self._parse_role(role_name, actor, "tunnel", self._instance)
+        if role is not Role.ADMIN:
+            self._audit.record(
+                actor, role.value, "tunnel", self._instance, "REFUSED (role)"
+            )
+            raise RefusedError("'tunnel' requires role admin — refused and audited")
+        if self._tunnel is None:
+            raise TunnelError(
+                f"instance '{self._instance}' declares no tunnel; it is either "
+                "reached directly or the console runs on the box itself"
+            )
+        outcome = tunnel.start(self._tunnel)
+        self._audit.record(actor, role.value, "tunnel", self._instance, outcome)
+        with self._mutex:
+            self._reach = None  # the next poll must look again, not read a cache
+        return outcome
+
     def installed_apps(self) -> list[str] | None:
         """Apps installed on the server, or ``None`` if the engine cannot say.
 
@@ -214,12 +242,14 @@ class OpsService:
 
     def _instance_state(self, fresh: bool) -> dict[str, object]:
         """Name and cached reachability of the instance this engine drives."""
-        if fresh or time.time() - self._probe_at > PROBE_TTL_SECONDS:
-            self._probe_reachable = self._engine.reachable()
+        if fresh or self._reach is None or time.time() - self._probe_at > PROBE_TTL:
+            self._reach = self._engine.probe()
             self._probe_at = time.time()
         return {
             "name": self._instance,
-            "reachable": self._probe_reachable,
+            "reachable": self._reach.ok,
+            "reason": self._reach.reason,
+            "detail": self._reach.detail,
             "checked_at": self._probe_at,
         }
 

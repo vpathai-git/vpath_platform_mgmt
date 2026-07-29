@@ -16,7 +16,7 @@ from vpath_platform_mgmt.ops import (
     SimulatedEngine,
     UnknownVerbError,
 )
-from vpath_platform_mgmt.ops.engine import StepEmitter
+from vpath_platform_mgmt.ops.engine import Reach, StepEmitter
 from vpath_platform_mgmt.ops.model import Job
 
 
@@ -33,8 +33,8 @@ class GateEngine:
         assert self.release.wait(timeout=5.0), "gate never released"
         return None
 
-    def reachable(self) -> bool:
-        return True
+    def probe(self) -> Reach:
+        return Reach(True)
 
 
 class FailingEngine:
@@ -46,8 +46,8 @@ class FailingEngine:
         emit("about to fail")
         raise EngineFailure("boom: exit 1")
 
-    def reachable(self) -> bool:
-        return True
+    def probe(self) -> Reach:
+        return Reach(True)
 
 
 def make_service() -> OpsService:
@@ -194,16 +194,22 @@ def test_instance_probe_is_cached_until_ttl_expires(
     probes: list[float] = []
 
     class CountingEngine(SimulatedEngine):
-        def reachable(self) -> bool:
+        def probe(self) -> Reach:
             probes.append(1)
-            return True
+            return Reach(True)
 
     service = OpsService(CountingEngine(), instance_name="vm5")
     now = {"t": 1000.0}
     monkeypatch.setattr(time, "time", lambda: now["t"])
 
     first = service.state()["instance"]
-    assert first == {"name": "vm5", "reachable": True, "checked_at": 1000.0}
+    assert first == {
+        "name": "vm5",
+        "reachable": True,
+        "reason": "ok",
+        "detail": "",
+        "checked_at": 1000.0,
+    }
     service.state()
     assert len(probes) == 1  # within TTL: served from cache
     now["t"] += 11.0

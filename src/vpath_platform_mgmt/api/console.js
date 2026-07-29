@@ -88,21 +88,26 @@ const CONN = {
 };
 let connTimer = 0;
 
-/* Badge and Connect button are two halves of one state machine: the button
-   shows exactly while the connection is down, so they cannot drift.
-   `connected`/`unreachable` speak about the instance (named next to the
-   status); `disconnected` means this console's own backend is gone. */
-function setConn(state, instance) {
+/* Badge, detail and buttons are all halves of one state machine: they are
+   set together, so they cannot drift. `connected`/`unreachable` speak about
+   the instance (named next to the status); `disconnected` means this
+   console's own backend is gone. The detail says WHY, because a dead tunnel,
+   an expired token and a stopped platform are one red badge and three
+   different fixes — "Start tunnel" is offered only for the one it fixes. */
+function setConn(state, instance, detail, reason) {
+  const down = state === "disconnected" || state === "unreachable";
   $("conn").textContent =
     instance ? CONN[state][0] + " · " + instance : CONN[state][0];
   $("conn").className = "badge " + CONN[state][1];
-  $("connect").hidden = state !== "disconnected" && state !== "unreachable";
+  $("conn-detail").textContent = down ? (detail || "") : "";
+  $("connect").hidden = !down;
+  $("tunnel").hidden = reason !== "no-route";
 }
 
 async function tick(fresh) {
   connTimer = 0;
   let next = "disconnected";
-  let name = "";
+  let inst = {};
   try {
     const r = await fetch("/api/state" + (fresh ? "?fresh=1" : ""),
       {headers: hdrs()});
@@ -110,12 +115,11 @@ async function tick(fresh) {
     if (r.ok) {
       const s = await r.json();
       render(s);
-      const inst = s.instance || {};
-      name = inst.name || "";
+      inst = s.instance || {};
       next = inst.reachable ? "connected" : "unreachable";
     }
   } catch (e) { /* backend gone or restarting; the badge reports it */ }
-  setConn(next, name);
+  setConn(next, inst.name || "", inst.detail || "", inst.reason || "");
   connTimer = setTimeout(tick, next === "disconnected" ? RETRY_MS : POLL_MS);
 }
 
@@ -123,6 +127,28 @@ function connectNow() {
   if (connTimer) clearTimeout(connTimer);
   setConn("connecting");
   tick(true);
+}
+
+/* Starting a tunnel spawns ssh on the console's host, so it is a deliberate
+   second click — never something a failed poll does by itself. */
+async function startTunnel() {
+  const button = $("tunnel");
+  button.disabled = true;
+  $("conn-detail").textContent = "Opening the SSH tunnel…";
+  try {
+    const r = await fetch("/api/instance/tunnel",
+      {method: "POST", headers: hdrs()});
+    const d = await r.json();
+    if (!r.ok) {
+      $("conn-detail").textContent = d.detail || "Tunnel failed";
+      return;
+    }
+    connectNow();
+  } catch (e) {
+    $("conn-detail").textContent = String(e.message || e);
+  } finally {
+    button.disabled = false;
+  }
 }
 
 /* ---------- sign-in ---------- */

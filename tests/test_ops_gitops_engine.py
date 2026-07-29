@@ -25,22 +25,41 @@ HEALTHY = {"status": {"sync": {"status": "Synced"}, "health": {"status": "Health
 
 
 class Door:
-    """A door (Gitea or the cluster) that is either up or down."""
+    """A door (Gitea or the cluster) answering with a probe reason."""
 
-    def __init__(self, up: bool) -> None:
-        self.up = up
+    def __init__(self, reason: str = "") -> None:
+        self.reason = reason
 
-    def ping(self) -> bool:
-        return self.up
+    def probe(self) -> str:
+        return self.reason
 
 
-def test_reachable_needs_both_doors() -> None:
-    def engine(gitea_up: bool, argo_up: bool) -> GitOpsEngine:
-        return GitOpsEngine(Door(gitea_up), Door(argo_up))
+def _engine(gitea: str = "", argo: str = "") -> GitOpsEngine:
+    return GitOpsEngine(Door(gitea), Door(argo))  # type: ignore[arg-type]
 
-    assert engine(True, True).reachable() is True
-    assert engine(False, True).reachable() is False
-    assert engine(True, False).reachable() is False
+
+def test_probe_needs_both_doors() -> None:
+    from vpath_platform_mgmt.ops.engine import REACH_NO_ROUTE
+
+    assert _engine().probe().ok is True
+    assert _engine(gitea=REACH_NO_ROUTE).probe().ok is False
+    assert _engine(argo=REACH_NO_ROUTE).probe().ok is False
+
+
+def test_probe_names_the_door_and_the_remedy() -> None:
+    """Which door failed decides where the operator goes next."""
+    from vpath_platform_mgmt.ops.engine import REACH_NO_ROUTE, REACH_REFUSED
+
+    no_route = _engine(gitea=REACH_NO_ROUTE).probe()
+    assert no_route.reason == REACH_NO_ROUTE
+    assert "Gitea" in no_route.detail and "tunnel" in no_route.detail
+
+    refused = _engine(argo=REACH_REFUSED).probe()
+    assert refused.reason == REACH_REFUSED
+    assert "Kubernetes" in refused.detail and "expired" in refused.detail
+
+    odd = _engine(gitea="status-503").probe()
+    assert odd.ok is False and "Gitea" in odd.detail  # no cheerful default
 
 
 class FakeRecord:

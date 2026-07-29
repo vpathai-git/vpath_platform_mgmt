@@ -13,6 +13,12 @@ from dataclasses import dataclass
 
 import httpx
 
+from vpath_platform_mgmt.ops.engine import (
+    PROBE_TIMEOUT_SECONDS,
+    REACH_NO_ROUTE,
+    REACH_REFUSED,
+)
+
 DEFAULT_BRANCH = "main"
 TIMEOUT_SECONDS = 30.0
 
@@ -78,16 +84,21 @@ class GiteaClient:
         except httpx.HTTPError as exc:
             raise GiteaError(f"Gitea {method} {path} failed: {exc}") from exc
 
-    def ping(self) -> bool:
-        """Whether the Gitea API answers at all — reachability, not health.
+    def probe(self) -> str:
+        """``""`` when the API answers, else why it did not.
 
         Short timeout: this runs inside the console's state poll, and a down
         box must not stall that poll for the client's full write timeout.
         """
         try:
-            return self._client.get("/api/v1/version", timeout=3.0).status_code == 200
+            response = self._client.get(
+                "/api/v1/version", timeout=PROBE_TIMEOUT_SECONDS
+            )
         except httpx.HTTPError:
-            return False
+            return REACH_NO_ROUTE
+        if response.status_code in (401, 403):
+            return REACH_REFUSED
+        return "" if response.status_code == 200 else f"status-{response.status_code}"
 
     def get_file(self, path: str) -> GiteaFile:
         """Read a file, or fail hard if it is absent or not a file."""

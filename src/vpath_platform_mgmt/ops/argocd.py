@@ -18,6 +18,12 @@ from typing import Any
 
 import httpx
 
+from vpath_platform_mgmt.ops.engine import (
+    PROBE_TIMEOUT_SECONDS,
+    REACH_NO_ROUTE,
+    REACH_REFUSED,
+)
+
 ARGO_NAMESPACE = "argocd"
 APPLICATIONSET = "vpath-apps"
 CASCADE_FINALIZER = "resources-finalizer.argocd.argoproj.io"
@@ -78,16 +84,19 @@ class ArgoClient:
             raise ArgoError(f"cluster-unreachable: {what} response is not an object")
         return body
 
-    def ping(self) -> bool:
-        """Whether the Kubernetes API answers at all — reachability, not health.
+    def probe(self) -> str:
+        """``""`` when the API answers, else why it did not.
 
         Short timeout: this runs inside the console's state poll, and a down
         box must not stall that poll for the client's full request timeout.
         """
         try:
-            return self._client.get("/version", timeout=3.0).status_code == 200
+            response = self._client.get("/version", timeout=PROBE_TIMEOUT_SECONDS)
         except httpx.HTTPError:
-            return False
+            return REACH_NO_ROUTE
+        if response.status_code in (401, 403):
+            return REACH_REFUSED
+        return "" if response.status_code == 200 else f"status-{response.status_code}"
 
     def _app_path(self, name: str) -> str:
         return f"{ARGO_API}/namespaces/{self._namespace}/applications/{name}"

@@ -31,6 +31,7 @@ from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.model import OpsError
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import SourceMaterializer
+from vpath_platform_mgmt.ops.tunnel import TunnelError
 
 IdentityFn = Callable[[Request], Identity]
 
@@ -114,6 +115,19 @@ def _register_ops(app: FastAPI, identity: IdentityFn, service: OpsService) -> No
         """Snapshot for the console; ``fresh`` forces an instance re-probe."""
         identity(request)
         return service.state(fresh=fresh)
+
+    @app.post("/api/instance/tunnel")
+    def start_tunnel(request: Request) -> dict[str, str]:
+        """Open this instance's SSH tunnel; admin only, audited in the service."""
+        caller = identity(request)
+        try:
+            return {"result": service.start_tunnel(caller.actor, caller.role)}
+        except OpsError as exc:
+            raise HTTPException(
+                status_code=exc.http_status, detail=exc.message
+            ) from exc
+        except TunnelError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/jobs", status_code=202)
     def submit(request: Request, body: JobRequest) -> dict[str, str]:

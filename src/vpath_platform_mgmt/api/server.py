@@ -50,6 +50,8 @@ from vpath_platform_mgmt.ops.gitops_engine import GitOpsEngine
 from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import SourceMaterializer
+from vpath_platform_mgmt.ops.tunnel import TunnelConfig, TunnelError
+from vpath_platform_mgmt.ops.tunnel import from_env as tunnel_from_env
 
 ENGINE_MODES = ("simulated", "local", "gitops")
 SIMULATED_STEP_DELAY = 0.8
@@ -181,6 +183,19 @@ def parse_engine_env(env: Mapping[str, str]) -> dict[str, str]:
     return pairs
 
 
+def build_tunnel_config(env: Mapping[str, str]) -> TunnelConfig | None:
+    """The instance's tunnel, or ``None`` when it declares none.
+
+    Absent is a legitimate answer — a console running on the box needs no
+    tunnel — so this returns None rather than raising. Asking to *start* an
+    absent tunnel is what fails, and it says why.
+    """
+    try:
+        return tunnel_from_env(env)
+    except TunnelError:
+        return None
+
+
 def build_oidc_validator(env: Mapping[str, str]) -> OidcValidator | None:
     """Build the token validator when oidc mode is selected; fail hard."""
     if env.get("VPATH_MGMT_AUTH", "dev") != "oidc":
@@ -273,7 +288,9 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
 
     engine = build_engine(os.environ)
     service = OpsService(
-        engine, instance_name=resolve_instance_name(os.environ, engine.name)
+        engine,
+        instance_name=resolve_instance_name(os.environ, engine.name),
+        tunnel_config=build_tunnel_config(os.environ),
     )
     app = create_app(
         service,

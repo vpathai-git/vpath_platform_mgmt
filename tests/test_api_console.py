@@ -41,10 +41,8 @@ def test_header_shows_connection_status_with_synced_connect_button(
     assert '<span id="conn"' in page
     assert '<button id="connect" onclick="connectNow()"' in page
     console = client.get("/console.js").text
-    assert (
-        '$("connect").hidden = state !== "disconnected" && state !== "unreachable"'
-        in console
-    )
+    assert 'const down = state === "disconnected" || state === "unreachable"' in console
+    assert '$("connect").hidden = !down' in console
     assert "function connectNow()" in console
     assert 'next = inst.reachable ? "connected" : "unreachable"' in console
     assert 'CONN[state][0] + " · " + instance' in console  # instance name shown
@@ -58,12 +56,14 @@ def test_state_names_the_instance_and_its_reachability(client: TestClient) -> No
 
 
 def test_state_fresh_query_bypasses_the_probe_cache() -> None:
+    from vpath_platform_mgmt.ops.engine import Reach
+
     class CountingEngine(SimulatedEngine):
         probes = 0
 
-        def reachable(self) -> bool:
+        def probe(self) -> Reach:
             type(self).probes += 1
-            return True
+            return Reach(True)
 
     engine = CountingEngine()
     client = TestClient(create_app(OpsService(engine, instance_name="sim")))
@@ -72,6 +72,53 @@ def test_state_fresh_query_bypasses_the_probe_cache() -> None:
     assert CountingEngine.probes == 1  # second read served from cache
     client.get("/api/state?fresh=1", headers=APP_DEV)
     assert CountingEngine.probes == 2
+
+
+def test_starting_a_tunnel_needs_admin_and_is_audited(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The one action that spawns a process is gated like a destructive verb."""
+    from vpath_platform_mgmt.ops import tunnel as tunnel_module
+    from vpath_platform_mgmt.ops.tunnel import TunnelConfig
+
+    started: list[TunnelConfig] = []
+    monkeypatch.setattr(
+        tunnel_module, "start", lambda config: (started.append(config), "started")[1]
+    )
+    service = OpsService(
+        SimulatedEngine(),
+        instance_name="vm5",
+        tunnel_config=TunnelConfig("h", "u", "/k.pem"),
+    )
+    client = TestClient(create_app(service))
+
+    refused = client.post("/api/instance/tunnel", headers=APP_DEV)
+    assert refused.status_code == 403
+    assert started == []  # a refusal spawns nothing
+    audit = client.get("/api/state", headers=ADMIN).json()["audit"]
+    assert audit[0]["action"] == "tunnel" and "REFUSED" in audit[0]["result"]
+
+    ok = client.post("/api/instance/tunnel", headers=ADMIN)
+    assert ok.status_code == 200 and ok.json()["result"] == "started"
+    assert len(started) == 1
+    after = client.get("/api/state", headers=ADMIN).json()["audit"]
+    assert after[0]["action"] == "tunnel" and after[0]["result"] == "started"
+
+
+def test_an_instance_without_a_tunnel_says_so(client: TestClient) -> None:
+    response = client.post("/api/instance/tunnel", headers=ADMIN)
+    assert response.status_code == 409
+    assert "declares no tunnel" in response.json()["detail"]
+
+
+def test_the_console_offers_the_tunnel_only_for_a_routing_failure(
+    client: TestClient,
+) -> None:
+    """A rejected token is a red badge that starting a tunnel will not fix."""
+    console = client.get("/console.js").text
+    assert '$("tunnel").hidden = reason !== "no-route"' in console
+    assert "function startTunnel()" in console
+    assert 'id="conn-detail"' in client.get("/").text
 
 
 def test_instance_profile_is_loaded_without_overriding_the_environment(

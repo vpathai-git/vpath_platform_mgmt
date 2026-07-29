@@ -42,16 +42,23 @@ def test_local_engine_requires_existing_checkout(tmp_path: Path) -> None:
 
 
 def test_simulated_engine_is_always_reachable() -> None:
-    assert SimulatedEngine().reachable() is True
+    assert SimulatedEngine().probe().ok is True
 
 
-def test_local_engine_reachable_tracks_the_checkout(tmp_path: Path) -> None:
+def test_local_engine_probe_names_the_missing_checkout(tmp_path: Path) -> None:
+    """A red badge must say what broke, not just that something did."""
+    from vpath_platform_mgmt.ops.engine import REACH_NO_CHECKOUT
+
     checkout = tmp_path / "workspace"
     checkout.mkdir()
     engine = LocalEngine(checkout)
-    assert engine.reachable() is True
+    assert engine.probe().ok is True
+
     checkout.rmdir()
-    assert engine.reachable() is False
+    gone = engine.probe()
+    assert gone.ok is False
+    assert gone.reason == REACH_NO_CHECKOUT
+    assert str(checkout) in gone.detail
 
 
 def test_local_engine_command_substitutes_app(tmp_path: Path) -> None:
