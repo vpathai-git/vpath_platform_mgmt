@@ -47,10 +47,6 @@ function reinstall() {
 const fmt = (ts) => new Date(ts * 1000).toLocaleTimeString();
 
 function render(s) {
-  const eng = $("engine");
-  eng.textContent = s.engine === "simulated"
-    ? "SIMULATED ENGINE — no real server contact" : "REAL ENGINE: " + s.engine;
-  eng.className = "badge " + (s.engine === "simulated" ? "sim" : "real");
   $("jobs").innerHTML =
     "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>engine</th>" +
     "<th>state</th><th>step</th></tr>" +
@@ -147,8 +143,8 @@ function signedIn(who) {
 }
 
 function fatal(err) {
-  $("engine").textContent = "SIGN-IN FAILED";
-  $("engine").className = "badge err";
+  $("conn").textContent = "SIGN-IN FAILED";
+  $("conn").className = "badge err";
   $("msg").textContent = String(err.message || err);
 }
 
