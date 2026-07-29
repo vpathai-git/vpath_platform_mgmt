@@ -111,6 +111,17 @@ def test_an_instance_without_a_tunnel_says_so(client: TestClient) -> None:
     assert "declares no tunnel" in response.json()["detail"]
 
 
+def test_a_dead_backend_explains_itself_like_every_other_failure(
+    client: TestClient,
+) -> None:
+    """The commonest failure of all said nothing: /api/state carries no
+    diagnosis when the console's own backend is the thing that is gone, so
+    the badge went red with an empty detail and the button looked broken."""
+    console = client.get("/console.js").text
+    assert "detail || CONN[state][2]" in console  # per-state fallback
+    assert "vpath-console still running" in console
+
+
 def test_the_console_offers_the_tunnel_only_for_a_routing_failure(
     client: TestClient,
 ) -> None:

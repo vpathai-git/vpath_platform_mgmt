@@ -79,12 +79,16 @@ function render(s) {
 /* ---------- connection ---------- */
 const POLL_MS = 1000;
 const RETRY_MS = 5000;
+/* label, chip class, and the fallback detail for states the server cannot
+   explain — when the backend itself is gone there is no /api/state to carry
+   a diagnosis, and that is the failure an operator hits most often. */
 const CONN = {
-  connecting: ["Connecting…", "q"],
-  connected: ["Connected", "ok"],
-  unreachable: ["Unreachable", "err"],
-  disconnected: ["Disconnected", "err"],
-  "signed-out": ["Signed out", "q"],
+  connecting: ["Connecting…", "q", ""],
+  connected: ["Connected", "ok", ""],
+  unreachable: ["Unreachable", "err", ""],
+  disconnected: ["Disconnected", "err",
+    "this console's own backend is not answering — is vpath-console still running?"],
+  "signed-out": ["Signed out", "q", ""],
 };
 let connTimer = 0;
 
@@ -99,7 +103,7 @@ function setConn(state, instance, detail, reason) {
   $("conn").textContent =
     instance ? CONN[state][0] + " · " + instance : CONN[state][0];
   $("conn").className = "badge " + CONN[state][1];
-  $("conn-detail").textContent = down ? (detail || "") : "";
+  $("conn-detail").textContent = down ? (detail || CONN[state][2]) : "";
   $("connect").hidden = !down;
   $("tunnel").hidden = reason !== "no-route";
 }
