@@ -65,8 +65,8 @@ anstellt; Abschluss: **Subagent-Review** als Ablage in diesem Strang.
 | P0 | Recherche-Pakete A+B | **erledigt 30.07.** (beide brief-treu, Stichproben bestanden) |
 | P0 | Review + Synthese + Empfehlung | **erledigt 30.07.** → `coding-llm-serving.concept.md` |
 | P0 | Subagent-Review (Codex vs. Wrapper) | **erledigt 30.07.** → `subagent-review.md` |
-| P0 | Nutzer-Entscheid: Q6_K-Arbeitspferd ja/nein (Empfehlung: ja) | **offen — blockiert Handover** |
-| P1 | Handover: Implementierungs-Issue (llama.cpp + llama-swap + Profile + Messprotokoll; Modell-Ablage evtl. zweite SSD) | wartet auf Entscheid |
+| P0 | Nutzer-Entscheid: Q6_K-Arbeitspferd ja/nein | **entschieden 30.07.: Q6 ok**; SSD-Bestätigung: Modelle auf die 256er-SSD |
+| P0 | Umsetzung ([Issue](serving-implementation.issue.md)) | **läuft** — /models steht, Downloads + Toolchain im Hintergrund |
 
 ## Dateien
 
