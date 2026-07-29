@@ -8,6 +8,7 @@ profile.
 
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import pytest
@@ -215,5 +216,8 @@ def test_a_missing_ssh_binary_is_an_error_not_a_silence(
 
 
 def test_a_timeout_is_its_own_outcome() -> None:
-    result = transport.run(["sleep", "5"], timeout=1)
+    # sys.executable instead of `sleep`: the binary does not exist on Windows,
+    # and this test is about the timeout contract, not about coreutils.
+    sleeper = [sys.executable, "-c", "import time; time.sleep(5)"]
+    result = transport.run(sleeper, timeout=1)
     assert result.returncode == 124 and "timed out" in result.stderr

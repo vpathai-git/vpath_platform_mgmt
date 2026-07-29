@@ -200,8 +200,16 @@ def default_register_path(start: Path | None = None) -> Path:
 
 
 def expand(value: str) -> str:
-    """Expand ``~`` and ``$HOME``-style references in a path field."""
-    return os.path.expanduser(os.path.expandvars(value))
+    """Expand ``~`` and ``$HOME``-style references in a path field.
+
+    ``$HOME`` is resolved explicitly before ``expandvars``: on Windows a
+    PowerShell-spawned Python has ``USERPROFILE`` but often no ``HOME``, and
+    ``expandvars`` would pass the reference through verbatim — turning a
+    path field into a literal ``$HOME/...`` that exists nowhere.
+    """
+    home = os.environ.get("HOME") or str(Path.home())
+    resolved = re.sub(r"\$\{HOME\}|\$HOME\b", home.replace("\\", "\\\\"), value)
+    return os.path.expanduser(os.path.expandvars(resolved))
 
 
 def parse_lines(lines: list[str], source: str) -> dict[str, str]:
