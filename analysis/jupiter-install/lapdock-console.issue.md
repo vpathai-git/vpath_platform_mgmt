@@ -34,3 +34,14 @@ Paket-Zukauf (`con2fbmap` existiert in 24.04 nicht).
 - CUDA-Regression ausgeschlossen: `nvidia-smi -L` listet weiterhin beide RTX.
 - Nicht remote beweisbar: dass das Panel physisch leuchtet — Sichtprüfung
   durch Andre ausstehend.
+
+## Nachtrag 2026-07-30: deutsches Tastaturlayout
+
+Auftrag (`raw/2026-07-30_0020_german-keyboard.md`): Layout war der
+Installer-Default `us`. `localectl set-keymap` ist auf Debian/Ubuntu
+kastriert („not supported in Debian") — der kanonische Weg ist
+`/etc/default/keyboard` → `XKBLAYOUT="de"` +
+`dpkg-reconfigure -f noninteractive keyboard-configuration` (zieht das
+Layout bis ins initramfs) + `setupcon` (sofort auf die laufenden VTs).
+Verifiziert: Konfig-Datei de, `localectl` X11 Layout de, setupcon ohne
+Fehler. Tastendruck-Beweis (z/y, Umlaute): Sichtprüfung Andre.

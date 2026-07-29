@@ -124,3 +124,6 @@ Signaletik-konform: `jupiter` ist der nächste Planet nach `mars`
   einziger fbdev i915drmfb, DP-2 enabled, getty tty1 aktiv, beide RTX
   weiter in nvidia-smi. Kein fbcon=map-Hack (bootreihenfolgeabhängig
   fragil). Register-Kommentar um den Display-/Konsolen-Pfad ergänzt.
+- 30.07. ~00:20: Tastatur auf deutsches Layout (Installer-Default war us);
+  Debian-Weg über /etc/default/keyboard + dpkg-reconfigure + setupcon —
+  localectl ist auf Debian inert. Nachtrag im Lapdock-Issue.
