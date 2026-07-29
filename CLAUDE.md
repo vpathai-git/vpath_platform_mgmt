@@ -17,6 +17,7 @@ as a skill.
 
 | Skill | Use when |
 |-------|----------|
+| `/vm5-access` | Reaching the vm5 platform or console — tunnels, which browser shows what, builds on the box, shipping code to `/workspace` |
 | `/careful-commit` | Committing changes — reviews the full diff, groups atomic commits, enforces secrets and debug-code hygiene |
 | `/find-fix-for-good` | A bug needs root-cause analysis before coding |
 | `/fix-and-persist` | Implementing a fix that must not come back |
