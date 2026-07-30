@@ -81,6 +81,10 @@ docs/_static/
 docs/_templates/
 # Ad-hoc UI exploration artifacts (see /verify-ui skill)
 ui_exploration/
+# graphify's knowledge graph is a rebuildable projection over the code and docs,
+# never a source of truth, and its sidecars record absolute paths from the
+# machine that built it. Rebuild with /graphify rather than committing 11MB.
+graphify-out/
 
 # Java / Gradle (flavor branches generate these when switching locally)
 build/
