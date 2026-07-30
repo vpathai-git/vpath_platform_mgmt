@@ -14,6 +14,7 @@ from typing import cast
 import httpx
 import typer
 
+from vpath_platform_mgmt.cli import app_cmds
 from vpath_platform_mgmt.cli.bundle import BundleError, bundle, provenance_of
 from vpath_platform_mgmt.cli.auth import (
     DEFAULT_CLIENT_ID,
@@ -40,6 +41,9 @@ app = typer.Typer(
     add_completion=False,
     no_args_is_help=True,
 )
+
+
+app.add_typer(app_cmds.app)
 
 
 def make_http_client(url: str) -> httpx.Client:
