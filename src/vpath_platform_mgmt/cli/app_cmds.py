@@ -12,8 +12,11 @@ import tempfile
 from dataclasses import dataclass
 from pathlib import Path
 
+import httpx
 import typer
 
+from vpath_platform_mgmt.cli.bundle import BundleError, bundle
+from vpath_platform_mgmt.cli.client import ApiError
 from vpath_platform_mgmt.ops import repo_fetch, repo_probe
 from vpath_platform_mgmt.ops.app_registry import (
     AppRegistry,
@@ -185,6 +188,99 @@ def refresh(
         f"refreshed {result.name} to {result.commit[:12]} "
         f"({result.manifest_origin} manifest)"
     )
+
+
+@app.command("send")
+def send(
+    name: str = typer.Argument(..., help="registered app to send to the server"),
+    replace: bool = typer.Option(False, help="overwrite the app's source there"),
+) -> None:
+    """Send a registered app's source to the server at its recorded commit."""
+    entry = _registered(name)
+    slug, commit = _sending_facts(name, entry)
+
+    workspace = Path(tempfile.mkdtemp(prefix="vpath-send-"))
+    try:
+        tree = repo_probe.download_tree(slug, commit, workspace)
+        _place_manifest(name, tree, str(entry.get("manifest_origin", "")))
+        archive = bundle(tree)
+    except (repo_fetch.FetchError, BundleError, RegistryError) as exc:
+        shutil.rmtree(workspace, ignore_errors=True)
+        _fail(str(exc))
+        return
+
+    provenance = {
+        "repo": str(entry.get("repo", "")),
+        "ref": str(entry.get("ref", "")),
+        "commit": commit,
+        "dirty": "false",  # a fetched commit cannot be dirty
+    }
+    try:
+        summary = _push(name, archive, provenance, replace)
+    finally:
+        shutil.rmtree(workspace, ignore_errors=True)
+
+    typer.echo(
+        f"sent {name} at {commit[:12]}: {summary.get('file_count')} files to "
+        f"{summary.get('target')} (replaced={summary.get('replaced')})"
+    )
+
+
+def _registered(name: str) -> dict[str, object]:
+    entry = next(
+        (e for e in AppRegistry(apps_root()).entries() if e["name"] == name), None
+    )
+    if entry is None:
+        _fail(f"'{name}' is not registered here — run 'vpath app add' first")
+        raise typer.Exit(code=EXIT_CONFIG)  # pragma: no cover - _fail exits
+    return entry
+
+
+def _sending_facts(name: str, entry: dict[str, object]) -> tuple[str, str]:
+    """The slug and commit to send, refusing when provenance cannot say."""
+    commit = str(entry.get("commit", ""))
+    if not commit:
+        _fail(f"'{name}' has no recorded commit — run 'vpath app refresh {name}'")
+    try:
+        return repo_probe.parse_slug(str(entry.get("repo", ""))), commit
+    except repo_fetch.FetchError as exc:
+        _fail(f"{exc} — sending a non-GitHub repository is not supported yet")
+        raise typer.Exit(code=EXIT_CONFIG)  # pragma: no cover - _fail exits
+
+
+def _place_manifest(name: str, tree: Path, origin: str) -> None:
+    """Put the registered manifest in the payload the server will read.
+
+    The server refuses an upload without a manifest, and a generated one lives
+    only here -- so it has to travel. Copying it also means the server always
+    materializes the manifest this console showed, never a different one that
+    happened to be in the repo.
+    """
+    registered = apps_root() / name / "vpath-app.yaml"
+    if not registered.is_file():
+        raise RegistryError(f"'{name}' has no manifest at {registered}")
+    shutil.copyfile(registered, tree / "vpath-app.yaml")
+
+
+def _push(
+    name: str, archive: bytes, provenance: dict[str, str], replace: bool
+) -> dict[str, object]:
+    """Hand the payload to the existing source endpoint, or say why not."""
+    from vpath_platform_mgmt.cli.main import _client
+
+    try:
+        return _client().push_source(name, archive, provenance, replace)
+    except ApiError as exc:
+        if exc.status == 409 and "checkout" in exc.detail:
+            _fail(
+                f"{exc.detail} — sending materializes into a server checkout, so "
+                "it only works from a console running on the box"
+            )
+        _fail(f"the server refused the upload ({exc.status}): {exc.detail}")
+        raise typer.Exit(code=EXIT_CONFIG)  # pragma: no cover - _fail exits
+    except httpx.HTTPError as exc:
+        _fail(f"cannot reach the Ops API ({exc})")
+        raise typer.Exit(code=EXIT_CONFIG)  # pragma: no cover - _fail exits
 
 
 @app.command("list")
