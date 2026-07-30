@@ -1,6 +1,8 @@
 # Issue: jupiter11 — Serving-Implementierung (P1 Q6_K + P2 Max-Kontext)
 
-Status: in progress · Herkunft: Konzept-Freigabe 2026-07-30 („q6 ist ok" +
+Status: done (2026-07-30 — alle 7 Schritte, Abnahme inkl. Reboot-Probe:
+/models gemountet, Service-Autostart, beide GPUs re-attached, API antwortet
+„REBOOT-OK" nach Kaltstart) · Herkunft: Konzept-Freigabe 2026-07-30 („q6 ist ok" +
 Plan-Review; SSD-Bestätigung: „die zweite SSD, die mit 256 GB, da legen wir
 die ganzen Modelle ab") · Strang: `summary.md` · Konzept:
 `coding-llm-serving.concept.md`
@@ -44,6 +46,34 @@ Docker/k3s.
 - **Schritt 2/4 gestartet**: Toolchain-Job (`/models/.toolchain.log`) —
   apt-Toolchain, CUDA-Keyring, cuda-toolkit, llama.cpp-Clone (Commit wird
   geloggt).
+- **Schritt 3 erledigt**: beide GGUFs byte-exakt gegen die HF-API verifiziert
+  (22.523.238.624 + 36.903.140.320 Bytes), reale Rate ~80 MB/s.
+- **Schritt 2/4 erledigt** (Umweg dokumentiert): erster Toolchain-Job starb
+  STILL an einem transienten `wget -q` unter gesättigter Leitung + `set -e`
+  ohne sichtbaren Fehler — Lehre: keine stummen Downloads in Jobs, Phasen-
+  Marker pro Schritt. Zweiter Lauf grün: cuda-toolkit (NVIDIA-Repo),
+  llama.cpp `3018a11`, Build SM86+SM75 in ~20 min.
+- **Schritt 5 erledigt**: llama-swap v244, Key in `/etc/llama-swap/api-key`
+  (600, nie im Repo/Transkript), Config mit Macros, 3090 per GPU-UUID,
+  systemd-Unit enabled.
+- **Schritt 6 erledigt — Messprotokoll:**
+  - P1 `coding` (27B Q6_K solo): **pp2048 1122 t/s, tg128 31,9 t/s** (Bench);
+    realer 20.608-Token-Prompt korrekt beantwortet, Roundtrip 35 s; VRAM
+    23,98/24,1 GiB statisch — Härtetest gehalten. Auth: ohne Key 401.
+  - P2 `longctx` (35B-A3B Q8_0, 262K): Kalibrierung mit Umweg — ncmoe 17/18
+    sterben am pp-Compute-Buffer (CUDA-OOM), und ein erster „UP"-Befund war
+    FALSCH (curl exit 0 auch bei 503-loading; Gesundheits-Checks ab jetzt
+    als HTTP-200 verifiziert). ncmoe 20+ub256 läuft, drückt aber Prefill auf
+    37 t/s; **final ncmoe 22 (ub default): pp2048 57,8 t/s, tg64 44,5 t/s,
+    VRAM 21,1 GiB (3 GiB Luft), API-Abnahme „READY" nach 18,5 s Cold-Swap.**
+  - LAN-Abnahme vom Dev-Mac: `LAN-OK` über `/v1/chat/completions` inkl.
+    automatischem Profil-Rückswap (~25 s).
+  - Betriebsfakt: Qwen3.6 ist ein Thinking-Modell (max_tokens großzügig).
+  - Ehrliche Grenze: MoE-Prefill ist CPU-gebunden (4C/8T) — Riesen-Prompts
+    auf longctx dauern Minuten; gemessen und akzeptiert, kein Workaround.
+  - **Reboot-Probe grün**: fstab-Mount hält (Platte kam diesmal wieder als
+    anderes nvme-Device — by-UUID trägt), `llama-swap` autostartet, beide
+    RTX nach eGPU-Reauth da, `coding` antwortet „REBOOT-OK" nach Kaltstart.
 
 ## Sicherheitsregeln
 

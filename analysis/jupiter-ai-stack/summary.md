@@ -5,7 +5,10 @@
 Sprache: Deutsch (Dateinamen, Code, Bezeichner Englisch) · Angelegt: 2026-07-30 01:00
 Projekt: `vpath_platform_mgmt` · Vorgänger-Strang: `../jupiter-install/` (Box-Onboarding,
 GPU-Enablement: RTX 2060 6 GB + RTX 3090 24 GB eGPU, Treiber 595.84, CUDA 13.2)
-Status: **Stakeholder-Diskussion — Konzept liegt vor, EINE Entscheidung offen**
+Status: **UMGESETZT & ABGENOMMEN (30.07.)** — beide Profile live hinter der
+OpenAI-API im LAN (Port 9292, Key auf der Box), Messprotokoll + Reboot-Probe
+grün, Details im [Implementierungs-Issue](serving-implementation.issue.md).
+Vorher: Stakeholder-Diskussion mit einer Entscheidung
 (Q6_K-Arbeitspferd zulassen oder hart ≥8-bit; Empfehlung: zulassen). Kern:
 „Qwen 3.6 36B" existiert (Qwen3.6-35B-A3B) und wird das Max-Kontext-Profil (262K);
 die dense **Qwen3.6-27B (77,2 % SWE-bench Verified)** ist der bessere
@@ -66,7 +69,9 @@ anstellt; Abschluss: **Subagent-Review** als Ablage in diesem Strang.
 | P0 | Review + Synthese + Empfehlung | **erledigt 30.07.** → `coding-llm-serving.concept.md` |
 | P0 | Subagent-Review (Codex vs. Wrapper) | **erledigt 30.07.** → `subagent-review.md` |
 | P0 | Nutzer-Entscheid: Q6_K-Arbeitspferd ja/nein | **entschieden 30.07.: Q6 ok**; SSD-Bestätigung: Modelle auf die 256er-SSD |
-| P0 | Umsetzung ([Issue](serving-implementation.issue.md)) | **läuft** — /models steht, Downloads + Toolchain im Hintergrund |
+| P0 | Umsetzung ([Issue](serving-implementation.issue.md)) | **erledigt 30.07.** — beide Profile abgenommen inkl. Reboot-Probe; Messwerte im Issue |
+| P2 | P3-Experiment: 2060 als Draft-/Utility-GPU | geparkt — erst auf Zuruf |
+| P2 | Prefill-Grenze longctx (CPU-gebunden, Minuten bei Riesen-Prompts) | dokumentiert-akzeptiert; einzige Abhilfe wäre stärkere CPU/anderes Hosting |
 
 ## Dateien
 
