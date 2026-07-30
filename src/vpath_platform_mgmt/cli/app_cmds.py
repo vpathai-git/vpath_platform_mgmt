@@ -8,11 +8,13 @@ console action cannot disagree about what is allowed.
 from __future__ import annotations
 
 import shutil
+import tempfile
+from dataclasses import dataclass
 from pathlib import Path
 
 import typer
 
-from vpath_platform_mgmt.ops import repo_fetch
+from vpath_platform_mgmt.ops import repo_fetch, repo_probe
 from vpath_platform_mgmt.ops.app_registry import (
     AppRegistry,
     Generated,
@@ -50,20 +52,20 @@ def add(
 ) -> None:
     """Register one repository as an app in ``apps/``."""
     try:
-        fetched = repo_fetch.fetch(url, ref)
+        source = _inspect(url, ref)
     except repo_fetch.FetchError as exc:
         _fail(str(exc))
         return
 
     try:
         generate = _generate_from(
-            fetched.path, name, port, base_path, title, description, icon, runtime
+            source.tree, name, port, base_path, title, description, icon, runtime
         )
         result = AppRegistry(apps_root()).register(
-            repo=fetched.repo,
-            ref=fetched.ref,
-            commit=fetched.commit,
-            tree=fetched.path,
+            repo=source.repo,
+            ref=ref,
+            commit=source.commit,
+            tree=source.tree,
             generate=generate,
             replace=replace,
         )
@@ -71,12 +73,42 @@ def add(
         _fail(str(exc))
         return
     finally:
-        shutil.rmtree(fetched.path, ignore_errors=True)
+        shutil.rmtree(source.tree, ignore_errors=True)
 
     typer.echo(
         f"registered {result.name} ({result.manifest_origin} manifest) "
-        f"at {fetched.commit[:12]} — {result.directory}"
+        f"at {source.commit[:12]} via {source.how} — {result.directory}"
     )
+
+
+@dataclass(frozen=True)
+class Inspected:
+    """A directory the registry can read, and where it came from."""
+
+    tree: Path
+    repo: str
+    commit: str
+    how: str
+
+
+def _inspect(url: str, ref: str) -> Inspected:
+    """Read what registration needs: GitHub's API when it can, else a clone.
+
+    Registration only needs a manifest and a runtime hint, so a GitHub repo is
+    read through gh — which carries the operator's auth, so INTERNAL repos work
+    — and never cloned. Cloning stays for other hosts, where there is no API to
+    ask.
+    """
+    try:
+        slug = repo_probe.parse_slug(url)
+    except repo_fetch.FetchError:
+        fetched = repo_fetch.fetch(url, ref)
+        return Inspected(fetched.path, fetched.repo, fetched.commit, "clone")
+
+    probed = repo_probe.probe(url, ref)
+    tree = Path(tempfile.mkdtemp(prefix="vpath-probe-"))
+    repo_probe.materialise(probed, tree)
+    return Inspected(tree, probed.repo_url, probed.commit, f"gh api {slug}")
 
 
 def _generate_from(
@@ -135,19 +167,19 @@ def refresh(
         return
 
     try:
-        fetched = repo_fetch.fetch(
+        source = _inspect(
             str(recorded.get("repo", "")), ref or str(recorded.get("ref", "main"))
         )
     except repo_fetch.FetchError as exc:
         _fail(str(exc))
         return
     try:
-        result = registry.refresh(name, fetched.path, fetched.commit)
+        result = registry.refresh(name, source.tree, source.commit)
     except RegistryError as exc:
         _fail(str(exc))
         return
     finally:
-        shutil.rmtree(fetched.path, ignore_errors=True)
+        shutil.rmtree(source.tree, ignore_errors=True)
 
     typer.echo(
         f"refreshed {result.name} to {result.commit[:12]} "

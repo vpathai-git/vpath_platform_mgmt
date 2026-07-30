@@ -1,0 +1,136 @@
+"""Read the few files registration needs, without cloning the repository.
+
+Registering an app needs three files and a commit sha — its manifest, and
+whichever of ``package.json`` / ``pyproject.toml`` reveals the runtime. Cloning
+to get them fails in two ways that have nothing to do with the app: an INTERNAL
+repository is invisible to git unless its credential helper happens to hold a
+token, and a deep tree overruns Windows' path limit during checkout even with
+``core.longpaths`` set.
+
+So this asks GitHub instead, through ``gh``, which already holds the operator's
+authentication. We never see or store a token — that is the point of borrowing
+gh rather than handling credentials here.
+
+The probed files are written into a temporary directory, so the registry keeps
+inspecting a plain directory and cannot tell the difference between a probe and
+a clone. Cloning is still the right tool for *sending* an app, where the whole
+tree genuinely is the payload.
+"""
+
+from __future__ import annotations
+
+import base64
+import binascii
+import json
+from collections.abc import Sequence
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from vpath_platform_mgmt.ops.repo_fetch import FetchError, RunResult, Runner, run
+
+PROBE_FILES = ("vpath-app.yaml", "package.json", "pyproject.toml")
+API_TIMEOUT_SECONDS = 60
+HOSTS = ("github.com", "www.github.com")
+
+
+@dataclass(frozen=True)
+class Probed:
+    """What the repository says about itself, at one commit."""
+
+    slug: str
+    ref: str
+    commit: str
+    files: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def repo_url(self) -> str:
+        return f"https://github.com/{self.slug}.git"
+
+
+def parse_slug(url: str) -> str:
+    """``owner/repo`` from anything a human pastes, or refuse.
+
+    Only GitHub is understood here; any other host has to be cloned, and the
+    caller is told so rather than being handed a wrong guess.
+    """
+    trimmed = url.strip().removesuffix(".git")
+    for prefix in ("https://", "http://", "ssh://", "git@"):
+        trimmed = trimmed.removeprefix(prefix)
+    trimmed = trimmed.replace("github.com:", "github.com/")
+    parts = [part for part in trimmed.split("/") if part]
+    if len(parts) < 3 or parts[0] not in HOSTS:
+        raise FetchError(
+            f"'{url}' is not a github.com repository — only GitHub can be "
+            "registered without cloning"
+        )
+    return f"{parts[1]}/{parts[2]}"
+
+
+def _gh(args: Sequence[str], runner: Runner) -> RunResult:
+    return runner(["gh", *args], API_TIMEOUT_SECONDS)
+
+
+def resolve_commit(slug: str, ref: str, runner: Runner = run) -> str:
+    """The sha ``ref`` points at, so provenance records a commit not a branch."""
+    result = _gh(["api", f"repos/{slug}/commits/{ref}", "--jq", ".sha"], runner)
+    sha = result.stdout.strip()
+    if not result.ok or not sha:
+        raise FetchError(_why(slug, ref, result))
+    return sha
+
+
+def read_file(slug: str, ref: str, path: str, runner: Runner = run) -> str | None:
+    """One file's text, or None when the repository does not have it."""
+    result = _gh(
+        ["api", f"repos/{slug}/contents/{path}?ref={ref}", "--jq", ".content"], runner
+    )
+    if not result.ok:
+        return None
+    encoded = result.stdout.strip()
+    if not encoded:
+        return None
+    try:
+        return base64.b64decode(encoded).decode("utf-8")
+    except (binascii.Error, UnicodeDecodeError) as exc:
+        raise FetchError(f"{slug}: {path} is not readable text ({exc})") from exc
+
+
+def probe(url: str, ref: str = "main", runner: Runner = run) -> Probed:
+    """Resolve the commit and read the files registration depends on."""
+    slug = parse_slug(url)
+    commit = resolve_commit(slug, ref, runner)
+    found = {}
+    for name in PROBE_FILES:
+        text = read_file(slug, ref, name, runner)
+        if text is not None:
+            found[name] = text
+    return Probed(slug=slug, ref=ref, commit=commit, files=found)
+
+
+def materialise(probed: Probed, into: Path) -> Path:
+    """Write the probed files so the registry sees an ordinary directory."""
+    target = Path(into)
+    target.mkdir(parents=True, exist_ok=True)
+    for name, text in probed.files.items():
+        (target / name).write_text(text, encoding="utf-8")
+    return target
+
+
+def _why(slug: str, ref: str, result: RunResult) -> str:
+    """gh's own message, which distinguishes 'not found' from 'no access'."""
+    detail = (result.stderr or result.stdout).strip()
+    for line in reversed(detail.splitlines()):
+        if line.strip():
+            detail = line.strip()
+            break
+    if "Not Found" in detail or "404" in detail:
+        detail = (
+            f"{detail} — if the repository is private or INTERNAL, check "
+            "'gh auth status' covers that organisation"
+        )
+    try:
+        parsed = json.loads(result.stdout or "{}")
+        detail = str(parsed.get("message", detail))
+    except json.JSONDecodeError:
+        pass
+    return f"cannot read {slug} at ref '{ref}': {detail}"
