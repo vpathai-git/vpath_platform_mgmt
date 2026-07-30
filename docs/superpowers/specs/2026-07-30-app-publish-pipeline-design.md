@@ -120,18 +120,22 @@ concurrent publishes of one app.
 
 ## Resume by observation
 
-No stage ledger is stored. Each stage is asked whether it is already done for
-the commit being published:
+No stage ledger is stored. The two expensive stages are asked whether they are
+already done for the commit being published:
 
 | Stage | Answered by |
 |---|---|
 | register | `apps/<name>/vpath-source.yaml` records this commit |
 | send | the payload's own `vpath-source.yaml`, now materialized into the checkout |
-| render | `appset-inputs/<name>.json` exists in the Deploy-of-Record |
-| install | the name is in `installed-set.json` |
 
-This survives an Ops API restart, introduces no second source of truth, and
-matches how `_require_render` already reasons about the record.
+This survives an Ops API restart and introduces no second source of truth.
+
+**Render and install are never skipped.** Both are already idempotent in the
+engine: an unchanged app rebuilds nothing, because the content hash in
+`build.hash.dirs` matches (`07_app_source_delivery.md`), and an app already in
+the InstalledSet only has its sync verified (`GitOpsEngine._deploy`). Observing
+them would be worse than re-running them — a render present from an *earlier*
+commit would make a resumed publish skip the rebuild the new commit needs.
 
 **Resume is keyed to the commit, never to the app name.** A different commit
 resets the walk from register, because a stage completed for an older commit
