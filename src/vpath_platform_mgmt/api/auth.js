@@ -38,16 +38,26 @@ const VpathAuth = (() => {
     try {
       response = await fetch(url);
     } catch (err) {
-      /* A bare "Failed to fetch" hides the two causes that actually occur:
-       * the browser has no route into the platform's private network, or it
-       * does not yet trust the platform's self-signed certificate — and a
-       * fetch(), unlike a navigation, offers no way to accept it. */
-      const origin = new URL(url).origin;
-      throw new Error(
-        `cannot reach Keycloak at ${origin} (${err.message}). This browser ` +
-        `needs a route to that address, and must already trust its ` +
-        `certificate — open ${origin} in this same browser, accept the ` +
-        `certificate warning, then reload the console.`);
+      /* A bare "Failed to fetch" hides three different causes, and the advice
+       * for each is different. Naming the wrong one costs an afternoon: a
+       * cross-origin block cannot be fixed by accepting a certificate, and an
+       * http:// address has no certificate to accept in the first place. */
+      const target = new URL(url);
+      const causes = [];
+      if (target.origin !== location.origin) {
+        causes.push(`this page is ${location.origin} but discovery points at ` +
+          `${target.origin} — different origins, so the browser blocks it. ` +
+          `Open the console at ${target.origin}, or set ` +
+          `VPATH_MGMT_OIDC_BROWSER_ISSUER to this page's origin`);
+      }
+      if (target.protocol === "https:") {
+        causes.push(`if ${target.origin} serves a self-signed certificate, ` +
+          `open it directly once and accept the warning — a fetch() cannot`);
+      }
+      causes.push(`the console may have no route to Keycloak (SSH tunnel down` +
+        `), which it reports as a 500 from its own relay`);
+      throw new Error(`cannot reach Keycloak at ${target.origin} ` +
+        `(${err.message}). Likely: ` + causes.join("; ") + ".");
     }
     if (!response.ok) {
       throw new Error(`OIDC discovery failed (${response.status}) at ${url}`);

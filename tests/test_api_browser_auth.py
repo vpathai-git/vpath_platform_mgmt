@@ -145,6 +145,16 @@ def test_store_asset_is_served_and_loaded() -> None:
     assert "/store.js" in dev_client().get("/").text
 
 
+def test_unreachable_keycloak_names_the_cause_that_actually_applies() -> None:
+    """The old message blamed a certificate on an http:// URL, and never
+    mentioned the cross-origin block that makes fetch() throw at all."""
+    auth = dev_client().get("/auth.js").text
+    assert "target.origin !== location.origin" in auth  # names the real cause
+    assert "VPATH_MGMT_OIDC_BROWSER_ISSUER" in auth  # and the fix
+    assert 'target.protocol === "https:"' in auth  # cert advice only for https
+    assert "SSH tunnel down" in auth
+
+
 def test_console_page_loads_the_auth_module_before_the_console() -> None:
     page = dev_client().get("/").text
     assert page.index("/auth.js") < page.index("/console.js")
