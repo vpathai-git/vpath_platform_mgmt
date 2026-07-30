@@ -15,6 +15,7 @@ Every credential-shaped string in this file is invented for the drill.  No value
 from any real system appears here, and none may ever be added.
 """
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -30,6 +31,19 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 # Invented for this drill.  Deliberately not placeholder-shaped, so the checker
 # treats it as a value -- that is the whole point of a red drill.
 FAKE_VALUE = "rd0000notarealsecret"
+
+
+@pytest.fixture(autouse=True)
+def _hermetic_git_env(monkeypatch: pytest.MonkeyPatch) -> None:
+    """When this suite runs inside a git hook (the pre-commit gate during a
+    pathspec commit), git exports GIT_INDEX_FILE/GIT_DIR; inherited by the
+    fixture's git subprocesses they redirect `git add` into the PARENT
+    repository's commit index (observed: the drill's broken.py staged into a
+    real commit, blob 3ef997aa unreachable, commit failed on tree build).
+    Scrub every GIT_* variable so fixture repos and checker runs are hermetic."""
+    for name in list(os.environ):
+        if name.startswith("GIT_"):
+            monkeypatch.delenv(name)
 
 
 def make_repo(tmp_path: Path, files: dict[str, str]) -> Path:
