@@ -72,7 +72,8 @@ def test_local_engine_command_substitutes_app(tmp_path: Path) -> None:
 
 
 def test_every_verb_has_an_engine_command() -> None:
-    assert set(ENGINE_COMMANDS) == set(Verb)
+    """Publish is excluded: it is the one verb an engine cannot serve."""
+    assert set(ENGINE_COMMANDS) == set(Verb) - {Verb.PUBLISH}
 
 
 def test_local_engine_runs_real_subprocess_and_fails_loud(tmp_path: Path) -> None:

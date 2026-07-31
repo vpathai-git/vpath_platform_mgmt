@@ -185,6 +185,51 @@ def test_job_lookup_and_state_shape() -> None:
     assert snapshot["jobs"][0]["id"] == job.id
 
 
+def test_publish_requires_admin() -> None:
+    service = make_service()
+    with pytest.raises(RefusedError, match="admin"):
+        service.submit("publish", "demo-app", "dev", "app-dev")
+
+
+def test_publish_without_a_pipeline_fails_the_job_naming_why() -> None:
+    service = OpsService(SimulatedEngine(), instance_name="sim")
+    job = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert "publish" in job.log[-1]
+
+
+def test_publish_dispatches_to_the_pipeline_not_the_engine() -> None:
+    seen: list[str] = []
+
+    class Pipeline:
+        def run(self, request, actor, role, emit):  # type: ignore[no-untyped-def]
+            seen.append(request.name)
+            emit("pipeline ran")
+            return {"app": request.name, "commit": "c" * 40, "stages": {}}
+
+    service = OpsService(SimulatedEngine(), instance_name="sim", publish=Pipeline())
+    job = service.submit(
+        "publish",
+        "demo-app",
+        "ops",
+        "admin",
+        payload={"url": "github.com/org/demo-app", "ref": "main"},
+    )
+    service.wait(job.id)
+
+    assert job.state is JobState.SUCCEEDED, job.log
+    assert seen == ["demo-app"]
+    assert job.result is not None and job.result["app"] == "demo-app"
+
+
+def test_publish_holds_the_app_lock() -> None:
+    from vpath_platform_mgmt.ops.model import Verb, lock_scope
+
+    assert lock_scope(Verb.PUBLISH, "demo-app") == "app:demo-app"
+
+
 def test_instance_probe_is_cached_until_ttl_expires(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:

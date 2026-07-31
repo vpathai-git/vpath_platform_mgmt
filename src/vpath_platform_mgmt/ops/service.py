@@ -19,6 +19,11 @@ from vpath_platform_mgmt.ops.audit import AuditLog
 from vpath_platform_mgmt.ops.engine import EngineAdapter, EngineFailure, Reach
 from vpath_platform_mgmt.ops import tunnel
 from vpath_platform_mgmt.ops.locks import LockManager
+from vpath_platform_mgmt.ops.publish import (
+    PublishError,
+    PublishPipeline,
+    PublishRequest,
+)
 from vpath_platform_mgmt.ops.tunnel import TunnelConfig, TunnelError
 from vpath_platform_mgmt.ops.model import (
     DESTRUCTIVE_VERBS,
@@ -51,12 +56,14 @@ class OpsService:
         audit: AuditLog | None = None,
         instance_name: str = "",
         tunnel_config: TunnelConfig | None = None,
+        publish: "PublishPipeline | None" = None,
     ) -> None:
         self._engine = engine
         self._locks = locks or LockManager()
         self._audit = audit or AuditLog()
         self._instance = instance_name
         self._tunnel = tunnel_config
+        self._publish = publish
         self._reach: Reach | None = None
         self._probe_at = 0.0
         self._jobs: list[Job] = []
@@ -71,7 +78,13 @@ class OpsService:
         return self._engine.name
 
     def submit(
-        self, verb_name: str, app: str, actor: str, role_name: str, confirm: str = ""
+        self,
+        verb_name: str,
+        app: str,
+        actor: str,
+        role_name: str,
+        confirm: str = "",
+        payload: dict[str, object] | None = None,
     ) -> Job:
         """Run all gates, then start the job. Raises typed ``OpsError``s."""
         verb = self._parse_verb(verb_name)
@@ -79,7 +92,14 @@ class OpsService:
         self._check_rbac(verb, role, actor, app)
         self._check_confirmation(verb, confirm)
         scope = lock_scope(verb, app)
-        job = Job(verb=verb, app=app, actor=actor, role=role, engine=self._engine.name)
+        job = Job(
+            verb=verb,
+            app=app,
+            actor=actor,
+            role=role,
+            engine=self._engine.name,
+            payload=payload,
+        )
         if scope is not None:
             self._locks.acquire(scope, actor, job.id)
         with self._mutex:
@@ -126,8 +146,11 @@ class OpsService:
         if job.engine == "simulated":
             emit("SIMULATED RUN — no real server contact, nothing is deployed")
         try:
-            result = self._engine.run(job, emit)
-        except EngineFailure as exc:
+            if job.verb is Verb.PUBLISH:
+                result = self._run_publish(job, emit)
+            else:
+                result = self._engine.run(job, emit)
+        except (EngineFailure, PublishError) as exc:
             self._finish(job, scope, JobState.FAILED, str(exc))
             return
         with self._mutex:
@@ -135,6 +158,30 @@ class OpsService:
             if job.verb in (Verb.HEALTH, Verb.REINSTALL) and result is not None:
                 self._health = dict(result, at=time.time())
         self._finish(job, scope, JobState.SUCCEEDED, "succeeded")
+
+    def _run_publish(self, job: Job, emit: "_Emit") -> dict[str, object] | None:
+        """Publish is the one verb an engine cannot serve: it spans two.
+
+        Rendering runs on the local engine and installing on the GitOps one,
+        so the pipeline holds both. A console configured for neither says so
+        rather than failing somewhere less obvious.
+        """
+        if self._publish is None:
+            raise PublishError(
+                "publish needs both a server checkout and the Deploy-of-Record; "
+                "this console is configured for neither, so it runs on the box's "
+                "Ops API"
+            )
+        payload = job.payload or {}
+        request = PublishRequest(
+            url=str(payload.get("url", "")),
+            ref=str(payload.get("ref", "") or "main"),
+            name=job.app,
+            path=str(payload.get("path", "")),
+            generate=payload.get("generate"),  # type: ignore[arg-type]
+            replace=bool(payload.get("replace", False)),
+        )
+        return self._publish.run(request, job.actor, job.role, emit)
 
     def _emitter(self, job: Job) -> "_Emit":
         return _Emit(job, self._mutex)

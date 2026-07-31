@@ -30,6 +30,7 @@ class Verb(str, Enum):
     UNINSTALL = "uninstall"
     REINSTALL = "reinstall"
     ERASE = "erase"
+    PUBLISH = "publish"
 
 
 VERB_ROLE: dict[Verb, Role] = {
@@ -41,6 +42,7 @@ VERB_ROLE: dict[Verb, Role] = {
     Verb.LOGS: Role.SERVER_DEV,
     Verb.REINSTALL: Role.ADMIN,
     Verb.ERASE: Role.ADMIN,
+    Verb.PUBLISH: Role.ADMIN,
 }
 
 DESTRUCTIVE_VERBS: frozenset[Verb] = frozenset({Verb.REINSTALL, Verb.ERASE})
@@ -84,6 +86,7 @@ class Job:
     log: list[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     result: dict[str, object] | None = None
+    payload: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
         """JSON-serializable view of the job."""
@@ -99,6 +102,7 @@ class Job:
             "log": list(self.log),
             "created_at": self.created_at,
             "result": self.result,
+            "payload": self.payload,
         }
 
 
