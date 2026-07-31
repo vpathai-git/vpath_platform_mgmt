@@ -28,8 +28,8 @@ from typing import Any
 
 from vpath_platform_mgmt.ops.engine import StepEmitter
 from vpath_platform_mgmt.ops.model import Role
+from vpath_platform_mgmt.ops.publish_guards import PublishError, with_runtime
 from vpath_platform_mgmt.ops.publish_stages import (
-    PublishError,
     PublishRequest,
     probe_repo,
     run_install,
@@ -37,7 +37,6 @@ from vpath_platform_mgmt.ops.publish_stages import (
     run_register,
     run_render,
     run_send,
-    with_runtime,
 )
 
 STAGES: tuple[str, ...] = ("preflight", "register", "send", "render", "install")
