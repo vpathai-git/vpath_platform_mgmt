@@ -10,14 +10,19 @@ from __future__ import annotations
 import shutil
 import tempfile
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace as replaced
 from pathlib import Path
 from typing import Any
 
 import yaml
 
 from vpath_platform_mgmt.ops.app_preflight import PreflightError
-from vpath_platform_mgmt.ops.app_registry import Generated, RegistryError
+from vpath_platform_mgmt.ops.app_registry import (
+    MANIFEST_NAME,
+    Generated,
+    RegistryError,
+)
+from vpath_platform_mgmt.ops.bundle import BundleError
 from vpath_platform_mgmt.ops.engine import EngineFailure, StepEmitter
 from vpath_platform_mgmt.ops.model import Job, Role, Verb
 from vpath_platform_mgmt.ops.repo_fetch import FetchError
@@ -44,13 +49,101 @@ class PublishRequest:
     replace: bool = False
 
 
-def recorded_commit(directory: Path) -> str:
-    """The commit a provenance file records, or empty when there is none."""
+def provenance_of(directory: Path) -> dict[str, object]:
+    """What a directory's ``vpath-source.yaml`` records, or nothing."""
     provenance = directory / PROVENANCE
     if not provenance.is_file():
-        return ""
+        return {}
     data = yaml.safe_load(provenance.read_text(encoding="utf-8")) or {}
-    return str(data.get("commit", "")) if isinstance(data, dict) else ""
+    return data if isinstance(data, dict) else {}
+
+
+def recorded_commit(directory: Path) -> str:
+    """The commit a provenance file records, or empty when there is none."""
+    return str(provenance_of(directory).get("commit", ""))
+
+
+def same_source(recorded: dict[str, object], probed: Any, path: str) -> bool:
+    """Whether what is already there came from the repository being published.
+
+    This is what separates a re-publish of the same app from an accidental
+    collision on its name. Only the former may overwrite without being asked.
+    """
+    return (
+        str(recorded.get("repo", "")) == probed.repo_url
+        and str(recorded.get("path", "")) == path
+    )
+
+
+def _describes(repo: str, path: str) -> str:
+    return f"{repo} at '{path}'" if path else repo
+
+
+def _require_overwrite_sanctioned(
+    stage: str,
+    request: PublishRequest,
+    probed: Any,
+    recorded: dict[str, object],
+    where: str,
+) -> None:
+    """Refuse to destroy an app that is not the one being published.
+
+    The registry and the materializer each refuse a silent overwrite; the
+    orchestrator must not be the thing that bypasses both. Re-publishing the
+    same repository and path is the one overwrite that needs no asking, and
+    it is what makes a failed publish resumable.
+    """
+    if request.replace or same_source(recorded, probed, probed.path):
+        return
+    held = _describes(
+        str(recorded.get("repo", "")) or "an unrecorded source",
+        str(recorded.get("path", "")),
+    )
+    asked = _describes(probed.repo_url, probed.path)
+    raise PublishError(
+        f"{stage}: '{request.name}' is already {where} from {held}, and this "
+        f"publish comes from {asked} — overwriting would destroy that app; "
+        "pass replace to do it deliberately"
+    )
+
+
+def _declared_name(request: PublishRequest, probed: Any) -> str:
+    """The name the repository itself gives this app, or empty if it gives none."""
+    manifest = probed.files.get(MANIFEST_NAME) if probed.files else None
+    if manifest is None:
+        return request.generate.name if request.generate is not None else ""
+    parsed = yaml.safe_load(manifest) or {}
+    metadata = parsed.get("metadata") if isinstance(parsed, dict) else None
+    name = metadata.get("name") if isinstance(metadata, dict) else None
+    return name if isinstance(name, str) else ""
+
+
+def check_name_agreement(request: PublishRequest, probed: Any) -> None:
+    """Refuse a name the repository disagrees with, before anything uses it.
+
+    Every preflight path is computed against the requested name, so a
+    disagreement discovered later reads as a broken manifest when the broken
+    thing is the form field.
+    """
+    declared = _declared_name(request, probed)
+    if declared and declared != request.name:
+        raise PublishError(
+            f"preflight: this repository declares the app name '{declared}', "
+            f"but publish was asked for '{request.name}' — publish it under "
+            "the name it declares"
+        )
+
+
+def with_runtime(request: PublishRequest, runtime: str) -> PublishRequest:
+    """The same request, with the generated manifest's runtime resolved.
+
+    ``Generated.runtime`` is what the registry writes into
+    ``spec.build.runtime``. The console's Add-app form has no runtime field,
+    so leaving it unresolved writes a manifest that cannot be built.
+    """
+    if request.generate is None or request.generate.runtime == runtime:
+        return request
+    return replaced(request, generate=replaced(request.generate, runtime=runtime))
 
 
 def probe_repo(
@@ -79,8 +172,13 @@ def run_preflight(
     request: PublishRequest,
     probed: Any,
     emit: StepEmitter,
-) -> str:
-    """Refuse a repository that cannot build once it lands on the server."""
+) -> tuple[str, str]:
+    """Refuse a repository that cannot build once it lands on the server.
+
+    Returns the stage state and the resolved runtime, which the register
+    stage needs so a generated manifest names something buildable.
+    """
+    check_name_agreement(request, probed)
     emit(f"preflight: inspecting {request.name} at {probed.commit[:12]}")
     tree = Path(tempfile.mkdtemp(prefix="vpath-preflight-"))
     try:
@@ -91,7 +189,7 @@ def run_preflight(
         raise PublishError(f"preflight: {exc}") from exc
     finally:
         shutil.rmtree(tree, ignore_errors=True)
-    return DONE
+    return DONE, runtime
 
 
 def run_register(
@@ -109,6 +207,8 @@ def run_register(
     if recorded is not None and str(recorded.get("commit", "")) == probed.commit:
         emit(f"register: {request.name} already records {probed.commit[:12]}")
         return SKIPPED
+    if recorded is not None:
+        _require_overwrite_sanctioned("register", request, probed, recorded, "recorded")
 
     emit(f"register: writing apps/{request.name}")
     tree = Path(tempfile.mkdtemp(prefix="vpath-register-"))
@@ -119,7 +219,7 @@ def run_register(
             ref=request.ref,
             commit=probed.commit,
             tree=tree,
-            path=request.path,
+            path=probed.path,
             generate=request.generate,
             replace=request.replace or recorded is not None,
         )
@@ -164,15 +264,20 @@ def run_send(
     emit: StepEmitter,
 ) -> str:
     """Materialize the app's subtree into the server checkout."""
-    target = materializer.target_for(request.name)
-    if recorded_commit(target) == probed.commit:
-        emit(f"send: the checkout already holds {probed.commit[:12]}")
-        return SKIPPED
-
-    emit(f"send: downloading {probed.slug} at {probed.commit[:12]}")
     try:
+        target = materializer.target_for(request.name)
+        existing = provenance_of(target)
+        if str(existing.get("commit", "")) == probed.commit:
+            emit(f"send: the checkout already holds {probed.commit[:12]}")
+            return SKIPPED
+        if target.exists():
+            _require_overwrite_sanctioned(
+                "send", request, probed, existing, "in the server checkout"
+            )
+
+        emit(f"send: downloading {probed.slug} at {probed.commit[:12]}")
         downloaded = download(probed.slug, probed.commit, workspace)
-        payload = subtree(downloaded, request.path)
+        payload = subtree(downloaded, probed.path)
         place(request.name, payload)
         archive = bundle(payload)
         summary = materializer.materialize(
@@ -181,9 +286,9 @@ def run_send(
             SourceProvenance(
                 repo=probed.repo_url, ref=request.ref, commit=probed.commit
             ),
-            replace=True,
+            replace=target.exists(),
         )
-    except (FetchError, RegistryError, SourceError) as exc:
+    except (FetchError, RegistryError, SourceError, BundleError) as exc:
         raise PublishError(f"send: {exc}") from exc
     emit(f"send: placed {summary.get('file_count')} files in the checkout")
     return DONE

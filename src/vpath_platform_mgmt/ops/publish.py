@@ -37,6 +37,7 @@ from vpath_platform_mgmt.ops.publish_stages import (
     run_register,
     run_render,
     run_send,
+    with_runtime,
 )
 
 STAGES: tuple[str, ...] = ("preflight", "register", "send", "render", "install")
@@ -85,7 +86,7 @@ class PublishPipeline:
         workspace = Path(tempfile.mkdtemp(prefix="vpath-publish-"))
         try:
             probed = probe_repo(self._probe, request, emit)
-            stages["preflight"] = run_preflight(
+            stages["preflight"], runtime = run_preflight(
                 self._materialise,
                 self._inspect,
                 self._runtime_of,
@@ -93,6 +94,7 @@ class PublishPipeline:
                 probed,
                 emit,
             )
+            request = with_runtime(request, runtime)
             stages["register"] = run_register(
                 self._registry, self._materialise, request, probed, emit
             )
