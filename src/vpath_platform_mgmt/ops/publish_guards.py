@@ -3,7 +3,8 @@
 Split out of ``publish_stages`` along the seam between "is this safe to do"
 (this module) and "how each stage actually walks its work" (the stage bodies
 that remain in ``publish_stages``), to keep each module under the project's
-line limit.
+line limit. ``PublishRequest`` must be imported under ``TYPE_CHECKING`` because
+``publish_stages`` imports this module at runtime.
 """
 
 from __future__ import annotations

@@ -4,8 +4,9 @@ Split out of ``server.py`` along the seam between "how a running console is
 put together" (this module) and "the entry point that wires the pieces into
 one service and serves it" (``server.py``), to keep each module under the
 project's line limit. See ``server.py``'s module docstring for the full
-environment-variable contract; every ``build_*`` here fails hard on missing
-configuration rather than falling back to a silent default.
+environment-variable contract; the ``require``-based builders fail hard on
+missing configuration, while the three that return ``None`` do so to report a
+capability this console does not have, which the caller then refuses.
 """
 
 from __future__ import annotations
