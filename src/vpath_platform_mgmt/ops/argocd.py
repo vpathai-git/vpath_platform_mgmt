@@ -18,6 +18,12 @@ from typing import Any
 
 import httpx
 
+from vpath_platform_mgmt.ops.engine import (
+    PROBE_TIMEOUT_SECONDS,
+    REACH_NO_ROUTE,
+    REACH_REFUSED,
+)
+
 ARGO_NAMESPACE = "argocd"
 APPLICATIONSET = "vpath-apps"
 CASCADE_FINALIZER = "resources-finalizer.argocd.argoproj.io"
@@ -77,6 +83,20 @@ class ArgoClient:
         if not isinstance(body, dict):
             raise ArgoError(f"cluster-unreachable: {what} response is not an object")
         return body
+
+    def probe(self) -> str:
+        """``""`` when the API answers, else why it did not.
+
+        Short timeout: this runs inside the console's state poll, and a down
+        box must not stall that poll for the client's full request timeout.
+        """
+        try:
+            response = self._client.get("/version", timeout=PROBE_TIMEOUT_SECONDS)
+        except httpx.HTTPError:
+            return REACH_NO_ROUTE
+        if response.status_code in (401, 403):
+            return REACH_REFUSED
+        return "" if response.status_code == 200 else f"status-{response.status_code}"
 
     def _app_path(self, name: str) -> str:
         return f"{ARGO_API}/namespaces/{self._namespace}/applications/{name}"
@@ -146,14 +166,39 @@ class ArgoClient:
                 )
             self._sleep(POLL_SECONDS)
 
-    def app_namespaces(self, app: str) -> list[str]:
-        """Project namespaces (``kp-<app>-*``) that depend on this app."""
+    def pods(self, namespace: str) -> list[dict[str, Any]]:
+        """Every pod in one namespace, exactly as the API returns them.
+
+        Beware: a namespace that does not exist answers 200 with an empty
+        list, not 404 (verified against k3s). This call therefore cannot
+        distinguish "nothing runs here" from "there is no such namespace" —
+        callers that care must establish existence via ``namespaces()``.
+        """
+        body = self._get_json(
+            f"/api/v1/namespaces/{namespace}/pods", f"pods in '{namespace}'"
+        )
+        if body is None:
+            raise ArgoError(
+                f"cluster-unreachable: namespace '{namespace}' does not exist"
+            )
+        items = body.get("items")
+        if not isinstance(items, list):
+            raise ArgoError(
+                f"cluster-unreachable: the pod list for '{namespace}' is malformed"
+            )
+        return [item for item in items if isinstance(item, dict)]
+
+    def namespaces(self) -> list[str]:
+        """Every namespace in the cluster, sorted."""
         body = self._get_json("/api/v1/namespaces", "namespaces")
         if body is None:
             raise ArgoError("cluster-unreachable: namespace census returned 404")
-        prefix = f"kp-{app}-"
         items = body.get("items")
         if not isinstance(items, list):
             raise ArgoError("cluster-unreachable: namespace list is malformed")
-        names = [item.get("metadata", {}).get("name", "") for item in items]
-        return sorted(name for name in names if name.startswith(prefix))
+        return sorted(item.get("metadata", {}).get("name", "") for item in items)
+
+    def app_namespaces(self, app: str) -> list[str]:
+        """Project namespaces (``kp-<app>-*``) that depend on this app."""
+        prefix = f"kp-{app}-"
+        return [name for name in self.namespaces() if name.startswith(prefix)]

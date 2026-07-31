@@ -30,6 +30,7 @@ class Verb(str, Enum):
     UNINSTALL = "uninstall"
     REINSTALL = "reinstall"
     ERASE = "erase"
+    PUBLISH = "publish"
 
 
 VERB_ROLE: dict[Verb, Role] = {
@@ -41,6 +42,7 @@ VERB_ROLE: dict[Verb, Role] = {
     Verb.LOGS: Role.SERVER_DEV,
     Verb.REINSTALL: Role.ADMIN,
     Verb.ERASE: Role.ADMIN,
+    Verb.PUBLISH: Role.ADMIN,
 }
 
 DESTRUCTIVE_VERBS: frozenset[Verb] = frozenset({Verb.REINSTALL, Verb.ERASE})
@@ -84,9 +86,16 @@ class Job:
     log: list[str] = field(default_factory=list)
     created_at: float = field(default_factory=time.time)
     result: dict[str, object] | None = None
+    payload: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        """JSON-serializable view of the job."""
+        """JSON-serializable view of the job.
+
+        ``payload`` is deliberately absent: it carries whatever a human
+        pasted into the publish form, including INTERNAL repository URLs and
+        any userinfo in them, while ``/api/state`` is readable by every
+        authenticated role. Nothing in the console renders it.
+        """
         return {
             "id": self.id,
             "verb": self.verb.value,

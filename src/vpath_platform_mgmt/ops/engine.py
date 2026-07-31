@@ -13,12 +13,38 @@ import os
 import subprocess
 import time
 from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Protocol
 
 from vpath_platform_mgmt.ops.model import Job, Verb
 
 StepEmitter = Callable[[str], None]
+
+# A probe must not stall the console's state poll, and it is a reachability
+# question, not a health question — one round trip is enough.
+PROBE_TIMEOUT_SECONDS = 3.0
+
+# Why an instance did not answer. "Unreachable" alone sends an operator
+# hunting: a dead tunnel, an expired token and a stopped platform look
+# identical from the console and have nothing in common as remedies.
+REACH_OK = "ok"
+REACH_NO_ROUTE = "no-route"
+REACH_REFUSED = "credentials-refused"
+REACH_NO_CHECKOUT = "no-checkout"
+
+
+@dataclass(frozen=True)
+class Reach:
+    """Whether the instance answers, and — when it does not — why."""
+
+    ok: bool
+    reason: str = REACH_OK
+    detail: str = ""
+
+    def to_dict(self) -> dict[str, object]:
+        return {"ok": self.ok, "reason": self.reason, "detail": self.detail}
+
 
 HEALTH_GATES = ("infra", "platform", "apps", "data", "workflow-ready")
 
@@ -36,6 +62,10 @@ class EngineAdapter(Protocol):
 
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         """Execute the job; return an optional structured result."""
+        ...  # pragma: no cover - protocol signature
+
+    def probe(self) -> Reach:
+        """Whether the instance this engine drives answers, and why not."""
         ...  # pragma: no cover - protocol signature
 
 
@@ -67,6 +97,10 @@ class SimulatedEngine:
 
     def __init__(self, step_delay: float = 0.0) -> None:
         self._step_delay = step_delay
+
+    def probe(self) -> Reach:
+        """The simulated instance is this process; it is always there."""
+        return Reach(True)
 
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         """Walk the verb's steps; health-like verbs return an all-pass verdict."""
@@ -120,6 +154,16 @@ class LocalEngine:
         # VPATH_INSTALL_MODE=nuc, otherwise lib/vm.sh aborts with
         # "run_build_vm called on deploy VM". Passed in, never guessed.
         self._extra_env = dict(extra_env or {})
+
+    def probe(self) -> Reach:
+        """The instance is this host; reachable while its checkout exists."""
+        if self._checkout.is_dir():
+            return Reach(True)
+        return Reach(
+            False,
+            REACH_NO_CHECKOUT,
+            f"the server checkout {self._checkout} is gone",
+        )
 
     def command(self, verb: Verb, app: str) -> list[str]:
         """Argv for a verb, with the app name substituted."""

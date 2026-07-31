@@ -127,7 +127,7 @@ class SourceMaterializer:
             if existed:
                 shutil.rmtree(target)
             target.mkdir(parents=True)
-            archive.extractall(target, members=members)
+            archive.extractall(target, members=members, filter="data")
         files = [name for name in sorted(names) if not name.endswith("/")]
         return {
             "app": app,

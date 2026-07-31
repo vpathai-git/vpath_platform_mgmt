@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 from vpath_platform_mgmt.api import kc_proxy as kc_proxy_module
-from vpath_platform_mgmt.api import routes_apps
+from vpath_platform_mgmt.api import routes_apps, routes_runtime
 from vpath_platform_mgmt.api.kc_proxy import KeycloakProxy
 from vpath_platform_mgmt.api.auth import (
     DEV_ACTOR_HEADER,
@@ -27,10 +27,13 @@ from vpath_platform_mgmt.api.auth import (
     validate_browser_auth,
 )
 from vpath_platform_mgmt.api.oidc import OidcValidator
+from vpath_platform_mgmt.ops.app_runtime import RuntimeReader
 from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.model import OpsError
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import SourceMaterializer
+from vpath_platform_mgmt.ops.served_catalog import ServedCatalogReader
+from vpath_platform_mgmt.ops.tunnel import TunnelError
 
 IdentityFn = Callable[[Request], Identity]
 
@@ -39,6 +42,7 @@ ASSET_TYPES = {
     "console.js": "application/javascript",
     "auth.js": "application/javascript",
     "store.js": "application/javascript",
+    "runtime.js": "application/javascript",
 }
 
 
@@ -110,10 +114,23 @@ def _register_ops(app: FastAPI, identity: IdentityFn, service: OpsService) -> No
     """Job submission and state."""
 
     @app.get("/api/state")
-    def state(request: Request) -> dict[str, object]:
-        """Snapshot for the console: jobs, locks, audit, health, engine."""
+    def state(request: Request, fresh: bool = False) -> dict[str, object]:
+        """Snapshot for the console; ``fresh`` forces an instance re-probe."""
         identity(request)
-        return service.state()
+        return service.state(fresh=fresh)
+
+    @app.post("/api/instance/tunnel")
+    def start_tunnel(request: Request) -> dict[str, str]:
+        """Open this instance's SSH tunnel; admin only, audited in the service."""
+        caller = identity(request)
+        try:
+            return {"result": service.start_tunnel(caller.actor, caller.role)}
+        except OpsError as exc:
+            raise HTTPException(
+                status_code=exc.http_status, detail=exc.message
+            ) from exc
+        except TunnelError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
 
     @app.post("/api/jobs", status_code=202)
     def submit(request: Request, body: JobRequest) -> dict[str, str]:
@@ -156,6 +173,8 @@ def create_app(
     platform_url: str = "",
     browser_auth: BrowserAuthConfig | None = None,
     kc_proxy: KeycloakProxy | None = None,
+    served_catalog: ServedCatalogReader | None = None,
+    runtime: RuntimeReader | None = None,
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
@@ -169,7 +188,10 @@ def create_app(
     app = FastAPI(title="vpath platform mgmt — Ops API", version="0.1.0")
     _register_identity(app, identity, browser_auth)
     _register_ops(app, identity, service)
-    routes_apps.register(app, identity, service, catalog, materializer, platform_url)
+    routes_apps.register(
+        app, identity, service, catalog, materializer, platform_url, served_catalog
+    )
+    routes_runtime.register(app, identity, service, runtime)
     # Ahead of the console's catch-all asset route, which would swallow it.
     if kc_proxy is not None:
         kc_proxy_module.register(app, kc_proxy)

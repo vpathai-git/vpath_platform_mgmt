@@ -19,9 +19,27 @@ from typing import Any
 
 from vpath_platform_mgmt.ops import deploy_record as record
 from vpath_platform_mgmt.ops.argocd import ArgoClient, ArgoError
-from vpath_platform_mgmt.ops.engine import EngineFailure, StepEmitter
+from vpath_platform_mgmt.ops.engine import (
+    REACH_NO_ROUTE,
+    REACH_REFUSED,
+    EngineFailure,
+    Reach,
+    StepEmitter,
+)
 from vpath_platform_mgmt.ops.gitea import GiteaClient, GiteaError
 from vpath_platform_mgmt.ops.model import Job, Verb
+
+# What each probe reason means for the operator, per door. Unknown reasons
+# (an unexpected status) fall back to naming the door and the raw reason —
+# never to a cheerful default.
+REACH_DETAIL: dict[str, str] = {
+    REACH_NO_ROUTE: (
+        "no route to {door}; the SSH tunnel is probably down "
+        "(ALL_PROXY, or connect-vm5.ps1 on a workstation)"
+    ),
+    REACH_REFUSED: "{door} rejected the configured token; it may have expired",
+}
+
 
 BUILD_HOST_VERBS: dict[Verb, str] = {
     Verb.BUILD: "./gradlew buildApp -Papp={app}",
@@ -38,6 +56,23 @@ class GitOpsEngine:
     def __init__(self, gitea: GiteaClient, argo: ArgoClient) -> None:
         self._gitea = gitea
         self._argo = argo
+
+    def probe(self) -> Reach:
+        """Both doors must answer: the record (Gitea) and the cluster (k8s).
+
+        The door is named because the two fail for different reasons and are
+        fixed in different places — a Gitea token expiring and the cluster
+        being unroutable are the same red badge but not the same problem.
+        """
+        for door, client in (
+            ("the Deploy-of-Record (Gitea)", self._gitea),
+            ("the cluster (Kubernetes API)", self._argo),
+        ):
+            reason = client.probe()
+            if reason:
+                template = REACH_DETAIL.get(reason, "{door} answered unexpectedly")
+                return Reach(False, reason, template.format(door=door))
+        return Reach(True)
 
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         """Dispatch one verb; every failure is an ``EngineFailure``."""

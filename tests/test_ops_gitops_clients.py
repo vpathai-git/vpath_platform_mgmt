@@ -10,6 +10,7 @@ import httpx
 import pytest
 
 from vpath_platform_mgmt.ops.argocd import APPLICATIONSET, ArgoClient, ArgoError
+from vpath_platform_mgmt.ops.engine import REACH_NO_ROUTE, REACH_REFUSED
 from vpath_platform_mgmt.ops.gitea import GiteaClient, GiteaError
 
 Handler = Callable[[httpx.Request], httpx.Response]
@@ -46,6 +47,27 @@ def test_gitea_requires_a_base_url_and_token() -> None:
         GiteaClient("", "o", "r", "t")
     with pytest.raises(GiteaError, match="token"):
         GiteaClient("https://gitea.test", "o", "r", "")
+
+
+def test_gitea_probe_tells_no_route_from_a_rejected_token() -> None:
+    """The two failures are one red badge but not one problem."""
+
+    def down(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("no route to host")
+
+    assert gitea(lambda _: httpx.Response(200, json={})).probe() == ""
+    assert gitea(down).probe() == REACH_NO_ROUTE
+    assert gitea(lambda _: httpx.Response(401)).probe() == REACH_REFUSED
+    assert gitea(lambda _: httpx.Response(503)).probe() == "status-503"
+
+
+def test_argo_probe_tells_no_route_from_a_rejected_token() -> None:
+    def down(_: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectTimeout("tunnel is gone")
+
+    assert argo(lambda _: httpx.Response(200, json={})).probe() == ""
+    assert argo(down).probe() == REACH_NO_ROUTE
+    assert argo(lambda _: httpx.Response(403)).probe() == REACH_REFUSED
 
 
 def test_get_file_decodes_content_and_sha() -> None:

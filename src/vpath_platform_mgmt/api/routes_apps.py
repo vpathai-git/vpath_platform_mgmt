@@ -2,12 +2,18 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 
 from fastapi import FastAPI, HTTPException, Request
 
 from vpath_platform_mgmt.api.auth import Identity
-from vpath_platform_mgmt.ops.apps import AppCatalog
+from vpath_platform_mgmt.api.routes_publish import _register_publish
+from vpath_platform_mgmt.ops.apps import AppCatalog, AppEntry
+from vpath_platform_mgmt.ops.served_catalog import (
+    ServedCatalogError,
+    ServedCatalogReader,
+    compare,
+)
 from vpath_platform_mgmt.ops.browse import AppBrowser, BrowseError
 from vpath_platform_mgmt.ops.engine import EngineFailure
 from vpath_platform_mgmt.ops.model import Role
@@ -58,10 +64,12 @@ def _register_catalog(
     catalog: AppCatalog | None,
     platform_url: str,
     service: OpsService,
+    served: ServedCatalogReader | None = None,
 ) -> None:
     @app.get("/api/apps")
     def list_apps(request: Request) -> dict[str, object]:
-        """The app store: what exists, and which of it is installed."""
+        """The app store: what exists, which of it is installed, and what the
+        platform's own sidebar currently offers."""
         identity(request)
         entries = catalog.entries() if catalog is not None else []
         try:
@@ -79,8 +87,49 @@ def _register_catalog(
         return {
             "platform_url": platform_url,
             "apps": apps,
+            # The names, not just the count: the server's installed set and
+            # this repo's apps/ folder are different populations, and on a
+            # real installation most of what runs has no catalog entry. A
+            # runtime view built from the catalog alone would show a
+            # fraction of it. None stays None — an empty list would say the
+            # server runs nothing, which is not what 'cannot ask' means.
+            "installed_apps": installed,
             "installed_known": installed is not None,
+            "catalog": _catalog_state(entries, installed, served),
         }
+
+
+def _catalog_state(
+    entries: Sequence[AppEntry],
+    installed: list[str] | None,
+    served: ServedCatalogReader | None,
+) -> dict[str, object]:
+    """Counts the console is sure of, plus what the platform serves.
+
+    An unreadable platform catalog is reported as its reason, never as an
+    empty one: "the platform offers nothing" and "we could not ask" look
+    identical in a summary line and mean opposite things.
+    """
+    state: dict[str, object] = {
+        "total": len(entries),
+        "installed": None if installed is None else len(installed),
+        "installed_here": (
+            None
+            if installed is None
+            else sum(1 for entry in entries if entry.name in installed)
+        ),
+    }
+    if served is None:
+        state["platform"] = None
+        state["platform_error"] = "no platform URL configured"
+        return state
+    try:
+        state["platform"] = compare(entries, served.entries())
+        state["platform_error"] = None
+    except ServedCatalogError as exc:
+        state["platform"] = None
+        state["platform_error"] = str(exc)
+    return state
 
 
 def _register_browse(
@@ -133,8 +182,10 @@ def register(
     catalog: AppCatalog | None,
     materializer: SourceMaterializer | None,
     platform_url: str,
+    served: ServedCatalogReader | None = None,
 ) -> None:
     """Attach every /api/apps route to the FastAPI app."""
-    _register_catalog(app, identity, catalog, platform_url, service)
+    _register_catalog(app, identity, catalog, platform_url, service, served)
     _register_browse(app, identity, catalog)
     _register_source(app, identity, service, materializer)
+    _register_publish(app, identity, service)

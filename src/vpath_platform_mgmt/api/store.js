@@ -8,10 +8,13 @@
  */
 
 let APPS = [];
+/* The names the SERVER reports installed, or null when it cannot say. A
+   different population from APPS, which is this repo's apps/ folder. */
+let INSTALLED = null;
 let PLATFORM = "";
 let selectedApp = null;
 
-const INSTALLED_LABEL = {true: "installed", false: "not installed", null: "unknown"};
+const INSTALLED_LABEL = {true: "Installed", false: "Not installed", null: "Unknown"};
 
 function confirmUninstall(name, title) {
   return confirm(
@@ -25,14 +28,14 @@ function forSelected(verb) {
   if (!selectedApp) return;
   if (verb === "uninstall" &&
       !confirmUninstall(selectedApp.name, selectedApp.title)) return;
-  $("a-msg").textContent = `submitting ${verb} for ${selectedApp.name}…`;
+  $("a-msg").textContent = `Submitting ${verb} for ${selectedApp.name}…`;
   fetch("/api/jobs", {
     method: "POST", headers: hdrs(),
     body: JSON.stringify({verb: verb, app: selectedApp.name}),
   }).then((r) => r.json().then((d) => {
     $("a-msg").textContent = r.ok
-      ? "job " + d.job + " accepted — see Recent jobs"
-      : "refused: " + (d.detail || "error");
+      ? "Job " + d.job + " accepted — see Recent jobs"
+      : "Refused: " + (d.detail || "error");
     if (r.ok) setTimeout(loadApps, 4000);
   }));
 }
@@ -70,10 +73,10 @@ function selectApp(a, rowEl) {
   showInstallButtons(a);
   const open = $("a-open");
   open.disabled = !a.url;
-  open.title = a.url || "set VPATH_MGMT_PLATFORM_URL to enable";
+  open.title = a.url || "Set VPATH_MGMT_PLATFORM_URL to enable";
   open.onclick = () => a.url && window.open(a.url, "_blank", "noopener");
   $("a-msg").textContent = a.url ? "" :
-    "no platform URL configured — set VPATH_MGMT_PLATFORM_URL to open apps";
+    "No platform URL configured — set VPATH_MGMT_PLATFORM_URL to open apps";
   $("f-name").textContent = "Select a file in the explorer";
   $("f-meta").innerHTML = "";
   $("f-body").textContent = "Pick a file on the left to inspect it.";
@@ -114,11 +117,11 @@ async function openFile(a, node, el) {
   $("f-name").textContent = node.path;
   if (!r.ok) {
     $("f-meta").innerHTML = "";
-    $("f-body").textContent = d.detail || "could not read file";
+    $("f-body").textContent = d.detail || "Could not read file";
     return;
   }
   $("f-meta").innerHTML = `<span>${d.size} bytes</span>` +
-    (d.truncated ? "<span>truncated</span>" : "");
+    (d.truncated ? "<span>Truncated</span>" : "");
   $("f-body").textContent = d.content;
 }
 
@@ -131,8 +134,36 @@ function fillAppPicker() {
   picker.innerHTML = APPS.length
     ? APPS.map((a) =>
         `<option value="${esc(a.name)}">${esc(a.title || a.name)}</option>`).join("")
-    : '<option value="">no applications found</option>';
+    : '<option value="">No applications found</option>';
   if (chosen && APPS.some((a) => a.name === chosen)) picker.value = chosen;
+}
+
+/* Two different catalogs, kept visibly apart: what this console can see on
+   disk, and what the platform actually serves its users. They are not the
+   same population by design, so only the overlap is compared — and an
+   unreadable platform says so, because "offers nothing" and "could not ask"
+   look identical in a summary line and mean opposite things. */
+function showCatalogState(c) {
+  const el = $("catalog-state");
+  if (!c) { el.innerHTML = ""; return; }
+  const parts = [`<span>${c.total} here</span>`];
+  parts.push(`<span>${c.installed_here === null
+    ? "install state unknown" : c.installed_here + " installed"}</span>`);
+  const p = c.platform;
+  if (p) {
+    parts.push(`<span>${p.served_total} in the platform catalog</span>`);
+    if (p.only_on_platform) parts.push(`<span>${p.only_on_platform} not visible here</span>`);
+    const bad = (p.label_mismatches || []).length;
+    parts.push(bad
+      ? `<span class="chip err">${bad} label mismatch${bad > 1 ? "es" : ""}</span>`
+      : '<span class="chip ok">labels match</span>');
+  } else {
+    parts.push(`<span class="dim">platform catalog: ${esc(c.platform_error || "unknown")}</span>`);
+  }
+  el.innerHTML = parts.join("");
+  el.title = (p && (p.label_mismatches || []).length)
+    ? p.label_mismatches.map((m) => `${m.name}: here "${m.here}", platform "${m.platform}"`).join("\n")
+    : "";
 }
 
 async function loadApps() {
@@ -140,12 +171,15 @@ async function loadApps() {
   if (!r.ok) return;
   const d = await r.json();
   APPS = d.apps || [];
+  INSTALLED = d.installed_apps === undefined ? null : d.installed_apps;
   PLATFORM = d.platform_url || "";
   fillAppPicker();
+  showCatalogState(d.catalog);
+  renderRunning(APPS);
   const list = $("applist");
   list.innerHTML = "";
   if (!APPS.length) {
-    list.innerHTML = '<div class="nav-item dim">no applications found</div>';
+    list.innerHTML = '<div class="nav-item dim">No applications found</div>';
     return;
   }
   APPS.forEach((a) => {

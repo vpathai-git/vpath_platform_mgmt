@@ -16,7 +16,7 @@ from vpath_platform_mgmt.ops import (
     SimulatedEngine,
     UnknownVerbError,
 )
-from vpath_platform_mgmt.ops.engine import StepEmitter
+from vpath_platform_mgmt.ops.engine import Reach, StepEmitter
 from vpath_platform_mgmt.ops.model import Job
 
 
@@ -33,6 +33,9 @@ class GateEngine:
         assert self.release.wait(timeout=5.0), "gate never released"
         return None
 
+    def probe(self) -> Reach:
+        return Reach(True)
+
 
 class FailingEngine:
     """Engine whose verbs always fail."""
@@ -42,6 +45,9 @@ class FailingEngine:
     def run(self, job: Job, emit: StepEmitter) -> dict[str, object] | None:
         emit("about to fail")
         raise EngineFailure("boom: exit 1")
+
+    def probe(self) -> Reach:
+        return Reach(True)
 
 
 def make_service() -> OpsService:
@@ -177,3 +183,175 @@ def test_job_lookup_and_state_shape() -> None:
     snapshot = service.state()
     assert snapshot["engine"] == "simulated"
     assert snapshot["jobs"][0]["id"] == job.id
+
+
+def test_publish_requires_admin() -> None:
+    service = make_service()
+    with pytest.raises(RefusedError, match="admin"):
+        service.submit("publish", "demo-app", "dev", "app-dev")
+    audit = service.state()["audit"]
+    assert audit[0]["result"] == "REFUSED (role)"
+    assert audit[0]["actor"] == "dev"
+
+
+def test_publish_without_a_pipeline_fails_the_job_naming_why() -> None:
+    service = OpsService(SimulatedEngine(), instance_name="sim")
+    job = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert "server checkout" in job.log[-1]
+    assert "Deploy-of-Record" in job.log[-1]
+    assert "Ops API" in job.log[-1]
+
+
+def test_publish_dispatches_to_the_pipeline_not_the_engine() -> None:
+    seen: list[str] = []
+
+    class Pipeline:
+        def run(self, request, actor, role, emit):  # type: ignore[no-untyped-def]
+            seen.append(request.name)
+            emit("pipeline ran")
+            return {"app": request.name, "commit": "c" * 40, "stages": {}}
+
+    service = OpsService(SimulatedEngine(), instance_name="sim", publish=Pipeline())
+    job = service.submit(
+        "publish",
+        "demo-app",
+        "ops",
+        "admin",
+        payload={"url": "github.com/org/demo-app", "ref": "main"},
+    )
+    service.wait(job.id)
+
+    assert job.state is JobState.SUCCEEDED, job.log
+    assert seen == ["demo-app"]
+    assert job.result is not None and job.result["app"] == "demo-app"
+
+
+def test_publish_holds_the_app_lock() -> None:
+    from vpath_platform_mgmt.ops.model import Verb, lock_scope
+
+    assert lock_scope(Verb.PUBLISH, "demo-app") == "app:demo-app"
+
+
+def test_instance_probe_is_cached_until_ttl_expires(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The console polls every second; the box must not be probed that often."""
+    import time
+
+    probes: list[float] = []
+
+    class CountingEngine(SimulatedEngine):
+        def probe(self) -> Reach:
+            probes.append(1)
+            return Reach(True)
+
+    service = OpsService(CountingEngine(), instance_name="vm5")
+    now = {"t": 1000.0}
+    monkeypatch.setattr(time, "time", lambda: now["t"])
+
+    first = service.state()["instance"]
+    assert first == {
+        "name": "vm5",
+        "reachable": True,
+        "reason": "ok",
+        "detail": "",
+        "checked_at": 1000.0,
+    }
+    service.state()
+    assert len(probes) == 1  # within TTL: served from cache
+    now["t"] += 11.0
+    service.state()
+    assert len(probes) == 2  # TTL expired: probed again
+    service.state(fresh=True)
+    assert len(probes) == 3  # fresh always probes
+
+
+class ExplodingPipeline:
+    """A pipeline that raises what the publish path actually reaches."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def run(self, request, actor, role, emit):  # type: ignore[no-untyped-def]
+        raise self.error
+
+
+def publishing_service(error: Exception) -> OpsService:
+    return OpsService(
+        SimulatedEngine(), instance_name="sim", publish=ExplodingPipeline(error)
+    )
+
+
+def test_an_unexpected_exception_fails_the_job_naming_its_cause() -> None:
+    """gh missing from the service account's PATH is the likely first contact.
+
+    Without a backstop the worker thread dies in ``threading.excepthook``,
+    the job stays RUNNING forever and the operator is told nothing at all.
+    """
+    service = publishing_service(FileNotFoundError(2, "No such file", "gh"))
+    job = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert "FileNotFoundError" in job.log[-1]
+    assert "gh" in job.log[-1]
+
+
+def test_an_unexpected_exception_still_releases_the_app_lock() -> None:
+    """A leaked app lock blocks every later publish AND deploy of that app."""
+    service = publishing_service(RuntimeError("something nobody typed"))
+    first = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(first.id)
+
+    assert service.state()["locks"] == []
+    second = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(second.id)
+    assert second.state is JobState.FAILED
+
+
+def test_a_typed_publish_failure_still_reports_exactly_its_own_message() -> None:
+    """The backstop must not blur a stage refusal into a generic one."""
+    from vpath_platform_mgmt.ops.publish import PublishError
+
+    service = publishing_service(PublishError("send: 'examples/x' is not a directory"))
+    job = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(job.id)
+
+    assert job.log[-1] == "send: 'examples/x' is not a directory"
+
+
+def test_an_unmarshalled_generate_block_is_refused_not_dereferenced() -> None:
+    """A dict here used to reach ``request.generate.runtime`` and explode."""
+
+    class Pipeline:
+        def run(self, request, actor, role, emit):  # type: ignore[no-untyped-def]
+            raise AssertionError("the pipeline must never see a raw dict")
+
+    service = OpsService(SimulatedEngine(), instance_name="sim", publish=Pipeline())
+    job = service.submit(
+        "publish",
+        "demo-app",
+        "ops",
+        "admin",
+        payload={"url": "u", "generate": {"name": "demo-app"}},
+    )
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert "did not marshal" in job.log[-1]
+
+
+def test_an_engine_failure_on_a_normal_verb_still_releases_its_lock() -> None:
+    class Failing(SimulatedEngine):
+        def run(self, job: Job, emit: StepEmitter) -> dict[str, object]:
+            raise EngineFailure("gradle blew up")
+
+    service = OpsService(Failing(), instance_name="sim")
+    job = service.submit("deploy", "sample-app", "alice", "app-dev")
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert service.state()["locks"] == []
