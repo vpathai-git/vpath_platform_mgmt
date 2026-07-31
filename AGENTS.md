@@ -74,6 +74,7 @@ into tool-specific adapter files.
 | Operational checklist | `context/CHECKLIST.md` |
 | Changelog + versioning policy | `CHANGELOG.md` |
 | Contribution and commit rules | `CONTRIBUTING.md` |
+| Adding a repository as an app | `docs/ADDING_AN_APP.md` |
 | Agent workflow | `context/AGENT_WORKFLOW.md` |
 | Design principles | `context/best_practices_short.md` |
 | VPath naming + structure | `context/GENERAL_PROJECT_TEMPLATE.md` |

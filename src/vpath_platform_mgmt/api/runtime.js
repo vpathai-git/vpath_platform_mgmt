@@ -74,9 +74,11 @@ function namespaceBlock(ns) {
      beside two others — so only this app's own workloads are listed. What
      was left out is stated rather than silently dropped. */
   const others = ns.others
-    ? `<div class="dim ns-empty">${ns.others} further pod` +
-      `${ns.others > 1 ? "s" : ""} in this namespace belong to other ` +
-      "applications</div>"
+    ? '<div class="dim ns-empty">' + ns.others +
+      (ns.others > 1
+        ? " further pods in this namespace belong to other applications"
+        : " further pod in this namespace belongs to other applications") +
+      "</div>"
     : "";
   if (!ns.pods.length) {
     return head + '<div class="dim ns-empty">No pods running</div>' + others;
