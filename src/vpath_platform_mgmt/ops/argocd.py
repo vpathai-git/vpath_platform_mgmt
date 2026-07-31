@@ -166,6 +166,27 @@ class ArgoClient:
                 )
             self._sleep(POLL_SECONDS)
 
+    def pods(self, namespace: str) -> list[dict[str, Any]]:
+        """Every pod in one namespace, exactly as the API returns them.
+
+        A namespace that is absent raises rather than returning nothing:
+        "no pods run here" and "this namespace is gone" are the same empty
+        list and not the same fact.
+        """
+        body = self._get_json(
+            f"/api/v1/namespaces/{namespace}/pods", f"pods in '{namespace}'"
+        )
+        if body is None:
+            raise ArgoError(
+                f"cluster-unreachable: namespace '{namespace}' does not exist"
+            )
+        items = body.get("items")
+        if not isinstance(items, list):
+            raise ArgoError(
+                f"cluster-unreachable: the pod list for '{namespace}' is malformed"
+            )
+        return [item for item in items if isinstance(item, dict)]
+
     def app_namespaces(self, app: str) -> list[str]:
         """Project namespaces (``kp-<app>-*``) that depend on this app."""
         body = self._get_json("/api/v1/namespaces", "namespaces")

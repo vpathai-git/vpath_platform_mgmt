@@ -18,6 +18,7 @@ from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
 from vpath_platform_mgmt.ops import repo_probe, repo_tarball
 from vpath_platform_mgmt.ops.app_preflight import require_publishable
 from vpath_platform_mgmt.ops.app_registry import AppRegistry, detect_runtime
+from vpath_platform_mgmt.ops.app_runtime import RuntimeReader
 from vpath_platform_mgmt.ops.argocd import ArgoClient
 from vpath_platform_mgmt.ops.bundle import bundle
 from vpath_platform_mgmt.ops.engine import EngineAdapter, LocalEngine, SimulatedEngine
@@ -86,6 +87,21 @@ def build_gitops_engine(env: Mapping[str, str]) -> GitOpsEngine:
         verify_tls=not insecure,
     )
     return GitOpsEngine(gitea, argo)
+
+
+def build_runtime_reader(env: Mapping[str, str]) -> RuntimeReader | None:
+    """Reader for live pod state, or None when there is no cluster to ask.
+
+    This needs only the Kubernetes half of the GitOps settings: reading what
+    runs never touches the Deploy-of-Record, so a console configured to
+    observe a cluster without being able to mutate it still gets this view.
+    """
+    url = env.get("VPATH_MGMT_K8S_URL", "")
+    token = env.get("VPATH_MGMT_K8S_TOKEN", "")
+    if not url or not token:
+        return None
+    insecure = env.get("VPATH_MGMT_INSECURE_TLS", "").lower() in TRUTHY
+    return RuntimeReader(ArgoClient(base_url=url, token=token, verify_tls=not insecure))
 
 
 def build_engine(env: Mapping[str, str]) -> EngineAdapter:

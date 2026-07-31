@@ -14,7 +14,7 @@ from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 from vpath_platform_mgmt.api import kc_proxy as kc_proxy_module
-from vpath_platform_mgmt.api import routes_apps
+from vpath_platform_mgmt.api import routes_apps, routes_runtime
 from vpath_platform_mgmt.api.kc_proxy import KeycloakProxy
 from vpath_platform_mgmt.api.auth import (
     DEV_ACTOR_HEADER,
@@ -27,6 +27,7 @@ from vpath_platform_mgmt.api.auth import (
     validate_browser_auth,
 )
 from vpath_platform_mgmt.api.oidc import OidcValidator
+from vpath_platform_mgmt.ops.app_runtime import RuntimeReader
 from vpath_platform_mgmt.ops.apps import AppCatalog
 from vpath_platform_mgmt.ops.model import OpsError
 from vpath_platform_mgmt.ops.service import OpsService
@@ -172,6 +173,7 @@ def create_app(
     browser_auth: BrowserAuthConfig | None = None,
     kc_proxy: KeycloakProxy | None = None,
     served_catalog: ServedCatalogReader | None = None,
+    runtime: RuntimeReader | None = None,
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
@@ -188,6 +190,7 @@ def create_app(
     routes_apps.register(
         app, identity, service, catalog, materializer, platform_url, served_catalog
     )
+    routes_runtime.register(app, identity, service, runtime)
     # Ahead of the console's catch-all asset route, which would swallow it.
     if kc_proxy is not None:
         kc_proxy_module.register(app, kc_proxy)

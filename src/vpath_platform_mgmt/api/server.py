@@ -46,6 +46,7 @@ from vpath_platform_mgmt.api.builders import (
     build_catalog,
     build_engine,
     build_publish_pipeline,
+    build_runtime_reader,
     build_served_catalog,
     build_tunnel_config,
     repo_root,
@@ -175,6 +176,7 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
         browser_auth=build_browser_auth(os.environ),
         kc_proxy=build_kc_proxy(os.environ),
         served_catalog=build_served_catalog(os.environ),
+        runtime=build_runtime_reader(os.environ),
     )
     uvicorn.run(
         app,
