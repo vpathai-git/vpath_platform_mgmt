@@ -196,6 +196,67 @@ the record, both already documented by the units that own them.
 - Integration: a full walk against `SimulatedEngine`, a temporary checkout and
   a fake Gitea, asserting the five stages and the resulting job record.
 
+## Findings from the real repository (checked 2026-07-31)
+
+`vpathai-git/vpathai_publish_knowledge_app` is INTERNAL, default branch
+`main`. Its root is `vpath-platform-app-template` — an npm **workspace root**
+(`"private": true`, `"workspaces": ["examples/*"]`), not an app. The apps live
+under `examples/`, and the one not yet registered here is
+`examples/vpath-knowledge-builder`. Two corrections follow.
+
+### The app is not the repository root
+
+`repo_probe.probe` reads `vpath-app.yaml`, `package.json` and
+`pyproject.toml` **at the root**. For this repository the root has no manifest
+and a workspace `package.json` with no `scripts.build`, so registration would
+refuse it as an app needing a generated manifest — which is the wrong answer,
+not a wrong repository.
+
+The registry, the probe and the pipeline therefore need a **path within the
+repository**: `PublishRequest.path`, defaulting to `""` (the root). It selects
+which directory is the app; provenance records it beside `repo`, `ref` and
+`commit`, and the send stage ships that subtree rather than the whole tree.
+
+### The SDK check is exact, not a heuristic
+
+`examples/vpath-knowledge-builder/vpath-app.yaml` declares:
+
+```yaml
+  build:
+    runtime: node
+    hash:
+      dirs: [apps_infra/apps/vpath-knowledge-builder, apps_infra/sdk]
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk
+```
+
+and its `package.json` declares `"@vpath/sdk": "file:../../kit/sdk"`.
+
+`spec.build.sdks[]` is the server pipeline's first-class SDK mapping, so both
+the second `hash.dirs` entry and the escaping dependency are **expected** —
+what is wrong is only the path. The app materializes at
+`apps_infra/apps/vpath-knowledge-builder`, from which `../../kit/sdk` resolves
+to `apps_infra/kit/sdk`, which does not exist; `../../sdk` resolves to
+`apps_infra/sdk`, which is what `sdks[].source` names. That single mismatch is
+the recorded build failure, and it is computable:
+
+> For every `spec.build.sdks[]` entry, the `file:` dependency of the same name
+> must resolve, relative to `apps_infra/apps/<name>`, to that entry's `source`.
+
+So the two preflight rules are stated exactly:
+
+- **Escaping dependency** — a `file:` path leaving the app tree is refused
+  *unless* a `spec.build.sdks[]` entry declares that dependency name, in which
+  case the resolved path must equal its `source`. The remedy names both paths:
+  "change `file:../../kit/sdk` to `file:../../sdk`".
+- **`hash.dirs`** — every entry must be either `apps_infra/apps/<name>` or the
+  `source` of a declared SDK. Hashing the SDK is correct: the app must rebuild
+  when the SDK changes.
+
+A rule that simply refused every escaping dependency would reject this app for
+a reason that is not its bug, and would still not tell the author what to fix.
+
 ## Out of scope
 
 Uninstall and rollback of a published app (the existing verbs own both),
