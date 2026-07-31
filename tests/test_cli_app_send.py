@@ -108,7 +108,7 @@ def test_bundle_of_the_prepared_tree_carries_the_manifest(
     registered: Path, tmp_path: Path
 ) -> None:
     """End of the chain: what would actually be uploaded."""
-    from vpath_platform_mgmt.cli.bundle import bundle
+    from vpath_platform_mgmt.ops.bundle import bundle
 
     tree = tmp_path / "tree"
     tree.mkdir()

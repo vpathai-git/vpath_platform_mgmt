@@ -44,11 +44,11 @@ from vpath_platform_mgmt.api.auth import BrowserAuthConfig
 from vpath_platform_mgmt.api.kc_proxy import KeycloakProxy
 from vpath_platform_mgmt.api.oidc import OidcConfig, OidcValidator
 from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
-from vpath_platform_mgmt.cli.bundle import bundle
 from vpath_platform_mgmt.ops import repo_probe
 from vpath_platform_mgmt.ops.app_preflight import require_publishable
 from vpath_platform_mgmt.ops.app_registry import AppRegistry, detect_runtime
 from vpath_platform_mgmt.ops.argocd import ArgoClient
+from vpath_platform_mgmt.ops.bundle import bundle
 from vpath_platform_mgmt.ops.engine import EngineAdapter, LocalEngine, SimulatedEngine
 from vpath_platform_mgmt.ops.gitea import GiteaClient
 from vpath_platform_mgmt.ops.gitops_engine import GitOpsEngine

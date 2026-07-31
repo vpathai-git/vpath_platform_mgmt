@@ -15,7 +15,7 @@ from pathlib import Path
 import httpx
 import typer
 
-from vpath_platform_mgmt.cli.bundle import BundleError, bundle
+from vpath_platform_mgmt.ops.bundle import BundleError, bundle
 from vpath_platform_mgmt.cli.client import ApiError
 from vpath_platform_mgmt.ops import repo_fetch, repo_probe
 from vpath_platform_mgmt.ops.app_registry import (

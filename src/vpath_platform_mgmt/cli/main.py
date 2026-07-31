@@ -15,7 +15,7 @@ import httpx
 import typer
 
 from vpath_platform_mgmt.cli import app_cmds
-from vpath_platform_mgmt.cli.bundle import BundleError, bundle, provenance_of
+from vpath_platform_mgmt.ops.bundle import BundleError, bundle, provenance_of
 from vpath_platform_mgmt.cli.auth import (
     DEFAULT_CLIENT_ID,
     AuthFlowError,
