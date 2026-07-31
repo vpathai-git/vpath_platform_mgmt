@@ -29,6 +29,11 @@ from vpath_platform_mgmt.ops.argocd import ArgoClient, ArgoError
 
 APPLICATION = "application"
 PROJECT = "project"
+# ArgoCD resource kinds that ultimately produce pods. Everything else it
+# tracks (Service, ConfigMap, NetworkPolicy) owns nothing we would list.
+WORKLOAD_KINDS = frozenset(
+    {"Deployment", "StatefulSet", "DaemonSet", "Job", "CronJob", "Rollout"}
+)
 
 
 @dataclass(frozen=True)
@@ -88,6 +93,39 @@ def destination_of(application: dict[str, Any] | None) -> str:
     return str(_as_dict(spec.get("destination")).get("namespace") or "")
 
 
+def tracked_workloads(application: dict[str, Any] | None) -> set[str]:
+    """Names of the pod-producing resources ArgoCD manages for this app."""
+    if application is None:
+        return set()
+    resources = _as_list(_as_dict(application.get("status")).get("resources"))
+    return {
+        str(_as_dict(item).get("name") or "")
+        for item in resources
+        if _as_dict(item).get("kind") in WORKLOAD_KINDS
+    }
+
+
+def owner_workload(raw: dict[str, Any]) -> str:
+    """The workload a pod belongs to, from its ownerReferences.
+
+    Name prefixes cannot do this job. Two apps share the namespace
+    ``vpath-agent-chat`` on the reference installation, and one's pods are
+    named ``vpath-agent-chat-api-<hash>`` — which begins with the other's
+    Deployment name. Ownership is exact where the name is ambiguous: a
+    ReplicaSet is named ``<deployment>-<pod-template-hash>``, so dropping
+    the final segment yields the Deployment, and a Job owns its pods
+    directly. A pod with no owner belongs to no workload, which is what
+    a project's provisioned helper pods look like.
+    """
+    for owner in _as_list(_as_dict(raw.get("metadata")).get("ownerReferences")):
+        item = _as_dict(owner)
+        name = str(item.get("name") or "")
+        if not name:
+            continue
+        return name.rsplit("-", 1)[0] if item.get("kind") == "ReplicaSet" else name
+    return ""
+
+
 class RuntimeReader:
     """Reads one app's live pods through the Kubernetes API."""
 
@@ -109,6 +147,10 @@ class RuntimeReader:
         existing = self._argo.namespaces()
         views = [self._home(app, application, existing)]
         prefix = f"kp-{app}-"
+        # Projects are deliberately unfiltered: ArgoCD does not manage a
+        # provisioned project, so nothing in one is a tracked workload and
+        # ownership filtering would empty it. A kp-<app>-<user> namespace
+        # belongs to this app by construction.
         views.extend(
             self._namespace(name, PROJECT, existing)
             for name in existing
@@ -132,7 +174,9 @@ class RuntimeReader:
         """
         home = destination_of(application)
         if home:
-            return self._namespace(home, APPLICATION, existing)
+            return self._namespace(
+                home, APPLICATION, existing, tracked_workloads(application)
+            )
         why = (
             f"there is no ArgoCD Application for '{app}'"
             if application is None
@@ -142,16 +186,23 @@ class RuntimeReader:
             "name": "",
             "kind": APPLICATION,
             "pods": None,
+            "others": 0,
             "error": f"{why}, so the namespace it deploys into is unknown",
         }
 
     def _namespace(
-        self, name: str, kind: str, existing: list[str]
+        self,
+        name: str,
+        kind: str,
+        existing: list[str],
+        owned: set[str] | None = None,
     ) -> dict[str, object]:
+        """One namespace's pods; ``owned`` keeps only this app's workloads."""
         view: dict[str, object] = {
             "name": name,
             "kind": kind,
             "pods": None,
+            "others": 0,
             "error": "",
         }
         if name not in existing:
@@ -164,7 +215,16 @@ class RuntimeReader:
             )
             return view
         try:
-            view["pods"] = [pod_view(raw).to_dict() for raw in self._argo.pods(name)]
+            found = self._argo.pods(name)
+            mine = (
+                found
+                if owned is None
+                else [raw for raw in found if owner_workload(raw) in owned]
+            )
+            view["pods"] = [pod_view(raw).to_dict() for raw in mine]
+            # Counted, never silently dropped: a filter that hides its own
+            # effect is how a pod goes missing without anyone noticing.
+            view["others"] = len(found) - len(mine)
         except ArgoError as exc:
             # pods stays None: an empty list here would claim we looked and
             # found nothing running, which is the opposite of what happened.

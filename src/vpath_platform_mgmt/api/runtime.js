@@ -70,9 +70,20 @@ function namespaceBlock(ns) {
   if (ns.pods === null) {
     return head + `<div class="ns-err">${esc(ns.error || "could not be read")}</div>`;
   }
-  if (!ns.pods.length) return head + '<div class="dim ns-empty">No pods running</div>';
+  /* Apps can share a namespace — vpath-resource-gate sits in vpath-platform
+     beside two others — so only this app's own workloads are listed. What
+     was left out is stated rather than silently dropped. */
+  const others = ns.others
+    ? `<div class="dim ns-empty">${ns.others} further pod` +
+      `${ns.others > 1 ? "s" : ""} in this namespace belong to other ` +
+      "applications</div>"
+    : "";
+  if (!ns.pods.length) {
+    return head + '<div class="dim ns-empty">No pods running</div>' + others;
+  }
   return head + '<table class="pods"><tr><th>pod</th><th>phase</th><th>ready</th>' +
-    "<th>restarts</th><th>age</th></tr>" + ns.pods.map(podRow).join("") + "</table>";
+    "<th>restarts</th><th>age</th></tr>" + ns.pods.map(podRow).join("") +
+    "</table>" + others;
 }
 
 function podsBody(d) {

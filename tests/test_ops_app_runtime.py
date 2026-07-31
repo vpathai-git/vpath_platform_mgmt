@@ -28,10 +28,20 @@ def pod(
     ready: tuple[bool, ...] = (True,),
     restarts: tuple[int, ...] = (0,),
     phase: str = "Running",
+    owner: str = "",
 ) -> dict[str, object]:
-    """One pod as the Kubernetes API returns it, trimmed to what we read."""
+    """One pod as the Kubernetes API returns it, trimmed to what we read.
+
+    ``owner`` is ``"Kind/name"`` as it appears in ownerReferences; empty
+    means an unmanaged pod, which is what a provisioned project's helper
+    pods look like on the real cluster.
+    """
+    references = []
+    if owner:
+        kind, _, owner_name = owner.partition("/")
+        references = [{"kind": kind, "name": owner_name}]
     return {
-        "metadata": {"name": name},
+        "metadata": {"name": name, "ownerReferences": references},
         "spec": {"containers": [{"name": f"c{i}"} for i in range(len(ready))]},
         "status": {
             "phase": phase,
@@ -52,8 +62,13 @@ def cluster(
     health: str = "Healthy",
     destination: str | None = APP,
     application: bool = True,
+    tracked: list[tuple[str, str]] | None = None,
 ) -> ArgoClient:
-    """A cluster whose answers depend on the path being asked for."""
+    """A cluster whose answers depend on the path being asked for.
+
+    ``tracked`` is the ArgoCD Application's ``status.resources`` as
+    ``(kind, name)`` pairs — the workloads it manages for this app.
+    """
 
     def handler(request: httpx.Request) -> httpx.Response:
         path = request.url.path
@@ -72,7 +87,14 @@ def cluster(
             spec: dict[str, object] = {}
             if destination is not None:
                 spec = {"destination": {"namespace": destination}}
-            status = {"sync": {"status": sync}, "health": {"status": health}}
+            status: dict[str, object] = {
+                "sync": {"status": sync},
+                "health": {"status": health},
+                "resources": [
+                    {"kind": kind, "name": name}
+                    for kind, name in (tracked or [("Deployment", APP)])
+                ],
+            }
             return httpx.Response(200, json={"spec": spec, "status": status})
         return httpx.Response(404)
 
@@ -188,14 +210,22 @@ def test_the_namespace_comes_from_argocd_not_from_the_apps_name() -> None:
     reader = RuntimeReader(
         cluster(
             ["vpath-apps-v2"],
-            {"vpath-apps-v2": [pod("web-1")]},
+            {
+                "vpath-apps-v2": [
+                    pod(
+                        "vpath-web-f8bd7596b-lpcnp",
+                        owner="ReplicaSet/vpath-web-f8bd7596b",
+                    )
+                ]
+            },
             destination="vpath-apps-v2",
+            tracked=[("Deployment", "vpath-web")],
         )
     )
     namespaces = reader.snapshot("vpath-web")["namespaces"]
 
     assert namespaces[0]["name"] == "vpath-apps-v2"
-    assert namespaces[0]["pods"][0]["name"] == "web-1"
+    assert namespaces[0]["pods"][0]["name"] == "vpath-web-f8bd7596b-lpcnp"
 
 
 def test_an_app_argocd_has_no_application_for_says_so() -> None:
@@ -214,6 +244,83 @@ def test_an_application_without_a_destination_namespace_is_not_guessed() -> None
     reader = RuntimeReader(cluster([APP], {APP: [pod("web-1")]}, destination=None))
 
     assert reader.snapshot(APP)["namespaces"][0]["pods"] is None
+
+
+# --- ownership --------------------------------------------------------------
+
+# The real collision on vm5: two apps share the namespace vpath-agent-chat,
+# and one's pod name is a prefix of the other's. Name matching cannot tell
+# them apart; ownerReferences can.
+CHAT = "vpath-agent-chat"
+CHAT_PODS = [
+    pod(
+        "vpath-agent-chat-5ddbcd86c7-dsq9r",
+        owner="ReplicaSet/vpath-agent-chat-5ddbcd86c7",
+    ),
+    pod(
+        "vpath-agent-chat-api-784f59cb48-v6nbk",
+        owner="ReplicaSet/vpath-agent-chat-api-784f59cb48",
+    ),
+    pod(
+        "vpath-agent-chat-api-gateway-mint-hmqcc",
+        phase="Succeeded",
+        owner="Job/vpath-agent-chat-api-gateway-mint",
+    ),
+]
+
+
+def chat_cluster(app: str, tracked: list[tuple[str, str]]) -> ArgoClient:
+    return cluster([CHAT], {CHAT: CHAT_PODS}, destination=CHAT, tracked=tracked)
+
+
+def test_a_neighbours_pod_is_not_reported_as_this_apps() -> None:
+    """vpath-agent-chat-api's pod name starts with 'vpath-agent-chat-', so a
+    name-prefix test would claim it. Its ReplicaSet resolves to a different
+    Deployment, so ownership does not."""
+    reader = RuntimeReader(chat_cluster(CHAT, [("Deployment", CHAT)]))
+    home = reader.snapshot(CHAT)["namespaces"][0]
+
+    assert [p["name"] for p in home["pods"]] == ["vpath-agent-chat-5ddbcd86c7-dsq9r"]
+
+
+def test_a_job_pod_belongs_to_the_app_that_tracks_the_job() -> None:
+    reader = RuntimeReader(
+        chat_cluster(
+            "vpath-agent-chat-api",
+            [
+                ("Deployment", "vpath-agent-chat-api"),
+                ("Job", "vpath-agent-chat-api-gateway-mint"),
+            ],
+        )
+    )
+    home = reader.snapshot("vpath-agent-chat-api")["namespaces"][0]
+
+    assert [p["name"] for p in home["pods"]] == [
+        "vpath-agent-chat-api-784f59cb48-v6nbk",
+        "vpath-agent-chat-api-gateway-mint-hmqcc",
+    ]
+
+
+def test_pods_left_out_are_counted_never_silently_dropped() -> None:
+    """Filtering that hides its own effect is how a missing pod goes unnoticed."""
+    reader = RuntimeReader(chat_cluster(CHAT, [("Deployment", CHAT)]))
+
+    assert reader.snapshot(CHAT)["namespaces"][0]["others"] == 2
+
+
+def test_a_project_namespace_is_never_filtered_by_ownership() -> None:
+    """ArgoCD does not manage provisioned projects: on vm5 the only pod in
+    one is unmanaged and untracked, so ownership filtering would empty it."""
+    reader = RuntimeReader(
+        cluster(
+            [APP, PROJECT],
+            {APP: [], PROJECT: [pod("kp-inputs-helper", phase="Succeeded")]},
+        )
+    )
+    project = reader.snapshot(APP)["namespaces"][1]
+
+    assert [p["name"] for p in project["pods"]] == ["kp-inputs-helper"]
+    assert project["others"] == 0
 
 
 def test_an_unreadable_namespace_census_fails_the_whole_snapshot() -> None:

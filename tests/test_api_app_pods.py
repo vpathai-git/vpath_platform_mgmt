@@ -49,13 +49,17 @@ def running(request: httpx.Request) -> httpx.Response:
         )
     if path.endswith("/pods"):
         namespace = path.split("/namespaces/")[1].removesuffix("/pods")
-        name = "web-1" if namespace == APP else "runner-1"
+        in_app = namespace == APP
+        name = "web-1" if in_app else "runner-1"
+        # The app's own pod is owned by the Deployment ArgoCD tracks; the
+        # project's helper pod is unmanaged, as on the real cluster.
+        owners = [{"kind": "ReplicaSet", "name": "web-6c4d9"}] if in_app else []
         return httpx.Response(
             200,
             json={
                 "items": [
                     {
-                        "metadata": {"name": name},
+                        "metadata": {"name": name, "ownerReferences": owners},
                         "spec": {"containers": [{"name": "c0"}]},
                         "status": {
                             "phase": "Running",
@@ -66,7 +70,11 @@ def running(request: httpx.Request) -> httpx.Response:
                 ]
             },
         )
-    status = {"sync": {"status": "Synced"}, "health": {"status": "Healthy"}}
+    status = {
+        "sync": {"status": "Synced"},
+        "health": {"status": "Healthy"},
+        "resources": [{"kind": "Deployment", "name": "web"}],
+    }
     spec = {"destination": {"namespace": APP}}
     return httpx.Response(200, json={"spec": spec, "status": status})
 
@@ -238,6 +246,16 @@ def test_an_app_whose_install_state_is_unknown_is_still_listed() -> None:
 
     assert "a.installed !== false" in script
     assert "install state unknown" in script
+
+
+def test_pods_belonging_to_other_apps_are_named_as_excluded() -> None:
+    """vpath-resource-gate shares vpath-platform with two other apps. Their
+    pods are filtered out, and a filter that hides its own effect is how a
+    pod goes missing without anyone noticing."""
+    script = console().get("/runtime.js").text
+
+    assert "ns.others" in script
+    assert "belong to other applications" in script
 
 
 def test_a_succeeded_pod_is_not_coloured_as_a_failure() -> None:
