@@ -50,6 +50,8 @@ def cluster(
     unreadable: str = "",
     sync: str = "Synced",
     health: str = "Healthy",
+    destination: str | None = APP,
+    application: bool = True,
 ) -> ArgoClient:
     """A cluster whose answers depend on the path being asked for."""
 
@@ -65,8 +67,13 @@ def cluster(
                 return httpx.Response(500)
             return httpx.Response(200, json={"items": pods.get(namespace, [])})
         if "/applications/" in path:
+            if not application:
+                return httpx.Response(404)
+            spec: dict[str, object] = {}
+            if destination is not None:
+                spec = {"destination": {"namespace": destination}}
             status = {"sync": {"status": sync}, "health": {"status": health}}
-            return httpx.Response(200, json={"status": status})
+            return httpx.Response(200, json={"spec": spec, "status": status})
         return httpx.Response(404)
 
     return argo(handler)
@@ -159,6 +166,41 @@ def test_an_unreadable_namespace_carries_its_error_not_an_empty_pod_list() -> No
     broken = next(n for n in namespaces if n["name"] == PROJECT)
     assert broken["error"]
     assert broken["pods"] is None  # not [], which would read as 'none running'
+
+
+def test_the_namespace_comes_from_argocd_not_from_the_apps_name() -> None:
+    """On vm5, 7 of 18 installed apps deploy into a namespace named for
+    something else — vpath-web into vpath-apps-v2, every -api app into its
+    frontend's namespace. Deriving it from the name reads the wrong pods."""
+    reader = RuntimeReader(
+        cluster(
+            ["vpath-apps-v2"],
+            {"vpath-apps-v2": [pod("web-1")]},
+            destination="vpath-apps-v2",
+        )
+    )
+    namespaces = reader.snapshot("vpath-web")["namespaces"]
+
+    assert namespaces[0]["name"] == "vpath-apps-v2"
+    assert namespaces[0]["pods"][0]["name"] == "web-1"
+
+
+def test_an_app_argocd_has_no_application_for_says_so() -> None:
+    """Guessing <app> as the namespace here is how you report another app's
+    pods, or an absent namespace, as this one's."""
+    reader = RuntimeReader(cluster([APP], {APP: [pod("web-1")]}, application=False))
+    snapshot = reader.snapshot(APP)
+
+    home = snapshot["namespaces"][0]
+    assert home["pods"] is None
+    assert "no ArgoCD Application" in home["error"]
+    assert snapshot["sync"] == "absent"
+
+
+def test_an_application_without_a_destination_namespace_is_not_guessed() -> None:
+    reader = RuntimeReader(cluster([APP], {APP: [pod("web-1")]}, destination=None))
+
+    assert reader.snapshot(APP)["namespaces"][0]["pods"] is None
 
 
 def test_an_unreadable_namespace_census_fails_the_whole_snapshot() -> None:

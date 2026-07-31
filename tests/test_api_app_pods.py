@@ -67,7 +67,8 @@ def running(request: httpx.Request) -> httpx.Response:
             },
         )
     status = {"sync": {"status": "Synced"}, "health": {"status": "Healthy"}}
-    return httpx.Response(200, json={"status": status})
+    spec = {"destination": {"namespace": APP}}
+    return httpx.Response(200, json={"spec": spec, "status": status})
 
 
 def client_for(runtime: RuntimeReader | None, installed: list[str]) -> TestClient:
@@ -169,6 +170,27 @@ def test_a_runtime_reader_is_built_from_the_cluster_settings() -> None:
     assert isinstance(built, RuntimeReader)
 
 
+def test_the_app_list_names_everything_the_server_has_installed() -> None:
+    """The catalog is this repo's apps/ folder; the server runs its own set.
+
+    On vm5 the two overlap in exactly one app out of eighteen, so a runtime
+    view built from the catalog alone shows 1/18 of what is running.
+    """
+    service = OpsService(ReportingEngine(["vpath-explorer", "vpath-web"]))
+    client = TestClient(create_app(service))
+
+    body = client.get("/api/apps", headers=DEV).json()
+
+    assert body["installed_apps"] == ["vpath-explorer", "vpath-web"]
+
+
+def test_an_unknown_installed_set_is_null_not_an_empty_list() -> None:
+    """[] would say 'the server runs nothing', which nobody established."""
+    client = TestClient(create_app(OpsService(SimulatedEngine())))
+
+    assert client.get("/api/apps", headers=DEV).json()["installed_apps"] is None
+
+
 # --- the console surface ----------------------------------------------------
 
 
@@ -216,3 +238,12 @@ def test_an_app_whose_install_state_is_unknown_is_still_listed() -> None:
 
     assert "a.installed !== false" in script
     assert "install state unknown" in script
+
+
+def test_the_section_lists_installed_apps_the_catalog_has_never_heard_of() -> None:
+    """17 of vm5's 18 installed apps have no entry in this repo's apps/."""
+    script = console().get("/runtime.js").text
+
+    assert "function runningRows(" in script
+    assert "INSTALLED" in script  # the server's set drives the list
+    assert "not in the catalog" in script  # and says so for the strangers

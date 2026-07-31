@@ -87,6 +87,13 @@ def _register_catalog(
         return {
             "platform_url": platform_url,
             "apps": apps,
+            # The names, not just the count: the server's installed set and
+            # this repo's apps/ folder are different populations, and on a
+            # real installation most of what runs has no catalog entry. A
+            # runtime view built from the catalog alone would show a
+            # fraction of it. None stays None — an empty list would say the
+            # server runs nothing, which is not what 'cannot ask' means.
+            "installed_apps": installed,
             "installed_known": installed is not None,
             "catalog": _catalog_state(entries, installed, served),
         }

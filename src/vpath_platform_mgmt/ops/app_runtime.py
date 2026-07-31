@@ -80,6 +80,14 @@ def pod_view(raw: dict[str, Any]) -> PodView:
     )
 
 
+def destination_of(application: dict[str, Any] | None) -> str:
+    """The namespace an ArgoCD Application deploys into, or ``""``."""
+    if application is None:
+        return ""
+    spec = _as_dict(application.get("spec"))
+    return str(_as_dict(spec.get("destination")).get("namespace") or "")
+
+
 class RuntimeReader:
     """Reads one app's live pods through the Kubernetes API."""
 
@@ -94,19 +102,45 @@ class RuntimeReader:
         pod is absent when it was merely never looked for. A failure to read
         one namespace's pods is narrower and is reported per namespace.
         """
-        sync, health = ArgoClient.status_of(self._argo.application(app))
-        namespaces = [app, *self._argo.app_namespaces(app)]
+        application = self._argo.application(app)
+        sync, health = ArgoClient.status_of(application)
+        views = [self._home(app, application)]
+        views.extend(
+            self._namespace(name, PROJECT) for name in self._argo.app_namespaces(app)
+        )
+        return {"app": app, "sync": sync, "health": health, "namespaces": views}
+
+    def _home(self, app: str, application: dict[str, Any] | None) -> dict[str, object]:
+        """The namespace this app deploys into, per ArgoCD — never guessed.
+
+        An app's name is not its namespace. On the reference installation 7
+        of 18 installed apps deploy somewhere else: ``vpath-web`` into
+        ``vpath-apps-v2``, ``vpath-resource-gate`` into ``vpath-platform``,
+        and every ``<app>-api`` into its frontend's namespace. Deriving the
+        namespace from the name therefore reads another app's pods, or an
+        absent namespace, for more than a third of a real fleet. ArgoCD's
+        ``spec.destination.namespace`` is the authority, and when there is no
+        Application to ask, the answer is that we do not know.
+        """
+        home = destination_of(application)
+        if home:
+            return self._namespace(home, APPLICATION)
+        why = (
+            f"there is no ArgoCD Application for '{app}'"
+            if application is None
+            else f"the ArgoCD Application for '{app}' names no destination namespace"
+        )
         return {
-            "app": app,
-            "sync": sync,
-            "health": health,
-            "namespaces": [self._namespace(app, name) for name in namespaces],
+            "name": "",
+            "kind": APPLICATION,
+            "pods": None,
+            "error": f"{why}, so the namespace it deploys into is unknown",
         }
 
-    def _namespace(self, app: str, name: str) -> dict[str, object]:
+    def _namespace(self, name: str, kind: str) -> dict[str, object]:
         view: dict[str, object] = {
             "name": name,
-            "kind": APPLICATION if name == app else PROJECT,
+            "kind": kind,
             "pods": None,
             "error": "",
         }

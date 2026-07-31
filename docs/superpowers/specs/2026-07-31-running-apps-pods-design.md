@@ -45,6 +45,53 @@ the trade-off that was accepted.
    Upgrade trigger: an observed `app.kubernetes.io/component` label on the
    real cluster.
 
+## What the cluster corrected (2026-07-31)
+
+Three assumptions in the decisions above were tested against vm5 and two of
+them were wrong. Recorded here rather than silently edited, because the wrong
+version is the one a reader would otherwise reinvent.
+
+1. **An app's name is not its namespace.** 7 of the 18 installed apps deploy
+   somewhere else: `vpath-web` → `vpath-apps-v2`, `vpath-resource-gate` →
+   `vpath-platform`, and every `<app>-api` into its frontend's namespace
+   (`vpath-agent-chat-api` → `vpath-agent-chat`). The namespace now comes from
+   ArgoCD's `spec.destination.namespace`, and an app with no Application says
+   its namespace is unknown rather than guessing. This also answers the
+   original "frontend pod, backend pod" question: on this installation those
+   are two separately installed *apps* sharing one namespace.
+
+2. **The runtime list must come from the InstalledSet, not the catalog.**
+   This repo's `apps/` holds 6 apps; the server runs 18; they overlap in
+   exactly one (`vpath-explorer`). A section built from the catalog showed
+   1/18 of what was running, and hid the only app with a project namespace.
+   `/api/apps` now carries `installed_apps`, and an installed app with no
+   catalog entry gets a row marked *not in the catalog*.
+
+3. **The Kubernetes token cannot list pods.** Confirmed, not inferred: the
+   console runs as `system:serviceaccount:vpath-platform:vpath-mgmt-console`,
+   whose ClusterRole `vpath-mgmt-console-read` grants `argoproj.io`
+   applications/applicationsets and `namespaces: list` — nothing else. Pods,
+   services, deployments, replicasets and events are all denied. This is the
+   one open blocker; see *Required cluster grant* below.
+
+## Required cluster grant
+
+The feature needs one verb the console does not have. Least privilege, no
+`get`, no `pods/log`, no write:
+
+```yaml
+- apiGroups: [""]
+  resources: [pods]
+  verbs: [list]
+```
+
+Two facts about the target make this a decision rather than a chore. The
+ClusterRole carries a `kubectl.kubernetes.io/last-applied-configuration`
+annotation and no ArgoCD tracking labels, and `grep -r vpath-mgmt-console
+/workspace` finds nothing — so the console's own RBAC was applied by hand and
+lives in **no** source of truth. Extending it in place perpetuates that;
+putting it under version control first is the larger, better change.
+
 ## What is shown
 
 A `Running applications` section below the existing `Applications` block on the

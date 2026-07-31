@@ -92,13 +92,27 @@ function toggleApp(name) {
   if (openApp) loadPods(openApp);
 }
 
-/* An app whose install state is unknown stays in the list saying so. Hiding
-   it would assert it is not running, which nobody established — the same
-   rule the store follows for its Install button. */
-function runningSummary(apps) {
-  if (apps.some((a) => a.installed === null)) return "install state unknown";
-  return apps.filter((a) => a.installed === true).length + " of " +
-    apps.length + " installed";
+/* What the SERVER has installed drives this list, not this repo's apps/
+   folder. The two are different populations: on the reference installation
+   they overlap in one app out of eighteen, so a runtime view built from the
+   catalog would show a twentieth of what is actually running. The catalog is
+   joined in only for titles, and an installed app it has never heard of
+   still gets a row. */
+function runningRows(apps, installed) {
+  if (installed === null) return apps.filter((a) => a.installed !== false);
+  const known = {};
+  apps.forEach((a) => { known[a.name] = a; });
+  return installed.map((name) => known[name] ||
+    {name: name, title: name, installed: true, stranger: true});
+}
+
+/* An unknown install state is said plainly rather than counted: hiding those
+   apps would assert they are not running, which nobody established. */
+function runningSummary(apps, installed) {
+  if (installed === null) return "install state unknown";
+  const strangers = installed.filter((n) => !apps.some((a) => a.name === n)).length;
+  return installed.length + " installed" +
+    (strangers ? ` · ${strangers} not in the catalog` : "");
 }
 
 function runningRow(a) {
@@ -108,7 +122,9 @@ function runningRow(a) {
     `<span class="caret">${open ? "▾" : "▸"}</span>` +
     `<span class="chip ${known ? "ok" : "q"}">${known ? "running" : "unknown"}</span>` +
     `<span class="nm">${esc(a.title || a.name)}</span>` +
-    `<span class="mono dim">${esc(a.name)}</span></div>` +
+    `<span class="mono dim">${esc(a.name)}</span>` +
+    (a.stranger ? '<span class="mono dim">not in the catalog</span>' : "") +
+    "</div>" +
     `<div class="run-detail" id="pods-${esc(a.name)}"${open ? "" : " hidden"}>` +
     (open ? '<div class="dim">Reading the cluster…</div>' : "") + "</div></div>";
 }
@@ -116,8 +132,8 @@ function runningRow(a) {
 function renderRunning(apps) {
   const host = $("running");
   if (!host) return;
-  $("running-count").textContent = runningSummary(apps);
-  const rows = apps.filter((a) => a.installed !== false);
+  $("running-count").textContent = runningSummary(apps, INSTALLED);
+  const rows = runningRows(apps, INSTALLED);
   if (!rows.length) {
     host.innerHTML = '<div class="dim">No applications are installed here</div>';
     return;

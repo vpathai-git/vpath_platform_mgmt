@@ -8,6 +8,9 @@
  */
 
 let APPS = [];
+/* The names the SERVER reports installed, or null when it cannot say. A
+   different population from APPS, which is this repo's apps/ folder. */
+let INSTALLED = null;
 let PLATFORM = "";
 let selectedApp = null;
 
@@ -168,6 +171,7 @@ async function loadApps() {
   if (!r.ok) return;
   const d = await r.json();
   APPS = d.apps || [];
+  INSTALLED = d.installed_apps === undefined ? null : d.installed_apps;
   PLATFORM = d.platform_url || "";
   fillAppPicker();
   showCatalogState(d.catalog);
