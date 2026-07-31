@@ -20,6 +20,7 @@ class FakeRegistry:
     def __init__(self, root: Path) -> None:
         self.root = root
         self.registered: list[str] = []
+        self.paths: list[str] = []
 
     def entries(self) -> list[dict[str, object]]:
         found = []
@@ -30,6 +31,7 @@ class FakeRegistry:
 
     def register(self, repo, ref, commit, tree, generate=None, replace=False, path=""):
         self.registered.append(f"{repo}@{commit}")
+        self.paths.append(path)
         target = self.root / "demo-app"
         target.mkdir(parents=True, exist_ok=True)
         (target / "vpath-app.yaml").write_text("kind: VpathApp\n", encoding="utf-8")
@@ -201,7 +203,7 @@ def test_the_subtree_named_by_path_is_what_is_sent(tmp_path: Path) -> None:
         (root / "examples" / "demo-app").mkdir(parents=True)
         return root
 
-    pipeline, _ = build(
+    pipeline, parts = build(
         tmp_path,
         download=download,
         bundle=lambda path: (packed.append(Path(path)), b"tar")[1],
@@ -218,6 +220,7 @@ def test_the_subtree_named_by_path_is_what_is_sent(tmp_path: Path) -> None:
     assert packed
     assert packed[0].name == "demo-app"
     assert packed[0].parent.name == "examples"
+    assert parts["registry"].paths == ["examples/demo-app"]
 
 
 def test_a_path_that_is_not_in_the_repository_is_refused(tmp_path: Path) -> None:
