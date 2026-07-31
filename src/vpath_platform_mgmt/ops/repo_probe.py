@@ -44,6 +44,7 @@ class Probed:
     ref: str
     commit: str
     files: dict[str, str] = field(default_factory=dict)
+    path: str = ""
 
     @property
     def repo_url(self) -> str:
@@ -98,16 +99,23 @@ def read_file(slug: str, ref: str, path: str, runner: Runner = run) -> str | Non
         raise FetchError(f"{slug}: {path} is not readable text ({exc})") from exc
 
 
-def probe(url: str, ref: str = "main", runner: Runner = run) -> Probed:
-    """Resolve the commit and read the files registration depends on."""
+def probe(url: str, ref: str = "main", runner: Runner = run, path: str = "") -> Probed:
+    """Resolve the commit and read the files registration depends on.
+
+    ``path`` selects the app within the repository. An organisation repository
+    is often a workspace whose root is not an app at all, and reading its root
+    would describe the workspace rather than the app -- so the caller says
+    which directory it means, and empty means the repository itself.
+    """
     slug = parse_slug(url)
     commit = resolve_commit(slug, ref, runner)
+    prefix = path.strip("/")
     found = {}
     for name in PROBE_FILES:
-        text = read_file(slug, ref, name, runner)
+        text = read_file(slug, ref, f"{prefix}/{name}" if prefix else name, runner)
         if text is not None:
             found[name] = text
-    return Probed(slug=slug, ref=ref, commit=commit, files=found)
+    return Probed(slug=slug, ref=ref, commit=commit, files=found, path=prefix)
 
 
 def materialise(probed: Probed, into: Path) -> Path:

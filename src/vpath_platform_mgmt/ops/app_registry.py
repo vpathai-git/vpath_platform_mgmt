@@ -151,6 +151,7 @@ class AppRegistry:
         tree: Path,
         generate: Generated | None = None,
         replace: bool = False,
+        path: str = "",
     ) -> Registration:
         """Write one app entry from an already-fetched tree."""
         upstream_manifest = Path(tree) / MANIFEST_NAME
@@ -180,7 +181,15 @@ class AppRegistry:
                 f"'{name}' is already registered — pass --replace to overwrite it"
             )
         self._check_port(text, name)
-        self._write(target, text, repo=repo, ref=ref, commit=commit, origin=origin)
+        self._write(
+            target,
+            text,
+            repo=repo,
+            ref=ref,
+            commit=commit,
+            origin=origin,
+            path=path,
+        )
         self._verify_readable(name, target)
         return Registration(name, target, origin, commit)
 
@@ -211,6 +220,7 @@ class AppRegistry:
             ref=str(previous.get("ref", "main")),
             commit=commit,
             origin=origin,
+            path=str(previous.get("path", "")),
         )
         self._verify_readable(name, target)
         return Registration(name, target, origin, commit)
@@ -253,6 +263,7 @@ class AppRegistry:
         ref: str,
         commit: str,
         origin: str,
+        path: str = "",
     ) -> None:
         target.mkdir(parents=True, exist_ok=True)
         (target / MANIFEST_NAME).write_text(manifest_text, encoding="utf-8")
@@ -260,6 +271,7 @@ class AppRegistry:
             "repo": repo,
             "ref": ref,
             "commit": commit,
+            "path": path,
             "manifest_origin": origin,
             "added_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         }

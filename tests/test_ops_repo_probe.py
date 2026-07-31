@@ -98,3 +98,49 @@ def test_materialise_hands_the_registry_an_ordinary_directory(tmp_path: Path) ->
         tmp_path / "probed",
     )
     assert (target / "vpath-app.yaml").read_text(encoding="utf-8") == MANIFEST
+
+
+def test_the_app_may_live_in_a_subdirectory_of_the_repository() -> None:
+    """A workspace root is not an app; examples/<app> is."""
+    _, runner = responder(
+        {
+            "commits/main": RunResult(0, SHA + "\n", ""),
+            "contents/examples/vpath-knowledge-builder/vpath-app.yaml": RunResult(
+                0, encoded(MANIFEST), ""
+            ),
+        }
+    )
+
+    probed = probe(
+        "github.com/org/repo",
+        "main",
+        runner,
+        path="examples/vpath-knowledge-builder",
+    )
+
+    assert probed.path == "examples/vpath-knowledge-builder"
+    assert probed.files == {"vpath-app.yaml": MANIFEST}
+
+
+def test_a_probe_without_a_path_still_reads_the_repository_root() -> None:
+    _, runner = responder(
+        {
+            "commits/main": RunResult(0, SHA + "\n", ""),
+            "contents/vpath-app.yaml": RunResult(0, encoded(MANIFEST), ""),
+        }
+    )
+
+    probed = probe("github.com/org/repo", "main", runner)
+
+    assert probed.path == ""
+    assert probed.files == {"vpath-app.yaml": MANIFEST}
+
+
+def test_a_path_a_human_pasted_with_slashes_asks_a_clean_url() -> None:
+    seen, runner = responder({"commits/main": RunResult(0, SHA + "\n", "")})
+
+    probe("github.com/org/repo", "main", runner, path="/examples/app/")
+
+    asked = [part for argv in seen for part in argv if "contents/" in part]
+    assert asked
+    assert all("contents/examples/app/" in part for part in asked)

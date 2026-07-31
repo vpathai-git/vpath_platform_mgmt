@@ -184,6 +184,60 @@ def test_entries_lists_registered_apps_with_provenance(tmp_path: Path) -> None:
     assert listed[0]["manifest_origin"] == GENERATED
 
 
+def test_provenance_records_which_directory_of_the_repo_is_the_app(
+    tmp_path: Path,
+) -> None:
+    """A later refresh has to look in the same place, and only this says where."""
+    result = registry(tmp_path).register(
+        REPO,
+        "main",
+        COMMIT,
+        tree(tmp_path, UPSTREAM_MANIFEST),
+        path="examples/vpath-knowledge-builder",
+    )
+
+    recorded = yaml.safe_load(
+        (result.directory / PROVENANCE_NAME).read_text(encoding="utf-8")
+    )
+    assert recorded["path"] == "examples/vpath-knowledge-builder"
+
+
+def test_a_repository_that_is_itself_the_app_records_an_empty_path(
+    tmp_path: Path,
+) -> None:
+    result = registry(tmp_path).register(
+        REPO, "main", COMMIT, tree(tmp_path, UPSTREAM_MANIFEST)
+    )
+
+    recorded = yaml.safe_load(
+        (result.directory / PROVENANCE_NAME).read_text(encoding="utf-8")
+    )
+    assert recorded["path"] == ""
+
+
+def test_refresh_keeps_the_directory_the_app_was_registered_from(
+    tmp_path: Path,
+) -> None:
+    store = registry(tmp_path)
+    result = store.register(
+        REPO,
+        "main",
+        COMMIT,
+        tree(tmp_path, UPSTREAM_MANIFEST),
+        path="examples/vpath-knowledge-builder",
+    )
+
+    later = tmp_path / "clone2"
+    later.mkdir()
+    store.refresh(result.name, later, "d" * 40)
+
+    recorded = yaml.safe_load(
+        (result.directory / PROVENANCE_NAME).read_text(encoding="utf-8")
+    )
+    assert recorded["path"] == "examples/vpath-knowledge-builder"
+    assert recorded["commit"] == "d" * 40
+
+
 def test_runtime_detection_refuses_to_guess(tmp_path: Path) -> None:
     assert detect_runtime(tree(tmp_path, runtime_file="package.json")) == "node"
 
