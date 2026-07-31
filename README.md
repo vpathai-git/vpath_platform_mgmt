@@ -143,6 +143,7 @@ prints a greeting; the real surfaces are the two above.
 
 | Read this | When |
 |---|---|
+| [`docs/INSTALLING_THE_CONSOLE.md`](docs/INSTALLING_THE_CONSOLE.md) | installing it and pointing it at a real instance |
 | [`docs/ADDING_AN_APP.md`](docs/ADDING_AN_APP.md) | turning an organization's repository into a running app |
 | [`docs/PLATFORM_FUNCTIONS.md`](docs/PLATFORM_FUNCTIONS.md) | which verb exists, its role gate and lock scope |
 | [`docs/USER_ACCESS.md`](docs/USER_ACCESS.md) | what a user may do, and how they get in |
