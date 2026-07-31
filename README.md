@@ -104,15 +104,55 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 make install-dev
 ```
 
-### Running the Placeholder Module
+### Running the console
+
+The console drives exactly one platform instance, named on the command line.
+`--instance vm5` loads the gitignored `.env.vm5` profile beside this README —
+copy `.env.console.example` to create one. Naming the instance is deliberate:
+silently guessing which box a console talks to is the most expensive mistake
+this tooling can make.
 
 ```bash
-vpath-platform-mgmt             # console script
-python -m vpath_platform_mgmt   # as a module
-make run                        # via make
+vpath-console --instance vm5    # http://127.0.0.1:8765
+vpath-console                   # no profile: simulated engine, no real box
 ```
 
-Prints a placeholder greeting — replace with real code.
+Everything it reaches — Gitea, the Kubernetes API, Keycloak — sits inside the
+platform's private network, so a real instance also needs that network
+reachable (on the box, or through the operator's SSH tunnel; the console
+offers a **Start tunnel** button for the one failure that fixes).
+
+### Running the CLI
+
+Same gates, same service layer, no console:
+
+```bash
+vpath doctor                    # layered reachability; prints the first fix
+vpath status                    # engine, recent jobs, held locks
+vpath app add github.com/org/repo --ref main
+vpath deploy <app>
+```
+
+`vpath --help` lists the rest. The CLI and the console cannot disagree: every
+gate lives in the service layer, never in a command or an endpoint.
+
+The `vpath-platform-mgmt` entry point is still the template's placeholder and
+prints a greeting; the real surfaces are the two above.
+
+## Documentation
+
+| Read this | When |
+|---|---|
+| [`docs/ADDING_AN_APP.md`](docs/ADDING_AN_APP.md) | turning an organization's repository into a running app |
+| [`docs/PLATFORM_FUNCTIONS.md`](docs/PLATFORM_FUNCTIONS.md) | which verb exists, its role gate and lock scope |
+| [`docs/USER_ACCESS.md`](docs/USER_ACCESS.md) | what a user may do, and how they get in |
+| [`docs/ACCESS_MECHANISM.md`](docs/ACCESS_MECHANISM.md) | how that access actually works, and why it is safe |
+| [`docs/INSTANCES.md`](docs/INSTANCES.md) | what an instance is and how one is registered |
+| [`context/CHECKLIST.md`](context/CHECKLIST.md) | finishing a change: the done/commit/release gate |
+| [`docs/superpowers/specs/`](docs/superpowers/specs/) | why a design is the way it is, with the trade-off accepted |
+
+Docs marked *design specification* describe intent; `ADDING_AN_APP.md` is
+marked *implemented* and its values were checked against the code.
 
 ## Development
 
