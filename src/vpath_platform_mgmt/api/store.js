@@ -171,6 +171,7 @@ async function loadApps() {
   PLATFORM = d.platform_url || "";
   fillAppPicker();
   showCatalogState(d.catalog);
+  renderRunning(APPS);
   const list = $("applist");
   list.innerHTML = "";
   if (!APPS.length) {

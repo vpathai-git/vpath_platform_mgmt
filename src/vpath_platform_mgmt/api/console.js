@@ -17,6 +17,7 @@ function showDash() {
   document.querySelectorAll(".app-row").forEach((e) => e.classList.remove("sel"));
 }
 function showApp() {
+  collapsePods();
   $("view-app").classList.add("on");
   $("view-dash").classList.remove("on");
   $("nav-dash").classList.remove("sel");

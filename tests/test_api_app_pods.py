@@ -11,6 +11,7 @@ from vpath_platform_mgmt.api.app import create_app
 from vpath_platform_mgmt.ops import OpsService, SimulatedEngine
 from vpath_platform_mgmt.ops.app_runtime import RuntimeReader
 from vpath_platform_mgmt.ops.argocd import ArgoClient
+from vpath_platform_mgmt.ops.engine import EngineFailure
 
 DEV = {"X-Dev-Actor": "alice", "X-Dev-Role": "admin"}
 APP_DEV = {"X-Dev-Actor": "bob", "X-Dev-Role": "app-dev"}
@@ -116,6 +117,21 @@ def test_an_unreachable_cluster_reports_the_reason_not_an_empty_list() -> None:
     assert "no route to host" in response.json()["detail"]
 
 
+def test_an_unreadable_installed_set_refuses_rather_than_guessing() -> None:
+    """Without the InstalledSet we cannot tell 'not installed' from 'cannot ask'."""
+
+    class BrokenEngine(SimulatedEngine):
+        def installed_apps(self) -> list[str]:
+            raise EngineFailure("gitea unreachable")
+
+    service = OpsService(BrokenEngine())
+    client = TestClient(create_app(service, runtime=reader(running)))
+    response = client.get(f"/api/apps/{APP}/pods", headers=DEV)
+
+    assert response.status_code == 502
+    assert "gitea unreachable" in response.json()["detail"]
+
+
 def test_reading_pods_needs_no_more_than_the_right_to_list_apps() -> None:
     """Pod state is read-only cluster state; it is not an admin secret."""
     response = client_for(reader(running), [APP]).get(
@@ -151,3 +167,52 @@ def test_a_runtime_reader_is_built_from_the_cluster_settings() -> None:
     )
 
     assert isinstance(built, RuntimeReader)
+
+
+# --- the console surface ----------------------------------------------------
+
+
+def console() -> TestClient:
+    return TestClient(create_app(OpsService(SimulatedEngine())))
+
+
+def test_the_dashboard_carries_a_running_applications_section() -> None:
+    page = console().get("/").text
+
+    assert 'id="running"' in page
+    assert 'id="running-count"' in page
+    assert '<script src="/runtime.js"></script>' in page
+
+
+def test_the_runtime_script_is_served_as_javascript() -> None:
+    response = console().get("/runtime.js")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("application/javascript")
+
+
+def test_pods_are_read_only_while_a_row_is_expanded() -> None:
+    """A collapsed list must cost the cluster nothing."""
+    script = console().get("/runtime.js").text
+
+    assert "function toggleApp(" in script
+    assert "/pods" in script
+    assert "clearTimeout(podTimer)" in script
+    assert "if (openApp === name) podTimer = setTimeout(" in script
+
+
+def test_a_namespace_that_could_not_be_read_is_never_drawn_as_empty() -> None:
+    """'we could not ask' and 'nothing runs here' must not look alike."""
+    script = console().get("/runtime.js").text
+
+    unreadable = script.index("ns.pods === null")
+    empty = script.index("No pods running")
+    assert unreadable < empty  # the error branch wins before emptiness is claimed
+
+
+def test_an_app_whose_install_state_is_unknown_is_still_listed() -> None:
+    """Hiding it would assert it is not running, which nobody established."""
+    script = console().get("/runtime.js").text
+
+    assert "a.installed !== false" in script
+    assert "install state unknown" in script

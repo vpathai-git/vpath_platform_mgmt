@@ -42,6 +42,7 @@ ASSET_TYPES = {
     "console.js": "application/javascript",
     "auth.js": "application/javascript",
     "store.js": "application/javascript",
+    "runtime.js": "application/javascript",
 }
 
 
