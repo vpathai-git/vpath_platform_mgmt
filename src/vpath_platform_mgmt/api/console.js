@@ -66,23 +66,28 @@ async function publishApp(event) {
         title: value("add-app-title"),
       }
     : null;
-  const r = await fetch("/api/apps/publish", {
-    method: "POST", headers: hdrs(),
-    body: JSON.stringify({
-      url: value("add-app-url"),
-      ref: value("add-app-ref") || "main",
-      path: value("add-app-path"),
-      name: value("add-app-name"),
-      generate: generate,
-    }),
-  });
-  const d = await r.json();
-  if (!r.ok) {
-    error.textContent = d.detail || "error";
+  try {
+    const r = await fetch("/api/apps/publish", {
+      method: "POST", headers: hdrs(),
+      body: JSON.stringify({
+        url: value("add-app-url"),
+        ref: value("add-app-ref") || "main",
+        path: value("add-app-path"),
+        name: value("add-app-name"),
+        generate: generate,
+      }),
+    });
+    const d = await r.json();
+    if (!r.ok) {
+      error.textContent = d.detail || "error";
+      error.hidden = false;
+      return;
+    }
+    $("add-app").reset();
+  } catch (e) {
+    error.textContent = String(e.message || e);
     error.hidden = false;
-    return;
   }
-  $("add-app").reset();
 }
 $("add-app").addEventListener("submit", publishApp);
 
