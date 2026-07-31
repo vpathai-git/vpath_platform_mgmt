@@ -42,6 +42,20 @@ class TunnelError(Exception):
     """The tunnel is not configured, or would not come up."""
 
 
+def _parse_port(env: Mapping[str, str], name: str, default: int) -> int:
+    """Parse and validate a port number from environment, or refuse with TunnelError.
+
+    Uses int() for validation so all non-numeric values (including Unicode
+    digits that isdigit() would accept but int() rejects) are caught uniformly.
+    """
+    raw = env.get(name, "") or str(default)
+    try:
+        port = int(raw)
+    except ValueError:
+        raise TunnelError(f"{name} is not a port number: {raw!r}")
+    return port
+
+
 @dataclass(frozen=True)
 class TunnelConfig:
     """Where the tunnel goes, and which local port it opens."""
@@ -94,20 +108,12 @@ def from_env(env: Mapping[str, str]) -> TunnelConfig:
             + ", ".join(missing)
             + ") — add them to its .env profile, or start the tunnel yourself"
         )
-    raw_port = env.get("VPATH_MGMT_TUNNEL_PORT", "") or str(DEFAULT_SOCKS_PORT)
-    if not raw_port.isdigit():
-        raise TunnelError(f"VPATH_MGMT_TUNNEL_PORT is not a port number: {raw_port!r}")
-    raw_ops = env.get("VPATH_MGMT_TUNNEL_OPS_PORT", "") or "0"
-    if not raw_ops.isdigit():
-        raise TunnelError(
-            f"VPATH_MGMT_TUNNEL_OPS_PORT is not a port number: {raw_ops!r}"
-        )
     return TunnelConfig(
         host=env["VPATH_MGMT_SSH_HOST"],
         user=env["VPATH_MGMT_SSH_USER"],
         key=env["VPATH_MGMT_SSH_KEY"],
-        port=int(raw_port),
-        ops_port=int(raw_ops),
+        port=_parse_port(env, "VPATH_MGMT_TUNNEL_PORT", DEFAULT_SOCKS_PORT),
+        ops_port=_parse_port(env, "VPATH_MGMT_TUNNEL_OPS_PORT", 0),
     )
 
 

@@ -177,3 +177,17 @@ def test_from_env_refuses_a_non_numeric_ops_port() -> None:
                 "VPATH_MGMT_TUNNEL_OPS_PORT": "eight",
             }
         )
+
+
+def test_from_env_refuses_unicode_digits_that_pass_isdigit() -> None:
+    from vpath_platform_mgmt.ops.tunnel import TunnelError, from_env
+
+    with pytest.raises(TunnelError, match="VPATH_MGMT_TUNNEL_OPS_PORT"):
+        from_env(
+            {
+                "VPATH_MGMT_SSH_HOST": "box",
+                "VPATH_MGMT_SSH_USER": "ops",
+                "VPATH_MGMT_SSH_KEY": "k",
+                "VPATH_MGMT_TUNNEL_OPS_PORT": "²",
+            }
+        )
