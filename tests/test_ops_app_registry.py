@@ -238,6 +238,44 @@ def test_refresh_keeps_the_directory_the_app_was_registered_from(
     assert recorded["commit"] == "d" * 40
 
 
+def test_refresh_of_a_pre_task_3_entry_reads_no_path_as_the_repository_root(
+    tmp_path: Path,
+) -> None:
+    """Every app registered before this feature has no ``path`` key at all.
+
+    Writes a ``vpath-source.yaml`` exactly as it looked before this task --
+    with no ``path`` key -- directly into the app's directory, then refreshes
+    it. ``previous.get("path", "")`` must keep reading that as the repository
+    root; a future ``previous["path"]`` would raise ``KeyError`` here.
+    """
+    apps = tmp_path / "apps"
+    apps.mkdir()
+    store = AppRegistry(apps)
+    legacy_manifest = UPSTREAM_MANIFEST.replace("vpath-authored", "vpath-legacy")
+
+    target = apps / "vpath-legacy"
+    target.mkdir()
+    (target / MANIFEST_NAME).write_text(legacy_manifest, encoding="utf-8")
+    (target / PROVENANCE_NAME).write_text(
+        yaml.safe_dump(
+            {
+                "repo": REPO,
+                "ref": "main",
+                "commit": COMMIT,
+                "manifest_origin": UPSTREAM,
+                "added_at": "2026-01-01T00:00:00Z",
+            },
+            sort_keys=False,
+        ),
+        encoding="utf-8",
+    )
+
+    store.refresh("vpath-legacy", tree(tmp_path, legacy_manifest), "d" * 40)
+
+    recorded = yaml.safe_load((target / PROVENANCE_NAME).read_text(encoding="utf-8"))
+    assert recorded["path"] == ""
+
+
 def test_runtime_detection_refuses_to_guess(tmp_path: Path) -> None:
     assert detect_runtime(tree(tmp_path, runtime_file="package.json")) == "node"
 

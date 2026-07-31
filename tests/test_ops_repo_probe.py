@@ -144,3 +144,31 @@ def test_a_path_a_human_pasted_with_slashes_asks_a_clean_url() -> None:
     asked = [part for argv in seen for part in argv if "contents/" in part]
     assert asked
     assert all("contents/examples/app/" in part for part in asked)
+
+
+def test_a_query_string_smuggled_in_the_path_is_refused_not_forwarded() -> None:
+    """A stray '?' would become the URL's first '?', hijacking ``ref``."""
+    seen, runner = responder({"commits/main": RunResult(0, SHA + "\n", "")})
+
+    with pytest.raises(FetchError, match="not a usable path"):
+        probe("github.com/org/repo", "main", runner, path="app?ref=malicious&x=")
+
+    assert seen == []  # refused before any credentialed call is made
+
+
+def test_a_path_that_walks_out_of_the_repository_is_refused() -> None:
+    seen, runner = responder({"commits/main": RunResult(0, SHA + "\n", "")})
+
+    with pytest.raises(FetchError, match="not a usable path"):
+        probe("github.com/org/repo", "main", runner, path="examples/../secrets")
+
+    assert seen == []
+
+
+def test_a_path_with_a_backslash_is_refused() -> None:
+    seen, runner = responder({"commits/main": RunResult(0, SHA + "\n", "")})
+
+    with pytest.raises(FetchError, match="not a usable path"):
+        probe("github.com/org/repo", "main", runner, path="examples\\app")
+
+    assert seen == []

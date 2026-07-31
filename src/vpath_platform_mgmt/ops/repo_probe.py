@@ -22,6 +22,7 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import re
 import subprocess
 import tarfile
 from collections.abc import Sequence
@@ -34,6 +35,7 @@ PROBE_FILES = ("vpath-app.yaml", "package.json", "pyproject.toml")
 API_TIMEOUT_SECONDS = 60
 TARBALL_TIMEOUT_SECONDS = 300
 HOSTS = ("github.com", "www.github.com")
+SAFE_PATH_SEGMENT = re.compile(r"^[A-Za-z0-9._-]+$")
 
 
 @dataclass(frozen=True)
@@ -99,6 +101,32 @@ def read_file(slug: str, ref: str, path: str, runner: Runner = run) -> str | Non
         raise FetchError(f"{slug}: {path} is not readable text ({exc})") from exc
 
 
+def _clean_path(path: str) -> str:
+    """A repository-relative directory, or a refusal naming what broke.
+
+    ``path`` is about to become part of a credentialed GitHub API call, right
+    before the ``?ref=`` that pins the commit -- a stray ``?`` in it would
+    become the *first* ``?`` in that URL and let the caller's own text choose
+    which ref is actually served, silently disagreeing with the commit already
+    resolved from the real ref. So this refuses anything that is not plainly a
+    relative directory rather than rewriting it into one: only letters,
+    digits, ``.``, ``_`` and ``-`` in each ``/``-separated segment, and no
+    ``..`` segment walking outside the repository. Leading and trailing
+    slashes are the one thing normalised away, because a pasted
+    ``/examples/app/`` is still unambiguously that directory.
+    """
+    trimmed = path.strip("/")
+    if not trimmed:
+        return ""
+    for segment in trimmed.split("/"):
+        if segment == ".." or not SAFE_PATH_SEGMENT.match(segment):
+            raise FetchError(
+                f"'{path}' is not a usable path — only letters, digits, '.', "
+                "'_' and '-' segments joined by '/' are allowed, with no '..'"
+            )
+    return trimmed
+
+
 def probe(url: str, ref: str = "main", runner: Runner = run, path: str = "") -> Probed:
     """Resolve the commit and read the files registration depends on.
 
@@ -108,8 +136,8 @@ def probe(url: str, ref: str = "main", runner: Runner = run, path: str = "") -> 
     which directory it means, and empty means the repository itself.
     """
     slug = parse_slug(url)
+    prefix = _clean_path(path)
     commit = resolve_commit(slug, ref, runner)
-    prefix = path.strip("/")
     found = {}
     for name in PROBE_FILES:
         text = read_file(slug, ref, f"{prefix}/{name}" if prefix else name, runner)
