@@ -41,7 +41,8 @@ DEPENDENCY_KEYS = ("dependencies", "devDependencies", "optionalDependencies")
 # parsed, because tomllib is 3.11+ and this project's floor is 3.10; adding a
 # TOML parser for one check is not worth a dependency.
 # Upgrade trigger: the floor reaching 3.11 — replace with tomllib.
-PATH_DEPENDENCY = re.compile(r"""path\s*=\s*["']([^"']+)["']""")
+PATH_DEPENDENCY = re.compile(r"""(?<![\w-])path\s*=\s*["']([^"']+)["']""")
+DEPENDENCY_NAME = re.compile(r"""^\s*["']?([A-Za-z][\w.-]*)["']?\s*=""")
 
 
 class PreflightError(Exception):
@@ -119,28 +120,58 @@ def unresolvable_node_deps(tree: Path, app: str) -> list[Finding]:
     return found
 
 
+def _dependency_name(line: str, before: int) -> str:
+    """The key a ``path = "..."`` belongs to, when the line carries one.
+
+    ``vpath-backend-sdk = { path = "..." }`` names its dependency; a bare
+    ``path = "..."`` under a ``[tool.poetry.dependencies.x]`` header does not,
+    and must not be reported as a dependency called "path".
+    """
+    match = DEPENDENCY_NAME.match(line)
+    return match.group(1) if match is not None and match.end() <= before else ""
+
+
 def unresolvable_python_deps(tree: Path, app: str) -> list[Finding]:
-    """``path = "..."`` dependencies that will not resolve from the tree."""
+    """``path = "..."`` dependencies that will not resolve from the tree.
+
+    Stated name-wise, exactly as the node rule is: a declared SDK pointing at
+    the wrong place is told which path to write, not told to declare what it
+    has already declared.
+    """
     manifest = tree / PYTHON_MANIFEST
     if not manifest.is_file():
         return []
-    sources = set(read_build(tree).sdks.values())
+    sdks = read_build(tree).sdks
     found: list[Finding] = []
     for line in manifest.read_text(encoding="utf-8").splitlines():
         match = PATH_DEPENDENCY.search(line)
         if match is None:
             continue
+        name = _dependency_name(line, match.start())
         resolved = resolve(app, match.group(1))
-        if inside(app, resolved) or resolved in sources:
+        if inside(app, resolved):
             continue
-        found.append(
-            Finding(
-                PYTHON_MANIFEST,
-                line.strip(),
-                f"resolves to {resolved}, which the server does not put in the "
-                "tree — declare it in spec.build.sdks, or publish it to an index",
+        source = sdks.get(name) if name else None
+        if source is None:
+            found.append(
+                Finding(
+                    PYTHON_MANIFEST,
+                    line.strip(),
+                    f"resolves to {resolved}, which the server does not put in "
+                    f"the tree — declare {name or 'it'} in spec.build.sdks, or "
+                    "publish it to an index",
+                )
             )
-        )
+        elif resolved != source:
+            corrected = as_file_path(app, source).removeprefix("file:")
+            found.append(
+                Finding(
+                    PYTHON_MANIFEST,
+                    line.strip(),
+                    f"resolves to {resolved}, but spec.build.sdks puts {name} "
+                    f'at {source} — change path to "{corrected}"',
+                )
+            )
     return found
 
 

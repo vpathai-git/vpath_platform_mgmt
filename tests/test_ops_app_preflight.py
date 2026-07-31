@@ -240,3 +240,112 @@ def test_require_publishable_reports_every_finding_at_once(tmp_path: Path) -> No
     assert "package.json" in message
     assert "vpath-app.yaml" in message
     assert "scripts.build" in message
+
+
+PY_SDK = "apps_infra/sdk-python/vpath-backend-sdk"
+
+
+def pyproject(dependency: str) -> str:
+    return (
+        '[project]\nname = "demo-api"\n\n'
+        "[tool.poetry.dependencies]\n"
+        f'vpath-backend-sdk = {{ path = "{dependency}" }}\n'
+    )
+
+
+def test_a_declared_python_sdk_pointing_at_the_wrong_place_names_the_fix(
+    tmp_path: Path,
+) -> None:
+    """The real apps/ shape: the SDK is declared, only its path is wrong.
+
+    Telling the author to declare what they have already declared is the one
+    instruction they must not follow, so the rule is stated name-wise.
+    """
+    write(
+        tmp_path,
+        "pyproject.toml",
+        pyproject("../../../kit/sdk-python/vpath-backend-sdk"),
+    )
+    write(
+        tmp_path,
+        "vpath-app.yaml",
+        manifest(
+            "demo-api",
+            ["apps_infra/apps/demo-api", PY_SDK],
+            [{"name": "vpath-backend-sdk", "source": PY_SDK}],
+        ),
+    )
+
+    findings = inspect(tmp_path, "demo-api", "python")
+
+    assert [f.file for f in findings] == ["pyproject.toml"]
+    assert "declare it in spec.build.sdks" not in findings[0].remedy
+    assert 'change path to "../../sdk-python/vpath-backend-sdk"' in findings[0].remedy
+
+
+def test_an_undeclared_python_dependency_is_named_in_its_own_remedy(
+    tmp_path: Path,
+) -> None:
+    write(tmp_path, "pyproject.toml", pyproject("../../elsewhere"))
+    write(
+        tmp_path, "vpath-app.yaml", manifest("demo-api", ["apps_infra/apps/demo-api"])
+    )
+
+    findings = inspect(tmp_path, "demo-api", "python")
+
+    assert "declare vpath-backend-sdk in spec.build.sdks" in findings[0].remedy
+
+
+def test_a_setting_that_merely_ends_in_path_is_not_a_dependency(
+    tmp_path: Path,
+) -> None:
+    """``basepath = "x"`` matched the unanchored pattern and was refused."""
+    write(
+        tmp_path,
+        "pyproject.toml",
+        '[project]\nname = "demo-api"\n\n[tool.demo]\nbasepath = "../../elsewhere"\n',
+    )
+    write(
+        tmp_path, "vpath-app.yaml", manifest("demo-api", ["apps_infra/apps/demo-api"])
+    )
+
+    assert inspect(tmp_path, "demo-api", "python") == []
+
+
+def test_a_bare_path_line_is_reported_without_inventing_a_dependency_name(
+    tmp_path: Path,
+) -> None:
+    write(
+        tmp_path,
+        "pyproject.toml",
+        '[project]\nname = "demo-api"\n\n'
+        "[tool.poetry.dependencies.vpath-backend-sdk]\n"
+        'path = "../../elsewhere"\n',
+    )
+    write(
+        tmp_path, "vpath-app.yaml", manifest("demo-api", ["apps_infra/apps/demo-api"])
+    )
+
+    findings = inspect(tmp_path, "demo-api", "python")
+
+    assert "declare it in spec.build.sdks" in findings[0].remedy
+    assert "declare path in" not in findings[0].remedy
+
+
+def test_every_real_manifest_in_apps_gets_a_remedy_it_can_act_on() -> None:
+    """Nine real apps, node and python; none may be told to do the wrong thing."""
+    root = Path(__file__).resolve().parents[1] / "apps"
+    seen = 0
+    for found in sorted(root.rglob("vpath-app.yaml")):
+        document = yaml.safe_load(found.read_text(encoding="utf-8"))
+        build = document["spec"]["build"]
+        declared = {entry["name"]: entry["source"] for entry in build.get("sdks", [])}
+        for finding in inspect(
+            found.parent, document["metadata"]["name"], build["runtime"]
+        ):
+            seen += 1
+            named = [name for name in declared if name in finding.value]
+            if named:
+                assert "declare" not in finding.remedy, finding.text
+                assert declared[named[0]] in finding.remedy, finding.text
+    assert seen == 9

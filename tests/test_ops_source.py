@@ -111,3 +111,30 @@ def test_invalid_app_names_are_refused(tmp_path: Path, name: str) -> None:
 def test_missing_checkout_fails_construction(tmp_path: Path) -> None:
     with pytest.raises(ValueError, match="server checkout not found"):
         SourceMaterializer(tmp_path / "nope")
+
+
+def test_extraction_is_filtered_so_publish_stops_warning_on_every_send() -> None:
+    """Publish drives extractall on every send; 3.14 will filter by default."""
+    import inspect as introspect
+
+    from vpath_platform_mgmt.ops import source
+
+    body = introspect.getsource(source.SourceMaterializer.materialize)
+    assert 'filter="data"' in body
+
+
+def test_a_plain_upload_still_materializes_under_the_data_filter(
+    tmp_path: Path, recwarn: pytest.WarningsRecorder
+) -> None:
+    mat = make_checkout(tmp_path)
+
+    summary = mat.materialize(
+        "demo",
+        make_archive({"vpath-app.yaml": "kind: VpathApp\n", "src/page.tsx": "x"}),
+        PROV,
+    )
+
+    target = tmp_path / "apps_infra" / "apps" / "demo"
+    assert (target / "src" / "page.tsx").read_text(encoding="utf-8") == "x"
+    assert summary["file_count"] == 2
+    assert [w for w in recwarn if issubclass(w.category, DeprecationWarning)] == []

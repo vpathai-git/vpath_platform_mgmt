@@ -76,6 +76,24 @@ def require(env: Mapping[str, str], key: str, mode: str) -> str:
     return value
 
 
+GITOPS_KEYS = (
+    "VPATH_MGMT_GITEA_URL",
+    "VPATH_MGMT_GITEA_TOKEN",
+    "VPATH_MGMT_K8S_URL",
+    "VPATH_MGMT_K8S_TOKEN",
+)
+
+
+def missing_gitops_keys(env: Mapping[str, str]) -> list[str]:
+    """Settings ``build_gitops_engine`` requires and this environment lacks.
+
+    Asking before building is what lets an optional GitOps consumer decline
+    instead of aborting startup with a ``ValueError``. A test asserts every
+    key here is genuinely required, so the two cannot drift apart.
+    """
+    return [key for key in GITOPS_KEYS if not env.get(key, "")]
+
+
 def build_gitops_engine(env: Mapping[str, str]) -> GitOpsEngine:
     """Gitea + Kubernetes clients for the API-only deploy path.
 
@@ -295,9 +313,13 @@ def build_publish_pipeline(env: Mapping[str, str]) -> PublishPipeline | None:
     Publish spans both engines: rendering needs the checkout on this host and
     installing needs the Deploy-of-Record. A console with only one of them
     cannot do it, and says so at the verb rather than half way through.
+
+    The gate asks for every setting the GitOps engine needs, not just the
+    Gitea URL: a console that starts today with a checkout and a Gitea URL
+    but no Kubernetes token must keep starting, publish declined at the verb.
     """
     checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
-    if not checkout or not env.get("VPATH_MGMT_GITEA_URL", ""):
+    if not checkout or missing_gitops_keys(env):
         return None
     apps_root = build_catalog_root(env)
 

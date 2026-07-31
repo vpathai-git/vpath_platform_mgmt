@@ -8,7 +8,11 @@ import pytest
 from fastapi.testclient import TestClient
 
 from vpath_platform_mgmt.api import create_app
-from vpath_platform_mgmt.api.server import build_engine, build_oidc_validator
+from vpath_platform_mgmt.api.server import (
+    GITOPS_KEYS,
+    build_engine,
+    build_oidc_validator,
+)
 from vpath_platform_mgmt.ops import OpsService, SimulatedEngine
 
 APP_DEV = {"X-Dev-Actor": "alice", "X-Dev-Role": "app-dev"}
@@ -434,3 +438,32 @@ def test_the_console_offers_an_add_app_form(client: TestClient) -> None:
 def test_the_console_posts_to_the_publish_route(client: TestClient) -> None:
     script = client.get("/console.js").text
     assert "/api/apps/publish" in script
+
+
+@pytest.mark.parametrize("missing", GITOPS_KEYS)
+def test_every_key_the_pipeline_gate_asks_for_is_really_required(missing: str) -> None:
+    """Keeps ``missing_gitops_keys`` from drifting away from what it gates."""
+    from vpath_platform_mgmt.api.server import build_gitops_engine
+
+    env = {key: "x" for key in GITOPS_KEYS if key != missing}
+
+    with pytest.raises(ValueError, match=f"requires {missing}"):
+        build_gitops_engine(env)
+
+
+@pytest.mark.parametrize("missing", GITOPS_KEYS)
+def test_an_incomplete_gitops_config_declines_publish_instead_of_aborting(
+    tmp_path: Path, missing: str
+) -> None:
+    """A local-engine console with a checkout must still start.
+
+    Gating on the Gitea URL alone let ``build_gitops_engine`` raise at import
+    time for a box that has no Kubernetes token, taking the whole console
+    down instead of leaving publish unavailable.
+    """
+    from vpath_platform_mgmt.api.server import build_publish_pipeline
+
+    env = {key: value for key, value in GITOPS_ENV.items() if key != missing}
+    env["VPATH_MGMT_SERVER_CHECKOUT"] = str(tmp_path)
+
+    assert build_publish_pipeline(env) is None
