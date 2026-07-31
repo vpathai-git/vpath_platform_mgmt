@@ -299,8 +299,14 @@ def build_publish_pipeline(env: Mapping[str, str]) -> PublishPipeline | None:
     checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
     if not checkout or not env.get("VPATH_MGMT_GITEA_URL", ""):
         return None
+    apps_root = build_catalog_root(env)
+
+    def place(name: str, tree: Path) -> None:
+        """Send stage lookup, bound to the same apps root as the registry."""
+        _place_registered_files(name, tree, apps_root)
+
     return PublishPipeline(
-        registry=AppRegistry(build_catalog_root(env)),
+        registry=AppRegistry(apps_root),
         materializer=SourceMaterializer(Path(checkout)),
         local_engine=LocalEngine(Path(checkout), extra_env=parse_engine_env(env)),
         gitops_engine=build_gitops_engine(env),
@@ -308,7 +314,7 @@ def build_publish_pipeline(env: Mapping[str, str]) -> PublishPipeline | None:
         materialise=repo_probe.materialise,
         download=repo_probe.download_tree,
         bundle=bundle,
-        place=_place_registered_files,
+        place=place,
         inspect=require_publishable,
         runtime_of=detect_runtime,
     )

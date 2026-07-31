@@ -172,12 +172,12 @@ def test_uninstall_is_still_gated_by_role() -> None:
         service.submit("uninstall", "alpha", "eve", "server-dev")
 
 
-def _publish_client() -> TestClient:
+def client_for_publish() -> TestClient:
     return TestClient(create_app(OpsService(SimulatedEngine())))
 
 
 def test_publish_submits_a_job_and_returns_it() -> None:
-    response = _publish_client().post(
+    response = client_for_publish().post(
         "/api/apps/publish",
         json={"url": "github.com/org/demo-app", "ref": "main", "name": "demo-app"},
         headers=DEV,
@@ -190,7 +190,7 @@ def test_publish_submits_a_job_and_returns_it() -> None:
 
 
 def test_publish_refuses_a_non_admin() -> None:
-    response = _publish_client().post(
+    response = client_for_publish().post(
         "/api/apps/publish",
         json={"url": "github.com/org/demo-app", "ref": "main", "name": "demo-app"},
         headers=APP_DEV,
@@ -200,7 +200,7 @@ def test_publish_refuses_a_non_admin() -> None:
 
 
 def test_publish_refuses_a_request_without_a_url() -> None:
-    response = _publish_client().post(
+    response = client_for_publish().post(
         "/api/apps/publish", json={"ref": "main", "name": "demo-app"}, headers=DEV
     )
 
@@ -209,7 +209,7 @@ def test_publish_refuses_a_request_without_a_url() -> None:
 
 
 def test_publish_refuses_a_request_without_a_name() -> None:
-    response = _publish_client().post(
+    response = client_for_publish().post(
         "/api/apps/publish", json={"url": "github.com/org/demo-app"}, headers=DEV
     )
 

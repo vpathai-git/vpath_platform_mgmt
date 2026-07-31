@@ -368,6 +368,54 @@ def test_no_publish_pipeline_without_the_deploy_record(tmp_path: Path) -> None:
     assert build_publish_pipeline({"VPATH_MGMT_SERVER_CHECKOUT": str(tmp_path)}) is None
 
 
+def test_publish_pipeline_is_built_when_both_halves_exist(tmp_path: Path) -> None:
+    from vpath_platform_mgmt.api.server import build_publish_pipeline
+    from vpath_platform_mgmt.ops.publish import PublishPipeline
+
+    env = dict(GITOPS_ENV, VPATH_MGMT_SERVER_CHECKOUT=str(tmp_path))
+    pipeline = build_publish_pipeline(env)
+
+    assert isinstance(pipeline, PublishPipeline)
+
+
+def test_publish_pipeline_send_stage_honours_the_overridden_apps_root(
+    tmp_path: Path,
+) -> None:
+    """The registry and the send stage must read from the same apps root.
+
+    A console that overrides ``VPATH_MGMT_APPS_DIR`` writes a registered
+    app's manifest there; if the send stage's ``place`` collaborator were
+    left unbound, it would fall back to the hardcoded default root instead
+    and the publish job would die at 'send' looking in the wrong place.
+    """
+    from vpath_platform_mgmt.api.server import build_publish_pipeline
+
+    apps_dir = tmp_path / "apps"
+    (apps_dir / "demo-app").mkdir(parents=True)
+    (apps_dir / "demo-app" / "vpath-app.yaml").write_text(
+        "kind: VpathApp", encoding="utf-8"
+    )
+    (apps_dir / "demo-app" / "vpath-source.yaml").write_text(
+        "repo: x", encoding="utf-8"
+    )
+    checkout_dir = tmp_path / "checkout"
+    checkout_dir.mkdir()
+    env = dict(
+        GITOPS_ENV,
+        VPATH_MGMT_SERVER_CHECKOUT=str(checkout_dir),
+        VPATH_MGMT_APPS_DIR=str(apps_dir),
+    )
+
+    pipeline = build_publish_pipeline(env)
+    assert pipeline is not None
+
+    payload = tmp_path / "payload"
+    payload.mkdir()
+    pipeline._place("demo-app", payload)  # type: ignore[attr-defined]
+
+    assert (payload / "vpath-app.yaml").read_text(encoding="utf-8") == "kind: VpathApp"
+
+
 def test_dev_auth_is_refused_with_the_gitops_engine() -> None:
     """A header-trust identity must never gate a real deploy."""
     from vpath_platform_mgmt.api.auth import validate_auth_mode
