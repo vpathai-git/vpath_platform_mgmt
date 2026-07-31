@@ -8,11 +8,8 @@ import pytest
 from fastapi.testclient import TestClient
 
 from vpath_platform_mgmt.api import create_app
-from vpath_platform_mgmt.api.server import (
-    GITOPS_KEYS,
-    build_engine,
-    build_oidc_validator,
-)
+from vpath_platform_mgmt.api.builders import GITOPS_KEYS, build_engine
+from vpath_platform_mgmt.api.server import build_oidc_validator
 from vpath_platform_mgmt.ops import OpsService, SimulatedEngine
 
 APP_DEV = {"X-Dev-Actor": "alice", "X-Dev-Role": "app-dev"}
@@ -172,7 +169,7 @@ def test_a_missing_profile_fails_rather_than_simulating(tmp_path: Path) -> None:
 
 
 def test_real_engines_must_name_their_instance() -> None:
-    from vpath_platform_mgmt.api.server import resolve_instance_name
+    from vpath_platform_mgmt.api.builders import resolve_instance_name
 
     assert resolve_instance_name({}, "simulated") == "sim"
     assert resolve_instance_name({"VPATH_MGMT_INSTANCE": "vm5"}, "gitops") == "vm5"
@@ -309,7 +306,7 @@ def test_source_upload_is_audited(tmp_path: Path) -> None:
 
 def test_engine_env_passthrough_parsing() -> None:
     """The pipeline needs VPATH_INSTALL_MODE on single-box targets."""
-    from vpath_platform_mgmt.api.server import parse_engine_env
+    from vpath_platform_mgmt.api.builders import parse_engine_env
 
     assert parse_engine_env({}) == {}
     assert parse_engine_env({"VPATH_MGMT_ENGINE_ENV": "VPATH_INSTALL_MODE=nuc"}) == {
@@ -361,19 +358,19 @@ def test_gitops_engine_fails_hard_on_missing_config(missing: str) -> None:
 
 
 def test_no_publish_pipeline_without_a_checkout() -> None:
-    from vpath_platform_mgmt.api.server import build_publish_pipeline
+    from vpath_platform_mgmt.api.builders import build_publish_pipeline
 
     assert build_publish_pipeline({"VPATH_MGMT_GITEA_URL": "https://gitea"}) is None
 
 
 def test_no_publish_pipeline_without_the_deploy_record(tmp_path: Path) -> None:
-    from vpath_platform_mgmt.api.server import build_publish_pipeline
+    from vpath_platform_mgmt.api.builders import build_publish_pipeline
 
     assert build_publish_pipeline({"VPATH_MGMT_SERVER_CHECKOUT": str(tmp_path)}) is None
 
 
 def test_publish_pipeline_is_built_when_both_halves_exist(tmp_path: Path) -> None:
-    from vpath_platform_mgmt.api.server import build_publish_pipeline
+    from vpath_platform_mgmt.api.builders import build_publish_pipeline
     from vpath_platform_mgmt.ops.publish import PublishPipeline
 
     env = dict(GITOPS_ENV, VPATH_MGMT_SERVER_CHECKOUT=str(tmp_path))
@@ -392,7 +389,7 @@ def test_publish_pipeline_send_stage_honours_the_overridden_apps_root(
     left unbound, it would fall back to the hardcoded default root instead
     and the publish job would die at 'send' looking in the wrong place.
     """
-    from vpath_platform_mgmt.api.server import build_publish_pipeline
+    from vpath_platform_mgmt.api.builders import build_publish_pipeline
 
     apps_dir = tmp_path / "apps"
     (apps_dir / "demo-app").mkdir(parents=True)
@@ -443,7 +440,7 @@ def test_the_console_posts_to_the_publish_route(client: TestClient) -> None:
 @pytest.mark.parametrize("missing", GITOPS_KEYS)
 def test_every_key_the_pipeline_gate_asks_for_is_really_required(missing: str) -> None:
     """Keeps ``missing_gitops_keys`` from drifting away from what it gates."""
-    from vpath_platform_mgmt.api.server import build_gitops_engine
+    from vpath_platform_mgmt.api.builders import build_gitops_engine
 
     env = {key: "x" for key in GITOPS_KEYS if key != missing}
 
@@ -461,7 +458,7 @@ def test_an_incomplete_gitops_config_declines_publish_instead_of_aborting(
     time for a box that has no Kubernetes token, taking the whole console
     down instead of leaving publish unavailable.
     """
-    from vpath_platform_mgmt.api.server import build_publish_pipeline
+    from vpath_platform_mgmt.api.builders import build_publish_pipeline
 
     env = {key: value for key, value in GITOPS_ENV.items() if key != missing}
     env["VPATH_MGMT_SERVER_CHECKOUT"] = str(tmp_path)
