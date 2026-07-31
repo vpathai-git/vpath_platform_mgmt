@@ -58,11 +58,6 @@ def provenance_of(directory: Path) -> dict[str, object]:
     return data if isinstance(data, dict) else {}
 
 
-def recorded_commit(directory: Path) -> str:
-    """The commit a provenance file records, or empty when there is none."""
-    return str(provenance_of(directory).get("commit", ""))
-
-
 def same_source(recorded: dict[str, object], probed: Any, path: str) -> bool:
     """Whether what is already there came from the repository being published.
 
