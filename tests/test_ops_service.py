@@ -267,3 +267,91 @@ def test_instance_probe_is_cached_until_ttl_expires(
     assert len(probes) == 2  # TTL expired: probed again
     service.state(fresh=True)
     assert len(probes) == 3  # fresh always probes
+
+
+class ExplodingPipeline:
+    """A pipeline that raises what the publish path actually reaches."""
+
+    def __init__(self, error: Exception) -> None:
+        self.error = error
+
+    def run(self, request, actor, role, emit):  # type: ignore[no-untyped-def]
+        raise self.error
+
+
+def publishing_service(error: Exception) -> OpsService:
+    return OpsService(
+        SimulatedEngine(), instance_name="sim", publish=ExplodingPipeline(error)
+    )
+
+
+def test_an_unexpected_exception_fails_the_job_naming_its_cause() -> None:
+    """gh missing from the service account's PATH is the likely first contact.
+
+    Without a backstop the worker thread dies in ``threading.excepthook``,
+    the job stays RUNNING forever and the operator is told nothing at all.
+    """
+    service = publishing_service(FileNotFoundError(2, "No such file", "gh"))
+    job = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert "FileNotFoundError" in job.log[-1]
+    assert "gh" in job.log[-1]
+
+
+def test_an_unexpected_exception_still_releases_the_app_lock() -> None:
+    """A leaked app lock blocks every later publish AND deploy of that app."""
+    service = publishing_service(RuntimeError("something nobody typed"))
+    first = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(first.id)
+
+    assert service.state()["locks"] == []
+    second = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(second.id)
+    assert second.state is JobState.FAILED
+
+
+def test_a_typed_publish_failure_still_reports_exactly_its_own_message() -> None:
+    """The backstop must not blur a stage refusal into a generic one."""
+    from vpath_platform_mgmt.ops.publish import PublishError
+
+    service = publishing_service(PublishError("send: 'examples/x' is not a directory"))
+    job = service.submit("publish", "demo-app", "ops", "admin", payload={"url": "u"})
+    service.wait(job.id)
+
+    assert job.log[-1] == "send: 'examples/x' is not a directory"
+
+
+def test_an_unmarshalled_generate_block_is_refused_not_dereferenced() -> None:
+    """A dict here used to reach ``request.generate.runtime`` and explode."""
+
+    class Pipeline:
+        def run(self, request, actor, role, emit):  # type: ignore[no-untyped-def]
+            raise AssertionError("the pipeline must never see a raw dict")
+
+    service = OpsService(SimulatedEngine(), instance_name="sim", publish=Pipeline())
+    job = service.submit(
+        "publish",
+        "demo-app",
+        "ops",
+        "admin",
+        payload={"url": "u", "generate": {"name": "demo-app"}},
+    )
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert "did not marshal" in job.log[-1]
+
+
+def test_an_engine_failure_on_a_normal_verb_still_releases_its_lock() -> None:
+    class Failing(SimulatedEngine):
+        def run(self, job: Job, emit: StepEmitter) -> dict[str, object]:
+            raise EngineFailure("gradle blew up")
+
+    service = OpsService(Failing(), instance_name="sim")
+    job = service.submit("deploy", "sample-app", "alice", "app-dev")
+    service.wait(job.id)
+
+    assert job.state is JobState.FAILED
+    assert service.state()["locks"] == []

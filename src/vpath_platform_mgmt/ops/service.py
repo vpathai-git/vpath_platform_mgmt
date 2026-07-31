@@ -15,6 +15,7 @@ from typing import TYPE_CHECKING
 if TYPE_CHECKING:
     from _thread import RLock as RLockT
 
+from vpath_platform_mgmt.ops.app_registry import Generated
 from vpath_platform_mgmt.ops.audit import AuditLog
 from vpath_platform_mgmt.ops.engine import EngineAdapter, EngineFailure, Reach
 from vpath_platform_mgmt.ops import tunnel
@@ -140,6 +141,29 @@ class OpsService:
             )
 
     def _run(self, job: Job, scope: str | None) -> None:
+        """Execute one job, releasing its lock whatever happens inside.
+
+        The release lives here rather than in ``_finish`` because a lock that
+        outlives its job blocks every later publish *and* deploy of that app
+        until the process restarts — the one failure the worker thread must
+        not be able to cause.
+        """
+        try:
+            self._execute(job)
+        finally:
+            if scope is not None:
+                self._locks.release(scope)
+
+    def _execute(self, job: Job) -> None:
+        """Run the verb and record how it went; nothing escapes this method.
+
+        The typed failures report exactly as they always have. The wider
+        catch is a backstop, not a replacement: the publish path reaches
+        ``gh`` not being installed, a subprocess timeout and a corrupt
+        provenance file, none of which are ``EngineFailure``, and a thread
+        that dies on one of those leaves the job RUNNING forever with no
+        message at all.
+        """
         emit = self._emitter(job)
         with self._mutex:
             job.state = JobState.RUNNING
@@ -151,13 +175,16 @@ class OpsService:
             else:
                 result = self._engine.run(job, emit)
         except (EngineFailure, PublishError) as exc:
-            self._finish(job, scope, JobState.FAILED, str(exc))
+            self._finish(job, JobState.FAILED, str(exc))
+            return
+        except Exception as exc:
+            self._finish(job, JobState.FAILED, f"{type(exc).__name__}: {exc}")
             return
         with self._mutex:
             job.result = result
             if job.verb in (Verb.HEALTH, Verb.REINSTALL) and result is not None:
                 self._health = dict(result, at=time.time())
-        self._finish(job, scope, JobState.SUCCEEDED, "succeeded")
+        self._finish(job, JobState.SUCCEEDED, "succeeded")
 
     def _run_publish(self, job: Job, emit: "_Emit") -> dict[str, object] | None:
         """Publish is the one verb an engine cannot serve: it spans two.
@@ -173,12 +200,19 @@ class OpsService:
                 "Ops API"
             )
         payload = job.payload or {}
+        generate = payload.get("generate")
+        if generate is not None and not isinstance(generate, Generated):
+            raise PublishError(
+                "publish: 'generate' reached the pipeline as "
+                f"{type(generate).__name__}, not the registry's Generated — "
+                "the surface that submitted this job did not marshal it"
+            )
         request = PublishRequest(
             url=str(payload.get("url", "")),
             ref=str(payload.get("ref", "") or "main"),
             name=job.app,
             path=str(payload.get("path", "")),
-            generate=payload.get("generate"),  # type: ignore[arg-type]
+            generate=generate,
             replace=bool(payload.get("replace", False)),
         )
         return self._publish.run(request, job.actor, job.role, emit)
@@ -186,15 +220,11 @@ class OpsService:
     def _emitter(self, job: Job) -> "_Emit":
         return _Emit(job, self._mutex)
 
-    def _finish(
-        self, job: Job, scope: str | None, state: JobState, message: str
-    ) -> None:
+    def _finish(self, job: Job, state: JobState, message: str) -> None:
         with self._mutex:
             job.state = state
             job.step = "done" if state is JobState.SUCCEEDED else "failed"
             job.log.append(message)
-        if scope is not None:
-            self._locks.release(scope)
         self._audit.record(
             job.actor, job.role.value, job.verb.value, job.app, state.value
         )

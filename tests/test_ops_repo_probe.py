@@ -11,6 +11,7 @@ import pytest
 from vpath_platform_mgmt.ops.repo_fetch import FetchError, RunResult
 from vpath_platform_mgmt.ops.repo_probe import (
     Probed,
+    clean_ref,
     materialise,
     parse_slug,
     probe,
@@ -172,3 +173,58 @@ def test_a_path_with_a_backslash_is_refused() -> None:
         probe("github.com/org/repo", "main", runner, path="examples\\app")
 
     assert seen == []
+
+
+def test_an_owner_or_repository_with_an_odd_charset_is_refused() -> None:
+    """Both are concatenated into the same credentialed gh api URL as path."""
+    for url in (
+        "github.com/org?x=1/repo",
+        "github.com/org/repo?ref=other",
+        "github.com/org/..",
+    ):
+        with pytest.raises(FetchError, match="not a usable"):
+            parse_slug(url)
+
+
+def test_a_ref_that_would_hijack_the_api_url_is_refused() -> None:
+    """``ref`` is a path segment in repos/<slug>/commits/<ref>."""
+    with pytest.raises(FetchError, match="not a usable ref"):
+        clean_ref("main?x=1")
+    with pytest.raises(FetchError, match="not a usable ref"):
+        clean_ref("../../other")
+    with pytest.raises(FetchError, match="no ref given"):
+        clean_ref("   ")
+    assert clean_ref(" release/1.0 ") == "release/1.0"
+
+
+def test_the_manifest_is_read_at_the_resolved_commit_not_at_the_branch() -> None:
+    """A branch that moves would otherwise ship a tree we never inspected."""
+    seen, runner = responder(
+        {
+            "commits/main": RunResult(0, SHA + "\n", ""),
+            "contents/vpath-app.yaml": RunResult(0, encoded(MANIFEST), ""),
+        }
+    )
+
+    probe("github.com/org/repo", "main", runner)
+
+    asked = [part for argv in seen for part in argv if "contents/" in part]
+    assert asked
+    assert all(part.endswith("?ref=" + SHA) for part in asked), asked
+
+
+def test_a_member_escaping_into_a_sibling_directory_is_refused(tmp_path: Path) -> None:
+    """``startswith`` accepted ``/tree-evil`` beside ``/tree``."""
+    import tarfile
+
+    from vpath_platform_mgmt.ops.repo_probe import _extract_stripped
+
+    root = tmp_path / "tree"
+    root.mkdir()
+    (tmp_path / "tree-evil").mkdir()
+    member = tarfile.TarInfo("prefix/../tree-evil/stolen.txt")
+    member.size = 0
+
+    with tarfile.open(tmp_path / "empty.tar", "w") as archive:
+        with pytest.raises(FetchError, match="escape"):
+            _extract_stripped(archive, member, root)

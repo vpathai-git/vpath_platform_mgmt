@@ -53,6 +53,24 @@ class Probed:
         return f"https://github.com/{self.slug}.git"
 
 
+def _check_segments(value: str, kind: str) -> None:
+    """Refuse anything that is not plainly ``/``-joined safe path segments.
+
+    Owner, repository, ref and path are all concatenated into the same
+    credentialed ``gh api`` URL. A stray ``?`` in any of them would become the
+    URL's *first* ``?`` and let the caller's own text choose what is served;
+    a ``..`` segment would walk to a different resource entirely. So each is
+    refused rather than rewritten into something safe.
+    """
+    for segment in value.split("/"):
+        if segment == ".." or not SAFE_PATH_SEGMENT.match(segment):
+            raise FetchError(
+                f"'{value}' is not a usable {kind} — only letters, digits, "
+                "'.', '_' and '-' segments joined by '/' are allowed, with "
+                "no '..'"
+            )
+
+
 def parse_slug(url: str) -> str:
     """``owner/repo`` from anything a human pastes, or refuse.
 
@@ -69,7 +87,22 @@ def parse_slug(url: str) -> str:
             f"'{url}' is not a github.com repository — only GitHub can be "
             "registered without cloning"
         )
+    _check_segments(parts[1], "repository owner")
+    _check_segments(parts[2], "repository name")
     return f"{parts[1]}/{parts[2]}"
+
+
+def clean_ref(ref: str) -> str:
+    """A branch, tag or sha safe to put in a URL path, or a refusal.
+
+    ``ref`` becomes a path segment in ``repos/<slug>/commits/<ref>``, so it
+    gets exactly the validation ``path`` gets and for the same reason.
+    """
+    trimmed = ref.strip()
+    if not trimmed:
+        raise FetchError("no ref given — name the branch, tag or commit to read")
+    _check_segments(trimmed, "ref")
+    return trimmed
 
 
 def _gh(args: Sequence[str], runner: Runner) -> RunResult:
@@ -104,26 +137,14 @@ def read_file(slug: str, ref: str, path: str, runner: Runner = run) -> str | Non
 def _clean_path(path: str) -> str:
     """A repository-relative directory, or a refusal naming what broke.
 
-    ``path`` is about to become part of a credentialed GitHub API call, right
-    before the ``?ref=`` that pins the commit -- a stray ``?`` in it would
-    become the *first* ``?`` in that URL and let the caller's own text choose
-    which ref is actually served, silently disagreeing with the commit already
-    resolved from the real ref. So this refuses anything that is not plainly a
-    relative directory rather than rewriting it into one: only letters,
-    digits, ``.``, ``_`` and ``-`` in each ``/``-separated segment, and no
-    ``..`` segment walking outside the repository. Leading and trailing
-    slashes are the one thing normalised away, because a pasted
-    ``/examples/app/`` is still unambiguously that directory.
+    Leading and trailing slashes are the one thing normalised away, because a
+    pasted ``/examples/app/`` is still unambiguously that directory. The
+    result is what every stage below uses, so ``Probed.path`` and not the
+    operator's raw text is what reaches the registry and the send stage.
     """
     trimmed = path.strip("/")
-    if not trimmed:
-        return ""
-    for segment in trimmed.split("/"):
-        if segment == ".." or not SAFE_PATH_SEGMENT.match(segment):
-            raise FetchError(
-                f"'{path}' is not a usable path — only letters, digits, '.', "
-                "'_' and '-' segments joined by '/' are allowed, with no '..'"
-            )
+    if trimmed:
+        _check_segments(trimmed, "path")
     return trimmed
 
 
@@ -134,16 +155,21 @@ def probe(url: str, ref: str = "main", runner: Runner = run, path: str = "") -> 
     is often a workspace whose root is not an app at all, and reading its root
     would describe the workspace rather than the app -- so the caller says
     which directory it means, and empty means the repository itself.
+
+    The files are read at the *resolved commit*, never at ``ref``: a branch
+    that moves between the two calls would otherwise have the gate inspect and
+    the registry record a manifest that is not the one the tarball ships.
     """
     slug = parse_slug(url)
     prefix = _clean_path(path)
-    commit = resolve_commit(slug, ref, runner)
+    resolved = clean_ref(ref)
+    commit = resolve_commit(slug, resolved, runner)
     found = {}
     for name in PROBE_FILES:
-        text = read_file(slug, ref, f"{prefix}/{name}" if prefix else name, runner)
+        text = read_file(slug, commit, f"{prefix}/{name}" if prefix else name, runner)
         if text is not None:
             found[name] = text
-    return Probed(slug=slug, ref=ref, commit=commit, files=found, path=prefix)
+    return Probed(slug=slug, ref=resolved, commit=commit, files=found, path=prefix)
 
 
 def materialise(probed: Probed, into: Path) -> Path:
@@ -204,7 +230,7 @@ def _extract_stripped(
     if not parts:
         return
     destination = root.joinpath(*parts).resolve()
-    if not str(destination).startswith(str(root.resolve())):
+    if root.resolve() not in destination.parents:
         raise FetchError(f"{member.name} would escape the extraction directory")
     if member.isdir():
         destination.mkdir(parents=True, exist_ok=True)

@@ -7,6 +7,7 @@ from collections.abc import Callable, Sequence
 from fastapi import FastAPI, HTTPException, Request
 
 from vpath_platform_mgmt.api.auth import Identity
+from vpath_platform_mgmt.ops.app_registry import DEFAULT_ICON, Generated
 from vpath_platform_mgmt.ops.apps import AppCatalog, AppEntry
 from vpath_platform_mgmt.ops.served_catalog import (
     ServedCatalogError,
@@ -16,6 +17,8 @@ from vpath_platform_mgmt.ops.served_catalog import (
 from vpath_platform_mgmt.ops.browse import AppBrowser, BrowseError
 from vpath_platform_mgmt.ops.engine import EngineFailure
 from vpath_platform_mgmt.ops.model import OpsError, Role
+from vpath_platform_mgmt.ops.repo_fetch import FetchError
+from vpath_platform_mgmt.ops.repo_probe import clean_ref
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import (
     SourceError,
@@ -167,6 +170,46 @@ def _register_source(
         return summary
 
 
+def _generated(block: object) -> Generated | None:
+    """The manifest facts as the registry's own type, or a 400 naming the gap.
+
+    The console sends ``generate`` as JSON, and every stage below here expects
+    a ``Generated``. Marshalling at the boundary is what turns a malformed
+    block into an answerable refusal instead of an ``AttributeError`` on a
+    worker thread nobody is watching.
+    """
+    if block is None:
+        return None
+    if not isinstance(block, dict):
+        raise HTTPException(
+            status_code=400, detail="publish 'generate' must be an object"
+        )
+    wanted = ("name", "port", "base_path", "title")
+    missing = [key for key in wanted if not block.get(key)]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"publish 'generate' needs {', '.join(missing)}",
+        )
+    try:
+        port = int(str(block["port"]))
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"publish 'generate.port' must be a number, not "
+            f"'{block['port']}'",
+        ) from exc
+    return Generated(
+        name=str(block["name"]),
+        port=port,
+        base_path=str(block["base_path"]),
+        title=str(block["title"]),
+        description=str(block.get("description") or ""),
+        icon=str(block.get("icon") or DEFAULT_ICON),
+        runtime=str(block.get("runtime") or ""),
+    )
+
+
 def _publish_request(body: dict[str, object]) -> tuple[str, dict[str, object]]:
     """The app name and job payload, refusing a request that cannot be run."""
     missing = [key for key in ("url", "name") if not body.get(key)]
@@ -175,11 +218,15 @@ def _publish_request(body: dict[str, object]) -> tuple[str, dict[str, object]]:
             status_code=400,
             detail=f"publish needs {' and '.join(missing)}",
         )
+    try:
+        ref = clean_ref(str(body.get("ref") or "main"))
+    except FetchError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     return str(body["name"]), {
         "url": str(body["url"]),
-        "ref": str(body.get("ref") or "main"),
+        "ref": ref,
         "path": str(body.get("path") or ""),
-        "generate": body.get("generate"),
+        "generate": _generated(body.get("generate")),
         "replace": bool(body.get("replace", False)),
     }
 

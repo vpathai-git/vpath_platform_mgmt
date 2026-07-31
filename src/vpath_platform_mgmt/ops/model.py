@@ -89,7 +89,13 @@ class Job:
     payload: dict[str, object] | None = None
 
     def to_dict(self) -> dict[str, object]:
-        """JSON-serializable view of the job."""
+        """JSON-serializable view of the job.
+
+        ``payload`` is deliberately absent: it carries whatever a human
+        pasted into the publish form, including INTERNAL repository URLs and
+        any userinfo in them, while ``/api/state`` is readable by every
+        authenticated role. Nothing in the console renders it.
+        """
         return {
             "id": self.id,
             "verb": self.verb.value,
@@ -102,7 +108,6 @@ class Job:
             "log": list(self.log),
             "created_at": self.created_at,
             "result": self.result,
-            "payload": self.payload,
         }
 
 
