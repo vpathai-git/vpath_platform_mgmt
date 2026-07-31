@@ -45,14 +45,18 @@ class TunnelError(Exception):
 def _parse_port(env: Mapping[str, str], name: str, default: int) -> int:
     """Parse and validate a port number from environment, or refuse with TunnelError.
 
-    Uses int() for validation so all non-numeric values (including Unicode
-    digits that isdigit() would accept but int() rejects) are caught uniformly.
+    Accepts only ASCII decimal digits; rejects Unicode digits, signs, whitespace,
+    underscores, and other formats that int() would accept. This gate matches the
+    behaviour the boundary requires: exactly what was accepted before, minus the
+    Unicode hole that caused crashes in int().
     """
     raw = env.get(name, "") or str(default)
+    if not (raw.isascii() and raw.isdigit()):
+        raise TunnelError(f"{name} is not a port number: {raw!r}")
     try:
         port = int(raw)
-    except ValueError:
-        raise TunnelError(f"{name} is not a port number: {raw!r}")
+    except ValueError as exc:
+        raise TunnelError(f"{name} is not a port number: {raw!r}") from exc
     return port
 
 

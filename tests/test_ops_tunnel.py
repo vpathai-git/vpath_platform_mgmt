@@ -191,3 +191,51 @@ def test_from_env_refuses_unicode_digits_that_pass_isdigit() -> None:
                 "VPATH_MGMT_TUNNEL_OPS_PORT": "²",
             }
         )
+
+
+@pytest.mark.parametrize(
+    "env_var,value",
+    [
+        ("VPATH_MGMT_TUNNEL_PORT", "-1085"),
+        ("VPATH_MGMT_TUNNEL_PORT", "+1085"),
+        ("VPATH_MGMT_TUNNEL_PORT", " 1085"),
+        ("VPATH_MGMT_TUNNEL_PORT", "1085 "),
+        ("VPATH_MGMT_TUNNEL_PORT", "1_085"),
+        ("VPATH_MGMT_TUNNEL_PORT", "²"),
+        ("VPATH_MGMT_TUNNEL_OPS_PORT", "-8765"),
+        ("VPATH_MGMT_TUNNEL_OPS_PORT", "+8765"),
+        ("VPATH_MGMT_TUNNEL_OPS_PORT", " 8765"),
+        ("VPATH_MGMT_TUNNEL_OPS_PORT", "8765 "),
+        ("VPATH_MGMT_TUNNEL_OPS_PORT", "8_765"),
+        ("VPATH_MGMT_TUNNEL_OPS_PORT", "²"),
+    ],
+)
+def test_port_validation_rejects_non_ascii_decimal(env_var: str, value: str) -> None:
+    from vpath_platform_mgmt.ops.tunnel import TunnelError, from_env
+
+    with pytest.raises(TunnelError, match=env_var):
+        from_env(
+            {
+                "VPATH_MGMT_SSH_HOST": "box",
+                "VPATH_MGMT_SSH_USER": "ops",
+                "VPATH_MGMT_SSH_KEY": "k",
+                env_var: value,
+            }
+        )
+
+
+def test_port_validation_accepts_plain_decimal_digits() -> None:
+    from vpath_platform_mgmt.ops.tunnel import from_env
+
+    config = from_env(
+        {
+            "VPATH_MGMT_SSH_HOST": "box",
+            "VPATH_MGMT_SSH_USER": "ops",
+            "VPATH_MGMT_SSH_KEY": "k",
+            "VPATH_MGMT_TUNNEL_PORT": "2000",
+            "VPATH_MGMT_TUNNEL_OPS_PORT": "8765",
+        }
+    )
+
+    assert config.port == 2000
+    assert config.ops_port == 8765
