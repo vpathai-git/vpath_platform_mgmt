@@ -50,6 +50,7 @@ class TunnelConfig:
     user: str
     key: str
     port: int = DEFAULT_SOCKS_PORT
+    ops_port: int = 0
 
     @property
     def target(self) -> str:
@@ -57,11 +58,17 @@ class TunnelConfig:
 
     def argv(self) -> list[str]:
         """The one command this application spawns; no caller input in it."""
+        forward = (
+            ["-L", f"127.0.0.1:{self.ops_port}:127.0.0.1:{self.ops_port}"]
+            if self.ops_port
+            else []
+        )
         return [
             "ssh",
             "-N",
             "-D",
             f"127.0.0.1:{self.port}",
+            *forward,
             "-i",
             self.key,
             "-o",
@@ -90,11 +97,17 @@ def from_env(env: Mapping[str, str]) -> TunnelConfig:
     raw_port = env.get("VPATH_MGMT_TUNNEL_PORT", "") or str(DEFAULT_SOCKS_PORT)
     if not raw_port.isdigit():
         raise TunnelError(f"VPATH_MGMT_TUNNEL_PORT is not a port number: {raw_port!r}")
+    raw_ops = env.get("VPATH_MGMT_TUNNEL_OPS_PORT", "") or "0"
+    if not raw_ops.isdigit():
+        raise TunnelError(
+            f"VPATH_MGMT_TUNNEL_OPS_PORT is not a port number: {raw_ops!r}"
+        )
     return TunnelConfig(
         host=env["VPATH_MGMT_SSH_HOST"],
         user=env["VPATH_MGMT_SSH_USER"],
         key=env["VPATH_MGMT_SSH_KEY"],
         port=int(raw_port),
+        ops_port=int(raw_ops),
     )
 
 

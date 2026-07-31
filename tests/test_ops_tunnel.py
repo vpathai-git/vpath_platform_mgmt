@@ -133,3 +133,47 @@ def test_a_tunnel_that_never_opens_is_terminated(tmp_path: Path) -> None:
             sleep=lambda _s: None,
         )
     assert hung.terminated is True  # no orphaned ssh left behind
+
+
+def test_argv_forwards_the_ops_api_port_when_one_is_configured() -> None:
+    from vpath_platform_mgmt.ops.tunnel import TunnelConfig
+
+    argv = TunnelConfig(host="box", user="ops", key="k", ops_port=8765).argv()
+
+    assert "-L" in argv
+    assert argv[argv.index("-L") + 1] == "127.0.0.1:8765:127.0.0.1:8765"
+
+
+def test_argv_has_no_forward_when_no_ops_port_is_configured() -> None:
+    from vpath_platform_mgmt.ops.tunnel import TunnelConfig
+
+    assert "-L" not in TunnelConfig(host="box", user="ops", key="k").argv()
+
+
+def test_from_env_reads_the_ops_port() -> None:
+    from vpath_platform_mgmt.ops.tunnel import from_env
+
+    config = from_env(
+        {
+            "VPATH_MGMT_SSH_HOST": "box",
+            "VPATH_MGMT_SSH_USER": "ops",
+            "VPATH_MGMT_SSH_KEY": "k",
+            "VPATH_MGMT_TUNNEL_OPS_PORT": "8765",
+        }
+    )
+
+    assert config.ops_port == 8765
+
+
+def test_from_env_refuses_a_non_numeric_ops_port() -> None:
+    from vpath_platform_mgmt.ops.tunnel import TunnelError, from_env
+
+    with pytest.raises(TunnelError, match="VPATH_MGMT_TUNNEL_OPS_PORT"):
+        from_env(
+            {
+                "VPATH_MGMT_SSH_HOST": "box",
+                "VPATH_MGMT_SSH_USER": "ops",
+                "VPATH_MGMT_SSH_KEY": "k",
+                "VPATH_MGMT_TUNNEL_OPS_PORT": "eight",
+            }
+        )
