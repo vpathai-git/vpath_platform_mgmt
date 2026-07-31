@@ -422,3 +422,15 @@ def test_dev_auth_is_refused_with_the_gitops_engine() -> None:
 
     with pytest.raises(ValueError, match="refusing dev auth with a real engine"):
         validate_auth_mode("dev", "gitops", has_validator=False)
+
+
+def test_the_console_offers_an_add_app_form(client: TestClient) -> None:
+    page = client.get("/").text
+    assert 'id="add-app"' in page
+    assert 'id="add-app-url"' in page
+    assert 'id="add-app-name"' in page
+
+
+def test_the_console_posts_to_the_publish_route(client: TestClient) -> None:
+    script = client.get("/console.js").text
+    assert "/api/apps/publish" in script

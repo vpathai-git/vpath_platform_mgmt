@@ -106,3 +106,14 @@ pre.file { background: var(--s2); border: 1px solid var(--line); padding: 12px;
   margin: 0; white-space: pre; }
 .title-row { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
 .title-row h3 { margin: 0; font-size: 16px; }
+.add-app { display: flex; flex-wrap: wrap; gap: 8px; align-items: center;
+  margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.add-app h3 { flex: 1 0 100%; margin: 0 0 2px; font-size: 13px; }
+.add-app input { flex: 1 1 160px; min-width: 120px; }
+.add-app details { flex: 1 0 100%; display: flex; flex-wrap: wrap; gap: 8px;
+  align-items: center; }
+.add-app summary { flex: 1 0 100%; cursor: pointer; color: var(--muted);
+  font-size: 12px; margin-bottom: 4px; }
+.add-app details input { flex: 1 1 120px; }
+.error { font-family: var(--mono); font-size: 12px; color: var(--bad);
+  flex: 1 0 100%; margin: 0; }

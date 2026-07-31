@@ -59,6 +59,22 @@
         </div>
         <div id="msg" aria-live="polite"></div>
         <div id="catalog-state" class="meta"></div>
+        <form id="add-app" class="add-app">
+          <h3>Add an application</h3>
+          <input id="add-app-url" name="url" placeholder="github.com/org/repo" required>
+          <input id="add-app-ref" name="ref" placeholder="main" value="main">
+          <input id="add-app-path" name="path"
+            placeholder="examples/my-app (blank = repo root)">
+          <input id="add-app-name" name="name" placeholder="app name" required>
+          <details>
+            <summary>The repository ships no vpath-app.yaml</summary>
+            <input id="add-app-port" name="port" type="number" placeholder="port">
+            <input id="add-app-base-path" name="base_path" placeholder="/app">
+            <input id="add-app-title" name="title" placeholder="sidebar title">
+          </details>
+          <button type="submit">Publish</button>
+          <p id="add-app-error" class="error" hidden></p>
+        </form>
       </section>
       <section>
         <h2>Recent jobs</h2>

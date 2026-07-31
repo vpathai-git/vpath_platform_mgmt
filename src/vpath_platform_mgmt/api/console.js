@@ -46,6 +46,46 @@ function reinstall() {
 /* Install/uninstall of a selected app live in store.js. */
 const fmt = (ts) => new Date(ts * 1000).toLocaleTimeString();
 
+/* ---------- add an application ---------- */
+/* generate is only sent when a port was given: the registry refuses
+   generation flags for a repository that already ships its own
+   vpath-app.yaml, which is the common case. On success the job just
+   shows up in Recent jobs on the next poll — no second poll loop here. */
+async function publishApp(event) {
+  event.preventDefault();
+  const value = (id) => $(id).value.trim();
+  const error = $("add-app-error");
+  error.hidden = true;
+  error.textContent = "";
+  const port = Number(value("add-app-port"));
+  const generate = port
+    ? {
+        name: value("add-app-name"),
+        port: port,
+        base_path: value("add-app-base-path"),
+        title: value("add-app-title"),
+      }
+    : null;
+  const r = await fetch("/api/apps/publish", {
+    method: "POST", headers: hdrs(),
+    body: JSON.stringify({
+      url: value("add-app-url"),
+      ref: value("add-app-ref") || "main",
+      path: value("add-app-path"),
+      name: value("add-app-name"),
+      generate: generate,
+    }),
+  });
+  const d = await r.json();
+  if (!r.ok) {
+    error.textContent = d.detail || "error";
+    error.hidden = false;
+    return;
+  }
+  $("add-app").reset();
+}
+$("add-app").addEventListener("submit", publishApp);
+
 function render(s) {
   $("jobs").innerHTML =
     "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>engine</th>" +
