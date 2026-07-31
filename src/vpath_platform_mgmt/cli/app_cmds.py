@@ -17,7 +17,7 @@ import typer
 
 from vpath_platform_mgmt.ops.bundle import BundleError, bundle
 from vpath_platform_mgmt.cli.client import ApiError
-from vpath_platform_mgmt.ops import repo_fetch, repo_probe
+from vpath_platform_mgmt.ops import repo_fetch, repo_probe, repo_tarball
 from vpath_platform_mgmt.ops.app_registry import (
     AppRegistry,
     Generated,
@@ -201,7 +201,7 @@ def send(
 
     workspace = Path(tempfile.mkdtemp(prefix="vpath-send-"))
     try:
-        tree = repo_probe.download_tree(slug, commit, workspace)
+        tree = repo_tarball.download_tree(slug, commit, workspace)
         _place_registered_files(name, tree)
         archive = bundle(tree)
     except (repo_fetch.FetchError, BundleError, RegistryError) as exc:

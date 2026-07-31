@@ -217,7 +217,7 @@ def test_a_member_escaping_into_a_sibling_directory_is_refused(tmp_path: Path) -
     """``startswith`` accepted ``/tree-evil`` beside ``/tree``."""
     import tarfile
 
-    from vpath_platform_mgmt.ops.repo_probe import _extract_stripped
+    from vpath_platform_mgmt.ops.repo_tarball import _extract_stripped
 
     root = tmp_path / "tree"
     root.mkdir()

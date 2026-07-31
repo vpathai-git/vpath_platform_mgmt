@@ -14,7 +14,7 @@ from collections.abc import Mapping
 from pathlib import Path
 
 from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
-from vpath_platform_mgmt.ops import repo_probe
+from vpath_platform_mgmt.ops import repo_probe, repo_tarball
 from vpath_platform_mgmt.ops.app_preflight import require_publishable
 from vpath_platform_mgmt.ops.app_registry import AppRegistry, detect_runtime
 from vpath_platform_mgmt.ops.argocd import ArgoClient
@@ -218,7 +218,7 @@ def build_publish_pipeline(env: Mapping[str, str]) -> PublishPipeline | None:
         gitops_engine=build_gitops_engine(env),
         probe=repo_probe.probe,
         materialise=repo_probe.materialise,
-        download=repo_probe.download_tree,
+        download=repo_tarball.download_tree,
         bundle=bundle,
         place=place,
         inspect=require_publishable,
