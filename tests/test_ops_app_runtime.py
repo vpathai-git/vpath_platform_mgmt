@@ -87,11 +87,24 @@ def test_pods_lists_one_namespace() -> None:
     assert [item["metadata"]["name"] for item in client.pods("ns")] == ["a", "b"]
 
 
-def test_pods_fails_hard_on_an_absent_namespace() -> None:
-    """An absent namespace is not an empty one, and must not read as empty."""
+def test_pods_fails_hard_when_the_namespace_endpoint_is_gone() -> None:
     client = argo(lambda _: httpx.Response(404))
     with pytest.raises(ArgoError, match="'ns'"):
         client.pods("ns")
+
+
+def test_a_namespace_that_does_not_exist_is_not_reported_as_empty() -> None:
+    """Verified on vm5: listing pods in an absent namespace returns 200 with
+    an empty list, not 404. So emptiness alone cannot be trusted to mean
+    'nothing runs here' — existence has to be established separately."""
+    reader = RuntimeReader(
+        cluster(["other-namespace"], {}, destination="vanished-namespace")
+    )
+    home = reader.snapshot(APP)["namespaces"][0]
+
+    assert home["name"] == "vanished-namespace"
+    assert home["pods"] is None
+    assert "does not exist" in home["error"]
 
 
 def test_pods_fails_hard_on_a_malformed_list() -> None:

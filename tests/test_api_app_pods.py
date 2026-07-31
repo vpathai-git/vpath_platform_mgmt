@@ -240,6 +240,17 @@ def test_an_app_whose_install_state_is_unknown_is_still_listed() -> None:
     assert "install state unknown" in script
 
 
+def test_a_succeeded_pod_is_not_coloured_as_a_failure() -> None:
+    """vm5 runs completed Jobs (…-gateway-mint-…) that sit in Succeeded.
+    That is a normal terminal state, and red would report 5 healthy
+    installations as broken."""
+    script = console().get("/runtime.js").text
+
+    assert "const PHASE = {" in script
+    assert "Succeeded:" in script
+    assert 'Running: "ok"' in script
+
+
 def test_the_section_lists_installed_apps_the_catalog_has_never_heard_of() -> None:
     """17 of vm5's 18 installed apps have no entry in this repo's apps/."""
     script = console().get("/runtime.js").text

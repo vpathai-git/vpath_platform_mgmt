@@ -169,9 +169,10 @@ class ArgoClient:
     def pods(self, namespace: str) -> list[dict[str, Any]]:
         """Every pod in one namespace, exactly as the API returns them.
 
-        A namespace that is absent raises rather than returning nothing:
-        "no pods run here" and "this namespace is gone" are the same empty
-        list and not the same fact.
+        Beware: a namespace that does not exist answers 200 with an empty
+        list, not 404 (verified against k3s). This call therefore cannot
+        distinguish "nothing runs here" from "there is no such namespace" —
+        callers that care must establish existence via ``namespaces()``.
         """
         body = self._get_json(
             f"/api/v1/namespaces/{namespace}/pods", f"pods in '{namespace}'"
@@ -187,14 +188,17 @@ class ArgoClient:
             )
         return [item for item in items if isinstance(item, dict)]
 
-    def app_namespaces(self, app: str) -> list[str]:
-        """Project namespaces (``kp-<app>-*``) that depend on this app."""
+    def namespaces(self) -> list[str]:
+        """Every namespace in the cluster, sorted."""
         body = self._get_json("/api/v1/namespaces", "namespaces")
         if body is None:
             raise ArgoError("cluster-unreachable: namespace census returned 404")
-        prefix = f"kp-{app}-"
         items = body.get("items")
         if not isinstance(items, list):
             raise ArgoError("cluster-unreachable: namespace list is malformed")
-        names = [item.get("metadata", {}).get("name", "") for item in items]
-        return sorted(name for name in names if name.startswith(prefix))
+        return sorted(item.get("metadata", {}).get("name", "") for item in items)
+
+    def app_namespaces(self, app: str) -> list[str]:
+        """Project namespaces (``kp-<app>-*``) that depend on this app."""
+        prefix = f"kp-{app}-"
+        return [name for name in self.namespaces() if name.startswith(prefix)]

@@ -104,13 +104,21 @@ class RuntimeReader:
         """
         application = self._argo.application(app)
         sync, health = ArgoClient.status_of(application)
-        views = [self._home(app, application)]
+        # One census, used twice: to find the app's project namespaces, and
+        # to tell an empty namespace from one that is not there at all.
+        existing = self._argo.namespaces()
+        views = [self._home(app, application, existing)]
+        prefix = f"kp-{app}-"
         views.extend(
-            self._namespace(name, PROJECT) for name in self._argo.app_namespaces(app)
+            self._namespace(name, PROJECT, existing)
+            for name in existing
+            if name.startswith(prefix)
         )
         return {"app": app, "sync": sync, "health": health, "namespaces": views}
 
-    def _home(self, app: str, application: dict[str, Any] | None) -> dict[str, object]:
+    def _home(
+        self, app: str, application: dict[str, Any] | None, existing: list[str]
+    ) -> dict[str, object]:
         """The namespace this app deploys into, per ArgoCD — never guessed.
 
         An app's name is not its namespace. On the reference installation 7
@@ -124,7 +132,7 @@ class RuntimeReader:
         """
         home = destination_of(application)
         if home:
-            return self._namespace(home, APPLICATION)
+            return self._namespace(home, APPLICATION, existing)
         why = (
             f"there is no ArgoCD Application for '{app}'"
             if application is None
@@ -137,13 +145,24 @@ class RuntimeReader:
             "error": f"{why}, so the namespace it deploys into is unknown",
         }
 
-    def _namespace(self, name: str, kind: str) -> dict[str, object]:
+    def _namespace(
+        self, name: str, kind: str, existing: list[str]
+    ) -> dict[str, object]:
         view: dict[str, object] = {
             "name": name,
             "kind": kind,
             "pods": None,
             "error": "",
         }
+        if name not in existing:
+            # Asking anyway would answer 200 with an empty list, which reads
+            # as "nothing is running" — the one thing this must never claim
+            # about a namespace that is not there.
+            view["error"] = (
+                f"namespace '{name}' does not exist; ArgoCD names it as this "
+                "app's destination, so the app is declared but not deployed"
+            )
+            return view
         try:
             view["pods"] = [pod_view(raw).to_dict() for raw in self._argo.pods(name)]
         except ArgoError as exc:

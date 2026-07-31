@@ -40,9 +40,21 @@ function age(iso) {
   return min ? min + "m" : Math.floor(secs) + "s";
 }
 
+/* Succeeded is a normal terminal state, not a failure: the platform runs
+   completed Jobs (…-gateway-mint-…) that sit there for the life of the
+   namespace. Colouring anything-but-Running red reported five healthy
+   installations as broken. Unknown phases stay neutral rather than alarming. */
+const PHASE = {
+  Running: "ok",
+  Succeeded: "q",
+  Pending: "q",
+  Failed: "err",
+  Unknown: "err",
+};
+
 function podRow(p) {
   return `<tr><td class="mono">${esc(p.name)}</td>` +
-    `<td><span class="chip ${p.phase === "Running" ? "ok" : "err"}">` +
+    `<td><span class="chip ${PHASE[p.phase] || "q"}">` +
     `${esc(p.phase)}</span></td>` +
     `<td class="mono">${esc(p.ready)}</td>` +
     `<td class="mono ${p.restarts ? "" : "dim"}">${esc(p.restarts)}</td>` +
