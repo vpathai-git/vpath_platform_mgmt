@@ -202,7 +202,7 @@ def send(
     workspace = Path(tempfile.mkdtemp(prefix="vpath-send-"))
     try:
         tree = repo_probe.download_tree(slug, commit, workspace)
-        _place_manifest(name, tree, str(entry.get("manifest_origin", "")))
+        _place_registered_files(name, tree)
         archive = bundle(tree)
     except (repo_fetch.FetchError, BundleError, RegistryError) as exc:
         shutil.rmtree(workspace, ignore_errors=True)
@@ -248,18 +248,23 @@ def _sending_facts(name: str, entry: dict[str, object]) -> tuple[str, str]:
         raise typer.Exit(code=EXIT_CONFIG)  # pragma: no cover - _fail exits
 
 
-def _place_manifest(name: str, tree: Path, origin: str) -> None:
-    """Put the registered manifest in the payload the server will read.
+REGISTERED_FILES = ("vpath-app.yaml", "vpath-source.yaml")
+
+
+def _place_registered_files(name: str, tree: Path, apps: Path | None = None) -> None:
+    """Put the registered manifest and its provenance in the payload.
 
     The server refuses an upload without a manifest, and a generated one lives
-    only here -- so it has to travel. Copying it also means the server always
-    materializes the manifest this console showed, never a different one that
-    happened to be in the repo.
+    only here -- so it has to travel. Provenance travels with it so the
+    checkout can say which commit it holds without asking this repository,
+    which is what lets a resumed publish skip a send that already happened.
     """
-    registered = apps_root() / name / "vpath-app.yaml"
-    if not registered.is_file():
-        raise RegistryError(f"'{name}' has no manifest at {registered}")
-    shutil.copyfile(registered, tree / "vpath-app.yaml")
+    root = apps if apps is not None else apps_root()
+    for filename in REGISTERED_FILES:
+        registered = root / name / filename
+        if not registered.is_file():
+            raise RegistryError(f"'{name}' has no {filename} at {registered}")
+        shutil.copyfile(registered, tree / filename)
 
 
 def _push(

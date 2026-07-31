@@ -38,7 +38,7 @@ def test_the_registered_manifest_travels_with_the_source(
     tree.mkdir()
     (tree / "index.js").write_text("//", encoding="utf-8")
 
-    app_cmds._place_manifest("vpath-thing", tree, "generated")
+    app_cmds._place_registered_files("vpath-thing", tree)
 
     assert (tree / "vpath-app.yaml").read_text(encoding="utf-8") == MANIFEST
 
@@ -47,8 +47,8 @@ def test_placing_a_manifest_that_is_not_there_is_refused(
     registered: Path, tmp_path: Path
 ) -> None:
     (registered / "vpath-thing" / "vpath-app.yaml").unlink()
-    with pytest.raises(RegistryError, match="has no manifest"):
-        app_cmds._place_manifest("vpath-thing", tmp_path, "generated")
+    with pytest.raises(RegistryError, match="vpath-app.yaml"):
+        app_cmds._place_registered_files("vpath-thing", tmp_path)
 
 
 def test_an_upstream_manifest_in_the_repo_is_overwritten_by_the_registered_one(
@@ -59,7 +59,7 @@ def test_an_upstream_manifest_in_the_repo_is_overwritten_by_the_registered_one(
     tree.mkdir()
     (tree / "vpath-app.yaml").write_text("stale: yes\n", encoding="utf-8")
 
-    app_cmds._place_manifest("vpath-thing", tree, "upstream")
+    app_cmds._place_registered_files("vpath-thing", tree)
 
     assert (tree / "vpath-app.yaml").read_text(encoding="utf-8") == MANIFEST
 
@@ -115,11 +115,70 @@ def test_bundle_of_the_prepared_tree_carries_the_manifest(
     (tree / "index.js").write_text("//", encoding="utf-8")
     (tree / ".git").mkdir()
     (tree / ".git" / "config").write_text("x", encoding="utf-8")
-    app_cmds._place_manifest("vpath-thing", tree, "generated")
+    app_cmds._place_registered_files("vpath-thing", tree)
 
     with tarfile.open(fileobj=io.BytesIO(bundle(tree))) as packed:
         names = packed.getnames()
 
     assert "vpath-app.yaml" in names
+    assert "vpath-source.yaml" in names
     assert "index.js" in names
     assert not any(name.startswith(".git") for name in names)  # never ship .git
+
+
+def test_the_payload_carries_provenance_so_the_box_knows_its_commit(
+    tmp_path: Path,
+) -> None:
+    """The checkout must be able to say which commit it holds, on its own."""
+    from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
+
+    apps = tmp_path / "apps"
+    (apps / "demo-app").mkdir(parents=True)
+    (apps / "demo-app" / "vpath-app.yaml").write_text(
+        "kind: VpathApp\n", encoding="utf-8"
+    )
+    (apps / "demo-app" / "vpath-source.yaml").write_text(
+        "commit: abc123\n", encoding="utf-8"
+    )
+    payload = tmp_path / "tree"
+    payload.mkdir()
+
+    _place_registered_files("demo-app", payload, apps)
+
+    assert (payload / "vpath-app.yaml").read_text(
+        encoding="utf-8"
+    ) == "kind: VpathApp\n"
+    assert (payload / "vpath-source.yaml").read_text(
+        encoding="utf-8"
+    ) == "commit: abc123\n"
+
+
+def test_placing_files_refuses_when_the_manifest_is_missing(tmp_path: Path) -> None:
+    from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
+    from vpath_platform_mgmt.ops.app_registry import RegistryError
+
+    apps = tmp_path / "apps"
+    (apps / "demo-app").mkdir(parents=True)
+    payload = tmp_path / "tree"
+    payload.mkdir()
+
+    with pytest.raises(RegistryError, match="vpath-app.yaml"):
+        _place_registered_files("demo-app", payload, apps)
+
+
+def test_placing_files_refuses_when_the_source_provenance_is_missing(
+    tmp_path: Path,
+) -> None:
+    from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
+    from vpath_platform_mgmt.ops.app_registry import RegistryError
+
+    apps = tmp_path / "apps"
+    (apps / "demo-app").mkdir(parents=True)
+    (apps / "demo-app" / "vpath-app.yaml").write_text(
+        "kind: VpathApp\n", encoding="utf-8"
+    )
+    payload = tmp_path / "tree"
+    payload.mkdir()
+
+    with pytest.raises(RegistryError, match="vpath-source.yaml"):
+        _place_registered_files("demo-app", payload, apps)
