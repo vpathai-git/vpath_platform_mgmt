@@ -356,6 +356,18 @@ def test_gitops_engine_fails_hard_on_missing_config(missing: str) -> None:
         build_engine(env)
 
 
+def test_no_publish_pipeline_without_a_checkout() -> None:
+    from vpath_platform_mgmt.api.server import build_publish_pipeline
+
+    assert build_publish_pipeline({"VPATH_MGMT_GITEA_URL": "https://gitea"}) is None
+
+
+def test_no_publish_pipeline_without_the_deploy_record(tmp_path: Path) -> None:
+    from vpath_platform_mgmt.api.server import build_publish_pipeline
+
+    assert build_publish_pipeline({"VPATH_MGMT_SERVER_CHECKOUT": str(tmp_path)}) is None
+
+
 def test_dev_auth_is_refused_with_the_gitops_engine() -> None:
     """A header-trust identity must never gate a real deploy."""
     from vpath_platform_mgmt.api.auth import validate_auth_mode

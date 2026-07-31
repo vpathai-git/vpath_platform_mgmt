@@ -15,7 +15,7 @@ from vpath_platform_mgmt.ops.served_catalog import (
 )
 from vpath_platform_mgmt.ops.browse import AppBrowser, BrowseError
 from vpath_platform_mgmt.ops.engine import EngineFailure
-from vpath_platform_mgmt.ops.model import Role
+from vpath_platform_mgmt.ops.model import OpsError, Role
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.source import (
     SourceError,
@@ -167,6 +167,40 @@ def _register_source(
         return summary
 
 
+def _publish_request(body: dict[str, object]) -> tuple[str, dict[str, object]]:
+    """The app name and job payload, refusing a request that cannot be run."""
+    missing = [key for key in ("url", "name") if not body.get(key)]
+    if missing:
+        raise HTTPException(
+            status_code=400,
+            detail=f"publish needs {' and '.join(missing)}",
+        )
+    return str(body["name"]), {
+        "url": str(body["url"]),
+        "ref": str(body.get("ref") or "main"),
+        "path": str(body.get("path") or ""),
+        "generate": body.get("generate"),
+        "replace": bool(body.get("replace", False)),
+    }
+
+
+def _register_publish(app: FastAPI, identity: IdentityFn, service: OpsService) -> None:
+    @app.post("/api/apps/publish", status_code=202)
+    async def publish(request: Request) -> dict[str, object]:
+        """Walk a repository from URL to running under ArgoCD (Admin)."""
+        caller = identity(request)
+        name, payload = _publish_request(await request.json())
+        try:
+            job = service.submit(
+                "publish", name, caller.actor, caller.role, payload=payload
+            )
+        except OpsError as exc:
+            raise HTTPException(
+                status_code=exc.http_status, detail=exc.message
+            ) from exc
+        return job.to_dict()
+
+
 def register(
     app: FastAPI,
     identity: IdentityFn,
@@ -180,3 +214,4 @@ def register(
     _register_catalog(app, identity, catalog, platform_url, service, served)
     _register_browse(app, identity, catalog)
     _register_source(app, identity, service, materializer)
+    _register_publish(app, identity, service)

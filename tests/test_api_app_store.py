@@ -14,6 +14,7 @@ from vpath_platform_mgmt.ops.engine import EngineFailure
 from vpath_platform_mgmt.ops.model import RefusedError
 
 DEV = {"X-Dev-Actor": "alice", "X-Dev-Role": "admin"}
+APP_DEV = {"X-Dev-Actor": "bob", "X-Dev-Role": "app-dev"}
 MANIFEST = """
 apiVersion: vpath/v1
 kind: VpathApp
@@ -169,3 +170,48 @@ def test_uninstall_is_still_gated_by_role() -> None:
     service = OpsService(ReportingEngine(["alpha"]))
     with pytest.raises(RefusedError):
         service.submit("uninstall", "alpha", "eve", "server-dev")
+
+
+def _publish_client() -> TestClient:
+    return TestClient(create_app(OpsService(SimulatedEngine())))
+
+
+def test_publish_submits_a_job_and_returns_it() -> None:
+    response = _publish_client().post(
+        "/api/apps/publish",
+        json={"url": "github.com/org/demo-app", "ref": "main", "name": "demo-app"},
+        headers=DEV,
+    )
+
+    assert response.status_code == 202
+    body = response.json()
+    assert body["verb"] == "publish"
+    assert body["app"] == "demo-app"
+
+
+def test_publish_refuses_a_non_admin() -> None:
+    response = _publish_client().post(
+        "/api/apps/publish",
+        json={"url": "github.com/org/demo-app", "ref": "main", "name": "demo-app"},
+        headers=APP_DEV,
+    )
+
+    assert response.status_code == 403
+
+
+def test_publish_refuses_a_request_without_a_url() -> None:
+    response = _publish_client().post(
+        "/api/apps/publish", json={"ref": "main", "name": "demo-app"}, headers=DEV
+    )
+
+    assert response.status_code == 400
+    assert "url" in response.json()["detail"]
+
+
+def test_publish_refuses_a_request_without_a_name() -> None:
+    response = _publish_client().post(
+        "/api/apps/publish", json={"url": "github.com/org/demo-app"}, headers=DEV
+    )
+
+    assert response.status_code == 400
+    assert "name" in response.json()["detail"]

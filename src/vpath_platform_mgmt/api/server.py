@@ -43,11 +43,17 @@ from vpath_platform_mgmt.api.app import create_app
 from vpath_platform_mgmt.api.auth import BrowserAuthConfig
 from vpath_platform_mgmt.api.kc_proxy import KeycloakProxy
 from vpath_platform_mgmt.api.oidc import OidcConfig, OidcValidator
+from vpath_platform_mgmt.cli.app_cmds import _place_registered_files
+from vpath_platform_mgmt.cli.bundle import bundle
+from vpath_platform_mgmt.ops import repo_probe
+from vpath_platform_mgmt.ops.app_preflight import require_publishable
+from vpath_platform_mgmt.ops.app_registry import AppRegistry, detect_runtime
 from vpath_platform_mgmt.ops.argocd import ArgoClient
 from vpath_platform_mgmt.ops.engine import EngineAdapter, LocalEngine, SimulatedEngine
 from vpath_platform_mgmt.ops.gitea import GiteaClient
 from vpath_platform_mgmt.ops.gitops_engine import GitOpsEngine
 from vpath_platform_mgmt.ops.apps import AppCatalog
+from vpath_platform_mgmt.ops.publish import PublishPipeline
 from vpath_platform_mgmt.ops.service import OpsService
 from vpath_platform_mgmt.ops.served_catalog import ServedCatalogReader
 from vpath_platform_mgmt.ops.source import SourceMaterializer
@@ -265,20 +271,47 @@ def build_served_catalog(env: Mapping[str, str]) -> ServedCatalogReader | None:
     return ServedCatalogReader(platform_url, verify_tls=not insecure)
 
 
+def build_catalog_root(env: Mapping[str, str]) -> Path:
+    """This repository's ``apps/`` folder, which the registry owns."""
+    return Path(env.get("VPATH_MGMT_APPS_DIR", "") or (repo_root() / "apps"))
+
+
 def build_catalog(env: Mapping[str, str]) -> AppCatalog:
     """Catalog over this repo's ``apps/`` plus the server checkout, if any.
 
     ``VPATH_MGMT_APPS_DIR`` overrides the repo folder. Both sources use the
     same ``<dir>/<app>/vpath-app.yaml`` layout; repo apps win on name clash.
     """
-    repo_apps = env.get("VPATH_MGMT_APPS_DIR", "") or str(
-        Path(__file__).resolve().parents[3] / "apps"
-    )
-    directories = [Path(repo_apps)]
+    directories = [build_catalog_root(env)]
     checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
     if checkout:
         directories.append(Path(checkout) / "apps_infra" / "apps")
     return AppCatalog(*directories)
+
+
+def build_publish_pipeline(env: Mapping[str, str]) -> PublishPipeline | None:
+    """The pipeline, or None when this console cannot serve publish.
+
+    Publish spans both engines: rendering needs the checkout on this host and
+    installing needs the Deploy-of-Record. A console with only one of them
+    cannot do it, and says so at the verb rather than half way through.
+    """
+    checkout = env.get("VPATH_MGMT_SERVER_CHECKOUT", "")
+    if not checkout or not env.get("VPATH_MGMT_GITEA_URL", ""):
+        return None
+    return PublishPipeline(
+        registry=AppRegistry(build_catalog_root(env)),
+        materializer=SourceMaterializer(Path(checkout)),
+        local_engine=LocalEngine(Path(checkout), extra_env=parse_engine_env(env)),
+        gitops_engine=build_gitops_engine(env),
+        probe=repo_probe.probe,
+        materialise=repo_probe.materialise,
+        download=repo_probe.download_tree,
+        bundle=bundle,
+        place=_place_registered_files,
+        inspect=require_publishable,
+        runtime_of=detect_runtime,
+    )
 
 
 def main() -> None:  # pragma: no cover - thin uvicorn wrapper
@@ -301,6 +334,7 @@ def main() -> None:  # pragma: no cover - thin uvicorn wrapper
         engine,
         instance_name=resolve_instance_name(os.environ, engine.name),
         tunnel_config=build_tunnel_config(os.environ),
+        publish=build_publish_pipeline(os.environ),
     )
     app = create_app(
         service,
