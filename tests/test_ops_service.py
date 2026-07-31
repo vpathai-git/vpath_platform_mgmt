@@ -189,6 +189,9 @@ def test_publish_requires_admin() -> None:
     service = make_service()
     with pytest.raises(RefusedError, match="admin"):
         service.submit("publish", "demo-app", "dev", "app-dev")
+    audit = service.state()["audit"]
+    assert audit[0]["result"] == "REFUSED (role)"
+    assert audit[0]["actor"] == "dev"
 
 
 def test_publish_without_a_pipeline_fails_the_job_naming_why() -> None:
@@ -197,7 +200,9 @@ def test_publish_without_a_pipeline_fails_the_job_naming_why() -> None:
     service.wait(job.id)
 
     assert job.state is JobState.FAILED
-    assert "publish" in job.log[-1]
+    assert "server checkout" in job.log[-1]
+    assert "Deploy-of-Record" in job.log[-1]
+    assert "Ops API" in job.log[-1]
 
 
 def test_publish_dispatches_to_the_pipeline_not_the_engine() -> None:

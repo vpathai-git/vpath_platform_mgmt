@@ -56,7 +56,7 @@ class OpsService:
         audit: AuditLog | None = None,
         instance_name: str = "",
         tunnel_config: TunnelConfig | None = None,
-        publish: "PublishPipeline | None" = None,
+        publish: PublishPipeline | None = None,
     ) -> None:
         self._engine = engine
         self._locks = locks or LockManager()
