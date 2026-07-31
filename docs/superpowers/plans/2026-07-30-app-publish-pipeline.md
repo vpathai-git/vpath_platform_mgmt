@@ -43,7 +43,35 @@ Copied verbatim from `AGENTS.md`; every task's requirements implicitly include t
   - `inspect(tree: Path, app: str, runtime: str) -> list[Finding]`
   - `require_publishable(tree: Path, app: str, runtime: str) -> None` — raises `PreflightError` listing every finding at once.
 
-Task 3 calls `require_publishable` only.
+Task 4 calls `require_publishable` only.
+
+**The rule this gate enforces.** Every check answers one question — would this
+tree still make sense once it sits at `apps_infra/apps/<name>/`? Paths are
+therefore *resolved* against that directory, never pattern-matched.
+
+A dependency leaving the app is not wrong by itself. Every app already in
+`apps/` declares the SDK it consumes:
+
+```yaml
+    hash:
+      dirs: [apps_infra/apps/vpath-knowledge-builder, apps_infra/sdk]
+    sdks:
+      - name: "@vpath/sdk"
+        source: apps_infra/sdk
+```
+
+`spec.build.sdks` is the server pipeline's own SDK mapping, so both the second
+`hash.dirs` entry and the escaping `file:` dependency are *expected*. Only the
+path can be wrong:
+
+> For every `spec.build.sdks[]` entry, the `file:` dependency of the same name
+> must resolve, relative to `apps_infra/apps/<name>`, to that entry's `source`.
+
+`file:../../kit/sdk` resolves to `apps_infra/kit/sdk`, which does not exist;
+`file:../../sdk` resolves to `apps_infra/sdk`, which is what the manifest
+names. That single mismatch is the recorded build failure, and the refusal
+names the fix. A rule that simply refused every escaping dependency would
+reject a correct app for a reason that is not its bug.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -71,157 +99,227 @@ def write(tree: Path, name: str, text: str) -> None:
     (tree / name).write_text(text, encoding="utf-8")
 
 
-def manifest(app: str, dirs: list[str]) -> str:
+APP = "vpath-knowledge-builder"
+SDK_SOURCE = "apps_infra/sdk"
+
+
+def manifest(
+    app: str, dirs: list[str], sdks: list[dict[str, str]] | None = None
+) -> str:
+    build: dict[str, object] = {"runtime": "node", "hash": {"dirs": dirs}}
+    if sdks is not None:
+        build["sdks"] = sdks
     return yaml.safe_dump(
         {
             "apiVersion": "vpath/v1",
             "kind": "VpathApp",
             "metadata": {"name": app},
-            "spec": {"build": {"runtime": "node", "hash": {"dirs": dirs}}},
+            "spec": {"build": build},
         },
         sort_keys=False,
     )
 
 
-def good_node_tree(tmp_path: Path, app: str = "demo-app") -> Path:
+def package(dependencies: dict[str, str] | None = None, build: bool = True) -> str:
+    body: dict[str, object] = {"name": APP}
+    if build:
+        body["scripts"] = {"build": "next build"}
+    if dependencies is not None:
+        body["dependencies"] = dependencies
+    return json.dumps(body)
+
+
+def plain_tree(tmp_path: Path) -> Path:
+    """An app with no SDK: one hashed directory and its own dependencies."""
+    write(tmp_path, "package.json", package())
+    write(tmp_path, "vpath-app.yaml", manifest(APP, [f"apps_infra/apps/{APP}"]))
+    return tmp_path
+
+
+def sdk_tree(tmp_path: Path, dependency: str) -> Path:
+    """The real vpath-knowledge-builder shape, with one dependency path.
+
+    Its manifest declares the SDK it consumes and hashes it so a change to the
+    SDK rebuilds the app. Both are correct; only the dependency path can be
+    wrong.
+    """
+    write(tmp_path, "package.json", package({"@vpath/sdk": dependency}))
     write(
         tmp_path,
-        "package.json",
-        json.dumps({"name": app, "scripts": {"build": "next build"}}),
+        "vpath-app.yaml",
+        manifest(
+            APP,
+            [f"apps_infra/apps/{APP}", SDK_SOURCE],
+            [{"name": "@vpath/sdk", "source": SDK_SOURCE}],
+        ),
     )
-    write(tmp_path, "vpath-app.yaml", manifest(app, [f"apps_infra/apps/{app}"]))
     return tmp_path
 
 
 def test_a_self_contained_node_repo_has_no_findings(tmp_path: Path) -> None:
-    assert inspect(good_node_tree(tmp_path), "demo-app", "node") == []
+    assert inspect(plain_tree(tmp_path), APP, "node") == []
 
 
-def test_a_dependency_escaping_the_app_tree_is_a_finding(tmp_path: Path) -> None:
-    tree = good_node_tree(tmp_path)
-    write(
-        tree,
-        "package.json",
-        json.dumps(
-            {
-                "name": "demo-app",
-                "scripts": {"build": "next build"},
-                "dependencies": {"@vpath/sdk": "file:../../kit/sdk"},
-            }
-        ),
-    )
-    findings = inspect(tree, "demo-app", "node")
-    assert [f.file for f in findings] == ["package.json"]
-    assert "file:../../kit/sdk" in findings[0].value
-
-
-def test_a_file_dependency_inside_the_app_tree_is_allowed(tmp_path: Path) -> None:
-    tree = good_node_tree(tmp_path)
-    write(
-        tree,
-        "package.json",
-        json.dumps(
-            {
-                "name": "demo-app",
-                "scripts": {"build": "next build"},
-                "dependencies": {"@demo/ui": "file:./packages/ui"},
-            }
-        ),
-    )
-    assert inspect(tree, "demo-app", "node") == []
-
-
-def test_a_python_path_dependency_escaping_the_tree_is_a_finding(
+def test_a_declared_sdk_resolving_where_the_manifest_says_is_clean(
     tmp_path: Path,
 ) -> None:
-    write(tmp_path, "pyproject.toml", '[project]\nname = "demo-app"\n')
-    write(
-        tmp_path,
-        "vpath-app.yaml",
-        manifest("demo-app", ["apps_infra/apps/demo-app"]),
-    )
-    (tmp_path / "pyproject.toml").write_text(
-        '[project]\nname = "demo-app"\n\n'
-        "[tool.poetry.dependencies]\n"
-        'vpath-sdk = { path = "../../kit/sdk" }\n',
-        encoding="utf-8",
-    )
-    findings = inspect(tmp_path, "demo-app", "python")
-    assert [f.file for f in findings] == ["pyproject.toml"]
-
-
-def test_hash_dirs_naming_another_app_is_a_finding(tmp_path: Path) -> None:
-    tree = good_node_tree(tmp_path)
-    write(tree, "vpath-app.yaml", manifest("demo-app", ["apps_infra/apps/other-app"]))
-    findings = inspect(tree, "demo-app", "node")
-    assert [f.file for f in findings] == ["vpath-app.yaml"]
-    assert "other-app" in findings[0].value
-
-
-def test_hash_dirs_outside_the_apps_root_is_a_finding(tmp_path: Path) -> None:
-    tree = good_node_tree(tmp_path)
-    write(tree, "vpath-app.yaml", manifest("demo-app", ["apps_infra/sdk"]))
-    assert len(inspect(tree, "demo-app", "node")) == 1
-
-
-def test_a_node_repo_without_a_build_script_is_a_finding(tmp_path: Path) -> None:
-    tree = good_node_tree(tmp_path)
-    write(tree, "package.json", json.dumps({"name": "demo-app"}))
-    findings = inspect(tree, "demo-app", "node")
-    assert [f.file for f in findings] == ["package.json"]
-    assert "scripts.build" in findings[0].remedy
-
-
-def test_a_node_repo_without_a_package_json_is_a_finding(tmp_path: Path) -> None:
-    write(tmp_path, "vpath-app.yaml", manifest("demo-app", ["apps_infra/apps/demo-app"]))
-    assert len(inspect(tmp_path, "demo-app", "node")) == 1
-
-
-def test_require_publishable_passes_a_clean_tree(tmp_path: Path) -> None:
-    require_publishable(good_node_tree(tmp_path), "demo-app", "node")
-
-
-def test_require_publishable_reports_every_finding_at_once(tmp_path: Path) -> None:
-    tree = good_node_tree(tmp_path)
-    write(
-        tree,
-        "package.json",
-        json.dumps({"dependencies": {"@vpath/sdk": "file:../../kit/sdk"}}),
-    )
-    write(tree, "vpath-app.yaml", manifest("demo-app", ["apps_infra/apps/other-app"]))
-    with pytest.raises(PreflightError) as failure:
-        require_publishable(tree, "demo-app", "node")
-    message = str(failure.value)
-    assert "package.json" in message
-    assert "vpath-app.yaml" in message
-    assert "scripts.build" in message
+    """apps_infra/apps/<name>/../../sdk is apps_infra/sdk — exactly the source."""
+    assert inspect(sdk_tree(tmp_path, "file:../../sdk"), APP, "node") == []
 
 
 def test_the_recorded_sdk_failure_is_refused(tmp_path: Path) -> None:
     """Regression guard for the port failure in 07_app_source_delivery.md.
 
     Source materialized cleanly and the image build then died on
-    'Can't resolve @vpath/sdk'. Publishing must refuse before anything is
-    written to the box.
+    'Can't resolve @vpath/sdk': the repository declares file:../../kit/sdk,
+    which resolves to apps_infra/kit/sdk, while its own manifest puts the SDK
+    at apps_infra/sdk. Publishing must refuse before anything reaches the box,
+    and must name the one-line fix.
     """
+    findings = inspect(sdk_tree(tmp_path, "file:../../kit/sdk"), APP, "node")
+
+    assert [f.file for f in findings] == ["package.json"]
+    assert "file:../../kit/sdk" in findings[0].value
+    assert "apps_infra/kit/sdk" in findings[0].remedy
+    assert "file:../../sdk" in findings[0].remedy
+
+
+def test_an_escaping_dependency_the_manifest_never_declares_is_refused(
+    tmp_path: Path,
+) -> None:
+    """With no spec.build.sdks entry, nothing puts that directory in the tree."""
+    write(tmp_path, "package.json", package({"@vpath/sdk": "file:../../sdk"}))
+    write(tmp_path, "vpath-app.yaml", manifest(APP, [f"apps_infra/apps/{APP}"]))
+
+    findings = inspect(tmp_path, APP, "node")
+
+    assert [f.file for f in findings] == ["package.json"]
+    assert "spec.build.sdks" in findings[0].remedy
+
+
+def test_a_file_dependency_inside_the_app_tree_is_allowed(tmp_path: Path) -> None:
+    write(tmp_path, "package.json", package({"@demo/ui": "file:./packages/ui"}))
+    write(tmp_path, "vpath-app.yaml", manifest(APP, [f"apps_infra/apps/{APP}"]))
+
+    assert inspect(tmp_path, APP, "node") == []
+
+
+def test_hashing_a_directory_no_sdk_declares_is_a_finding(tmp_path: Path) -> None:
+    write(tmp_path, "package.json", package())
     write(
         tmp_path,
-        "package.json",
-        json.dumps(
-            {
-                "name": "vpath-explorer",
-                "scripts": {"build": "next build"},
-                "dependencies": {"@vpath/sdk": "file:../../kit/sdk"},
-            }
-        ),
+        "vpath-app.yaml",
+        manifest(APP, [f"apps_infra/apps/{APP}", SDK_SOURCE]),
+    )
+
+    findings = inspect(tmp_path, APP, "node")
+
+    assert [f.file for f in findings] == ["vpath-app.yaml"]
+    assert SDK_SOURCE in findings[0].value
+
+
+def test_hash_dirs_naming_another_app_is_a_finding(tmp_path: Path) -> None:
+    write(tmp_path, "package.json", package())
+    write(tmp_path, "vpath-app.yaml", manifest(APP, ["apps_infra/apps/other-app"]))
+
+    findings = inspect(tmp_path, APP, "node")
+
+    assert [f.file for f in findings] == ["vpath-app.yaml"]
+    assert "other-app" in findings[0].value
+
+
+def test_a_python_path_dependency_the_manifest_never_declares_is_a_finding(
+    tmp_path: Path,
+) -> None:
+    write(
+        tmp_path,
+        "pyproject.toml",
+        '[project]\nname = "demo-api"\n\n'
+        "[tool.poetry.dependencies]\n"
+        'vpath-backend-sdk = { path = "../../sdk-python/vpath-backend-sdk" }\n',
+    )
+    write(
+        tmp_path, "vpath-app.yaml", manifest("demo-api", ["apps_infra/apps/demo-api"])
+    )
+
+    findings = inspect(tmp_path, "demo-api", "python")
+
+    assert [f.file for f in findings] == ["pyproject.toml"]
+
+
+def test_a_python_path_dependency_a_declared_sdk_covers_is_allowed(
+    tmp_path: Path,
+) -> None:
+    """The real backend-SDK shape, as every python app in apps/ declares it."""
+    source = "apps_infra/sdk-python/vpath-backend-sdk"
+    write(
+        tmp_path,
+        "pyproject.toml",
+        '[project]\nname = "demo-api"\n\n'
+        "[tool.poetry.dependencies]\n"
+        'vpath-backend-sdk = { path = "../../sdk-python/vpath-backend-sdk" }\n',
     )
     write(
         tmp_path,
         "vpath-app.yaml",
-        manifest("vpath-explorer", ["apps_infra/apps/vpath-explorer"]),
+        manifest(
+            "demo-api",
+            ["apps_infra/apps/demo-api", source],
+            [{"name": "vpath-backend-sdk", "source": source}],
+        ),
     )
-    with pytest.raises(PreflightError, match="kit/sdk"):
-        require_publishable(tmp_path, "vpath-explorer", "node")
+
+    assert inspect(tmp_path, "demo-api", "python") == []
+
+
+def test_a_node_repo_without_a_build_script_is_a_finding(tmp_path: Path) -> None:
+    write(tmp_path, "package.json", package(build=False))
+    write(tmp_path, "vpath-app.yaml", manifest(APP, [f"apps_infra/apps/{APP}"]))
+
+    findings = inspect(tmp_path, APP, "node")
+
+    assert [f.file for f in findings] == ["package.json"]
+    assert "scripts.build" in findings[0].remedy
+
+
+def test_a_node_repo_without_a_package_json_is_a_finding(tmp_path: Path) -> None:
+    write(tmp_path, "vpath-app.yaml", manifest(APP, [f"apps_infra/apps/{APP}"]))
+
+    assert len(inspect(tmp_path, APP, "node")) == 1
+
+
+def test_an_unknown_runtime_is_refused_not_ignored(tmp_path: Path) -> None:
+    with pytest.raises(PreflightError, match="ruby"):
+        inspect(plain_tree(tmp_path), APP, "ruby")
+
+
+def test_require_publishable_passes_the_real_manifest_shape(tmp_path: Path) -> None:
+    require_publishable(sdk_tree(tmp_path, "file:../../sdk"), APP, "node")
+
+
+def test_require_publishable_reports_every_finding_at_once(tmp_path: Path) -> None:
+    write(
+        tmp_path,
+        "package.json",
+        package({"@vpath/sdk": "file:../../kit/sdk"}, build=False),
+    )
+    write(
+        tmp_path,
+        "vpath-app.yaml",
+        manifest(
+            APP,
+            ["apps_infra/apps/other-app", SDK_SOURCE],
+            [{"name": "@vpath/sdk", "source": SDK_SOURCE}],
+        ),
+    )
+
+    with pytest.raises(PreflightError) as failure:
+        require_publishable(tmp_path, APP, "node")
+
+    message = str(failure.value)
+    assert "package.json" in message
+    assert "vpath-app.yaml" in message
+    assert "scripts.build" in message
 ```
 
 - [ ] **Step 2: Run the tests to verify they fail**
@@ -246,14 +344,20 @@ materialized source cleanly and then died in the image build on
 ``apps_infra/sdk``. That class of failure is cheap to see in the manifest and
 the dependency files, and expensive to see on the build host.
 
-This module only looks. It writes nothing, reaches nothing, and every check
-answers one question: would this tree still make sense once it sits at
-``apps_infra/apps/<name>/``?
+Every check answers one question -- would this tree still make sense once it
+sits at ``apps_infra/apps/<name>/``? -- so paths are resolved against that
+directory rather than pattern-matched. A dependency leaving the app is not
+wrong by itself: ``spec.build.sdks`` is exactly how an app declares one, and
+every app in ``apps/`` uses it. The manifest is therefore consulted rather than
+guessed at, and the only thing that can be wrong is the path.
+
+This module only looks. It writes nothing and reaches nothing.
 """
 
 from __future__ import annotations
 
 import json
+import posixpath
 import re
 from dataclasses import dataclass
 from pathlib import Path
@@ -266,9 +370,9 @@ NODE_MANIFEST = "package.json"
 PYTHON_MANIFEST = "pyproject.toml"
 DEPENDENCY_KEYS = ("dependencies", "devDependencies", "optionalDependencies")
 
-# ponytail: pyproject is scanned line-wise for escaping path dependencies
-# rather than parsed, because tomllib is 3.11+ and this project's floor is
-# 3.10; adding a TOML parser for one check is not worth a dependency.
+# ponytail: pyproject is scanned line-wise for path dependencies rather than
+# parsed, because tomllib is 3.11+ and this project's floor is 3.10; adding a
+# TOML parser for one check is not worth a dependency.
 # Upgrade trigger: the floor reaching 3.11 — replace with tomllib.
 PATH_DEPENDENCY = re.compile(r"""path\s*=\s*["']([^"']+)["']""")
 
@@ -290,6 +394,14 @@ class Finding:
         return f"{self.file}: {self.value} — {self.remedy}"
 
 
+@dataclass(frozen=True)
+class Build:
+    """What the manifest says about building this app."""
+
+    hash_dirs: tuple[str, ...]
+    sdks: dict[str, str]
+
+
 def _load_json(path: Path) -> dict[str, object]:
     try:
         parsed = json.loads(path.read_text(encoding="utf-8"))
@@ -298,80 +410,148 @@ def _load_json(path: Path) -> dict[str, object]:
     return parsed if isinstance(parsed, dict) else {}
 
 
-def _escapes(value: str) -> bool:
-    """Whether a relative path leaves the app's own directory."""
-    return Path(value).as_posix().startswith("..") or value.startswith("/")
-
-
-def escaping_node_deps(tree: Path) -> list[Finding]:
-    """``file:`` dependencies pointing outside the app's own tree."""
-    manifest = tree / NODE_MANIFEST
+def _build_block(tree: Path) -> dict[str, object]:
+    manifest = tree / MANIFEST
     if not manifest.is_file():
-        return []
-    parsed = _load_json(manifest)
-    found: list[Finding] = []
+        return {}
+    parsed = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
+    spec = parsed.get("spec") if isinstance(parsed, dict) else None
+    build = spec.get("build") if isinstance(spec, dict) else None
+    return build if isinstance(build, dict) else {}
+
+
+def read_build(tree: Path) -> Build:
+    """The hashed directories and declared SDKs, however sparse the manifest."""
+    block = _build_block(tree)
+    hashed = block.get("hash")
+    dirs = hashed.get("dirs") if isinstance(hashed, dict) else None
+    declared = block.get("sdks")
+    sdks: dict[str, str] = {}
+    for entry in declared if isinstance(declared, list) else []:
+        if isinstance(entry, dict) and entry.get("name"):
+            sdks[str(entry["name"])] = str(entry.get("source", "")).strip("/")
+    hashes = (
+        tuple(str(entry).strip("/") for entry in dirs) if isinstance(dirs, list) else ()
+    )
+    return Build(hashes, sdks)
+
+
+def home_of(app: str) -> str:
+    """Where the server puts this app's own tree."""
+    return f"{APPS_ROOT}/{app}"
+
+
+def resolve(app: str, target: str) -> str:
+    """Where a path written inside the app lands in the server tree."""
+    if target.startswith("/"):
+        return target.rstrip("/")
+    return posixpath.normpath(f"{home_of(app)}/{target}")
+
+
+def inside(app: str, resolved: str) -> bool:
+    """Whether a resolved path is still the app's own directory."""
+    home = home_of(app)
+    return resolved == home or resolved.startswith(f"{home}/")
+
+
+def as_file_path(app: str, source: str) -> str:
+    """The dependency path an app would have to write to reach ``source``."""
+    return f"file:{posixpath.relpath(source, home_of(app))}"
+
+
+def _file_dependencies(parsed: dict[str, object]) -> list[tuple[str, str]]:
+    found: list[tuple[str, str]] = []
     for key in DEPENDENCY_KEYS:
         block = parsed.get(key)
         if not isinstance(block, dict):
             continue
         for name, spec in block.items():
-            if not isinstance(spec, str) or not spec.startswith("file:"):
-                continue
-            if _escapes(spec.removeprefix("file:")):
-                found.append(
-                    Finding(
-                        NODE_MANIFEST,
-                        f"{name} = {spec}",
-                        "the server builds this app from apps_infra/apps/<name>, "
-                        "so a dependency outside that directory cannot resolve; "
-                        "vendor it or publish it to the registry",
-                    )
-                )
+            if isinstance(spec, str) and spec.startswith("file:"):
+                found.append((str(name), spec))
     return found
 
 
-def escaping_python_deps(tree: Path) -> list[Finding]:
-    """``path = "..."`` dependencies pointing outside the app's own tree."""
-    manifest = tree / PYTHON_MANIFEST
+def unresolvable_node_deps(tree: Path, app: str) -> list[Finding]:
+    """``file:`` dependencies that will not resolve from the server tree.
+
+    Leaving the app's own directory is not the fault: the pipeline puts an
+    app's declared SDKs in the tree beside it. Not being where the manifest
+    says they are is.
+    """
+    manifest = tree / NODE_MANIFEST
     if not manifest.is_file():
         return []
+    sdks = read_build(tree).sdks
     found: list[Finding] = []
-    for line in manifest.read_text(encoding="utf-8").splitlines():
-        match = PATH_DEPENDENCY.search(line)
-        if match is not None and _escapes(match.group(1)):
+    for name, spec in _file_dependencies(_load_json(manifest)):
+        resolved = resolve(app, spec.removeprefix("file:"))
+        if inside(app, resolved):
+            continue
+        source = sdks.get(name)
+        if source is None:
             found.append(
                 Finding(
-                    PYTHON_MANIFEST,
-                    line.strip(),
-                    "the server builds this app from apps_infra/apps/<name>, "
-                    "so a path dependency outside that directory cannot "
-                    "resolve; vendor it or publish it to an index",
+                    NODE_MANIFEST,
+                    f"{name} = {spec}",
+                    f"resolves to {resolved}, which the server does not put in "
+                    f"the tree — declare {name} in spec.build.sdks, or vendor it",
+                )
+            )
+        elif resolved != source:
+            found.append(
+                Finding(
+                    NODE_MANIFEST,
+                    f"{name} = {spec}",
+                    f"resolves to {resolved}, but spec.build.sdks puts {name} "
+                    f"at {source} — change it to {as_file_path(app, source)}",
                 )
             )
     return found
 
 
-def foreign_hash_dirs(tree: Path, app: str) -> list[Finding]:
-    """``spec.build.hash.dirs`` entries that are not this app's directory."""
-    manifest = tree / MANIFEST
+def unresolvable_python_deps(tree: Path, app: str) -> list[Finding]:
+    """``path = "..."`` dependencies that will not resolve from the tree."""
+    manifest = tree / PYTHON_MANIFEST
     if not manifest.is_file():
         return []
-    parsed = yaml.safe_load(manifest.read_text(encoding="utf-8")) or {}
-    spec = parsed.get("spec") if isinstance(parsed, dict) else None
-    build = spec.get("build") if isinstance(spec, dict) else None
-    hashed = build.get("hash") if isinstance(build, dict) else None
-    dirs = hashed.get("dirs") if isinstance(hashed, dict) else None
-    if not isinstance(dirs, list):
-        return []
-    expected = f"{APPS_ROOT}/{app}"
+    sources = set(read_build(tree).sdks.values())
+    found: list[Finding] = []
+    for line in manifest.read_text(encoding="utf-8").splitlines():
+        match = PATH_DEPENDENCY.search(line)
+        if match is None:
+            continue
+        resolved = resolve(app, match.group(1))
+        if inside(app, resolved) or resolved in sources:
+            continue
+        found.append(
+            Finding(
+                PYTHON_MANIFEST,
+                line.strip(),
+                f"resolves to {resolved}, which the server does not put in the "
+                "tree — declare it in spec.build.sdks, or publish it to an index",
+            )
+        )
+    return found
+
+
+def foreign_hash_dirs(tree: Path, app: str) -> list[Finding]:
+    """``spec.build.hash.dirs`` entries nothing in the manifest accounts for.
+
+    Hashing a declared SDK is correct -- the app must rebuild when the SDK it
+    consumes changes -- so the allowed set is this app plus its declared SDKs.
+    """
+    build = read_build(tree)
+    allowed = {home_of(app), *(source for source in build.sdks.values() if source)}
+    expected = ", ".join(sorted(allowed))
     return [
         Finding(
             MANIFEST,
             f"spec.build.hash.dirs: {entry}",
-            f"the content hash must cover this app only — expected {expected}",
+            "the content hash covers this app and the SDKs it declares — "
+            f"expected one of {expected}",
         )
-        for entry in dirs
-        if str(entry).rstrip("/") != expected
+        for entry in build.hash_dirs
+        if entry not in allowed
     ]
 
 
@@ -417,8 +597,8 @@ def inspect(tree: Path, app: str, runtime: str) -> list[Finding]:
     """Every reason this repository is not publishable, in one pass."""
     root = Path(tree)
     return [
-        *escaping_node_deps(root),
-        *escaping_python_deps(root),
+        *unresolvable_node_deps(root, app),
+        *unresolvable_python_deps(root, app),
         *foreign_hash_dirs(root, app),
         *missing_entrypoint(root, runtime),
     ]
@@ -441,9 +621,20 @@ def require_publishable(tree: Path, app: str, runtime: str) -> None:
 pytest tests/test_ops_app_preflight.py -v
 ```
 
-Expected: 11 passed.
+Expected: 14 passed.
 
-- [ ] **Step 5: Run the full gate**
+- [ ] **Step 5: Check the file length**
+
+```bash
+python -c "print(sum(1 for _ in open('src/vpath_platform_mgmt/ops/app_preflight.py', encoding='utf-8')))"
+```
+
+Expected: under 250. If it is over, move `Build`, `read_build`, `home_of`,
+`resolve`, `inside` and `as_file_path` into `ops/app_layout.py` and import
+them — that split is along the seam between "where the server puts things"
+and "what is wrong with this repository".
+
+- [ ] **Step 6: Run the full gate**
 
 ```bash
 make check
@@ -451,11 +642,11 @@ make check
 
 Expected: all steps pass, coverage at or above 85%.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add src/vpath_platform_mgmt/ops/app_preflight.py tests/test_ops_app_preflight.py
-git commit -m "feat: refuse a repo whose dependencies escape its own tree"
+git commit -m "feat: refuse a repo whose SDK path is not where its manifest says"
 ```
 
 ---
@@ -470,7 +661,7 @@ The send stage must be able to answer "sent at which commit" from the box alone,
 
 **Interfaces:**
 - Consumes: nothing.
-- Produces: `_place_registered_files(name: str, tree: Path, apps: Path) -> None` replacing `_place_manifest`. Copies both `vpath-app.yaml` and `vpath-source.yaml` from `apps/<name>/` into the payload root. Task 3 relies on `vpath-source.yaml` being present at `<checkout>/apps_infra/apps/<name>/vpath-source.yaml`.
+- Produces: `_place_registered_files(name: str, tree: Path, apps: Path) -> None` replacing `_place_manifest`. Copies both `vpath-app.yaml` and `vpath-source.yaml` from `apps/<name>/` into the payload root. Task 4 relies on `vpath-source.yaml` being present at `<checkout>/apps_infra/apps/<name>/vpath-source.yaml`.
 
 - [ ] **Step 1: Write the failing test**
 
@@ -574,21 +765,260 @@ git commit -m "feat: send provenance with the source so the box knows its commit
 
 ---
 
-### Task 3: The publish pipeline
+### Task 3: The app inside the repository
+
+`vpathai-git/vpathai_publish_knowledge_app` is the repository this pipeline
+exists for, and its root is **not** an app: it is `vpath-platform-app-template`,
+an npm workspace root (`"private": true`, `"workspaces": ["examples/*"]`) with
+no manifest and no build script. The apps live under `examples/`, and the one
+being published is `examples/vpath-knowledge-builder`.
+
+`probe` reads its three files at the repository root, so today registration
+would refuse this repository as "ships no vpath-app.yaml, generate one" — the
+wrong answer to a right repository. The app therefore has to be selected by a
+path within the repository, and provenance has to record which one, or a later
+`refresh` looks in the wrong place.
+
+**Files:**
+- Modify: `src/vpath_platform_mgmt/ops/repo_probe.py` (`Probed`, `probe`)
+- Modify: `src/vpath_platform_mgmt/ops/app_registry.py` (`register`, `refresh`, `_write`)
+- Test: `tests/test_ops_repo_probe.py`, `tests/test_ops_app_registry.py`
+
+**Interfaces:**
+- Consumes: nothing from other tasks.
+- Produces:
+  - `Probed.path: str = ""` — the directory within the repository that is the app.
+  - `probe(url, ref="main", runner=run, path="") -> Probed`, reading `<path>/<file>` for each probed file.
+  - `AppRegistry.register(..., path: str = "")`, recording `path` in `vpath-source.yaml`; `refresh` carries the recorded path forward.
+
+Task 4 passes `request.path` into both, and packs the payload from that
+subdirectory. `download_tree` is unchanged — the whole repository is still
+downloaded once, and the subtree is selected from the extraction.
+
+- [ ] **Step 1: Write the failing tests**
+
+Append to `tests/test_ops_repo_probe.py`, reusing the module's existing
+`responder`, `encoded`, `SHA` and `MANIFEST` helpers:
+
+```python
+def test_the_app_may_live_in_a_subdirectory_of_the_repository() -> None:
+    """A workspace root is not an app; examples/<app> is."""
+    _, runner = responder(
+        {
+            "commits/main": RunResult(0, SHA + "\n", ""),
+            "contents/examples/vpath-knowledge-builder/vpath-app.yaml": RunResult(
+                0, encoded(MANIFEST), ""
+            ),
+        }
+    )
+
+    probed = probe(
+        "github.com/org/repo",
+        "main",
+        runner,
+        path="examples/vpath-knowledge-builder",
+    )
+
+    assert probed.path == "examples/vpath-knowledge-builder"
+    assert probed.files == {"vpath-app.yaml": MANIFEST}
+
+
+def test_a_probe_without_a_path_still_reads_the_repository_root() -> None:
+    _, runner = responder(
+        {
+            "commits/main": RunResult(0, SHA + "\n", ""),
+            "contents/vpath-app.yaml": RunResult(0, encoded(MANIFEST), ""),
+        }
+    )
+
+    probed = probe("github.com/org/repo", "main", runner)
+
+    assert probed.path == ""
+    assert probed.files == {"vpath-app.yaml": MANIFEST}
+
+
+def test_a_path_a_human_pasted_with_slashes_asks_a_clean_url() -> None:
+    seen, runner = responder({"commits/main": RunResult(0, SHA + "\n", "")})
+
+    probe("github.com/org/repo", "main", runner, path="/examples/app/")
+
+    asked = [part for argv in seen for part in argv if "contents/" in part]
+    assert asked
+    assert all("contents/examples/app/" in part for part in asked)
+```
+
+Append to `tests/test_ops_app_registry.py`, following the tree fixtures that
+module already uses:
+
+```python
+def test_provenance_records_which_directory_of_the_repo_is_the_app(
+    tmp_path: Path,
+) -> None:
+    """A later refresh has to look in the same place, and only this says where."""
+    registry, tree = registered_tree(tmp_path)
+
+    result = registry.register(
+        repo="https://github.com/org/repo.git",
+        ref="main",
+        commit="c" * 40,
+        tree=tree,
+        path="examples/vpath-knowledge-builder",
+    )
+
+    recorded = yaml.safe_load(
+        (result.directory / "vpath-source.yaml").read_text(encoding="utf-8")
+    )
+    assert recorded["path"] == "examples/vpath-knowledge-builder"
+
+
+def test_a_repository_that_is_itself_the_app_records_an_empty_path(
+    tmp_path: Path,
+) -> None:
+    registry, tree = registered_tree(tmp_path)
+
+    result = registry.register(
+        repo="https://github.com/org/repo.git",
+        ref="main",
+        commit="c" * 40,
+        tree=tree,
+    )
+
+    recorded = yaml.safe_load(
+        (result.directory / "vpath-source.yaml").read_text(encoding="utf-8")
+    )
+    assert recorded["path"] == ""
+
+
+def test_refresh_keeps_the_directory_the_app_was_registered_from(
+    tmp_path: Path,
+) -> None:
+    registry, tree = registered_tree(tmp_path)
+    result = registry.register(
+        repo="https://github.com/org/repo.git",
+        ref="main",
+        commit="c" * 40,
+        tree=tree,
+        path="examples/vpath-knowledge-builder",
+    )
+
+    registry.refresh(result.name, tree, "d" * 40)
+
+    recorded = yaml.safe_load(
+        (result.directory / "vpath-source.yaml").read_text(encoding="utf-8")
+    )
+    assert recorded["path"] == "examples/vpath-knowledge-builder"
+    assert recorded["commit"] == "d" * 40
+```
+
+`registered_tree` stands for whatever this module already uses to build a
+tree carrying a `vpath-app.yaml`; use that instead of adding a fixture.
+
+- [ ] **Step 2: Run the tests to verify they fail**
+
+```bash
+pytest tests/test_ops_repo_probe.py tests/test_ops_app_registry.py -v -k "path or directory"
+```
+
+Expected: `TypeError: probe() got an unexpected keyword argument 'path'`, and
+`KeyError: 'path'` from the registry tests.
+
+- [ ] **Step 3: Let the probe read a subdirectory**
+
+In `src/vpath_platform_mgmt/ops/repo_probe.py`, add the field to `Probed`:
+
+```python
+    path: str = ""
+```
+
+and give `probe` the parameter:
+
+```python
+def probe(
+    url: str, ref: str = "main", runner: Runner = run, path: str = ""
+) -> Probed:
+    """Resolve the commit and read the files registration depends on.
+
+    ``path`` selects the app within the repository. An organisation repository
+    is often a workspace whose root is not an app at all, and reading its root
+    would describe the workspace rather than the app -- so the caller says
+    which directory it means, and empty means the repository itself.
+    """
+    slug = parse_slug(url)
+    commit = resolve_commit(slug, ref, runner)
+    prefix = path.strip("/")
+    found = {}
+    for name in PROBE_FILES:
+        text = read_file(slug, ref, f"{prefix}/{name}" if prefix else name, runner)
+        if text is not None:
+            found[name] = text
+    return Probed(slug=slug, ref=ref, commit=commit, files=found, path=prefix)
+```
+
+`materialise` is unchanged: it writes the probed files by their bare names, so
+the registry keeps inspecting an ordinary directory.
+
+- [ ] **Step 4: Record the path in provenance**
+
+In `src/vpath_platform_mgmt/ops/app_registry.py`, add `path: str = ""` to
+`register`'s signature and pass it into `_write`. Give `_write` the same
+parameter and put it in the provenance mapping after `commit`:
+
+```python
+            "path": path,
+```
+
+In `refresh`, carry the recorded value forward:
+
+```python
+            path=str(previous.get("path", "")),
+```
+
+An entry registered before this task has no `path` key, which reads as the
+repository root — the truth for every app registered so far.
+
+- [ ] **Step 5: Run the tests to verify they pass**
+
+```bash
+pytest tests/test_ops_repo_probe.py tests/test_ops_app_registry.py -v
+```
+
+Expected: all pass, including every pre-existing test in both modules.
+
+- [ ] **Step 6: Run the full gate**
+
+```bash
+make check
+```
+
+- [ ] **Step 7: Commit**
+
+```bash
+git add src/vpath_platform_mgmt/ops/repo_probe.py src/vpath_platform_mgmt/ops/app_registry.py tests/test_ops_repo_probe.py tests/test_ops_app_registry.py
+git commit -m "feat: an app may be a directory inside its repository"
+```
+
+---
+
+### Task 4: The publish pipeline
 
 **Files:**
 - Create: `src/vpath_platform_mgmt/ops/publish.py`
 - Test: `tests/test_ops_publish.py`
 
 **Interfaces:**
-- Consumes: `app_preflight.require_publishable` (Task 1); `AppRegistry.register/refresh/entries` and `Generated` (existing); `SourceMaterializer.materialize/target_for` (existing); `LocalEngine.run` and `GitOpsEngine.run` (existing); `repo_probe.probe/materialise/download_tree` (existing).
+- Consumes: `app_preflight.require_publishable` (Task 1); `_place_registered_files` (Task 2); `probe(..., path=)` and `AppRegistry.register(..., path=)` (Task 3); `SourceMaterializer.materialize/target_for` (existing); `LocalEngine.run` and `GitOpsEngine.run` (existing); `repo_probe.materialise/download_tree` (existing).
 - Produces:
-  - `PublishRequest(url: str, ref: str, name: str, generate: Generated | None = None, replace: bool = False)` — frozen dataclass.
+  - `PublishRequest(url: str, ref: str, name: str, path: str = "", generate: Generated | None = None, replace: bool = False)` — frozen dataclass.
   - `PublishError(Exception)`
   - `STAGES: tuple[str, ...] = ("preflight", "register", "send", "render", "install")`
   - `PublishPipeline.run(request: PublishRequest, actor: str, role: Role, emit: StepEmitter) -> dict[str, object]` returning `{"app": str, "commit": str, "stages": {name: "done" | "skipped"}}`.
 
-Task 4 calls `run` only.
+Task 5 calls `run` only.
+
+**`path` selects the app inside the repository** (Task 3). It reaches three
+places: `probe` reads the manifest from there, `register` records it, and the
+send stage packs *that subtree* rather than the whole repository — shipping a
+workspace root would put five other apps into `apps_infra/apps/<name>`.
 
 **Why only two stages are skippable:** render is idempotent by content hash (an unchanged app rebuilds nothing — `07_app_source_delivery.md`) and install is idempotent in `GitOpsEngine._deploy` ("already in the InstalledSet — verifying sync only"). Both therefore always run and cost nothing when nothing changed. Only register and send are skipped, and only when provenance records the exact commit being published.
 
@@ -688,7 +1118,7 @@ def build(tmp_path: Path, **overrides):
         "materializer": FakeMaterializer(checkout),
         "local_engine": FakeEngine("local"),
         "gitops_engine": FakeEngine("gitops"),
-        "probe": lambda url, ref: _Probed(url, ref),
+        "probe": lambda url, ref, path="": _Probed(url, ref, path),
         "materialise": lambda probed, into: tree,
         "download": lambda slug, commit, into: tree,
         "bundle": lambda path: b"tar",
@@ -701,9 +1131,10 @@ def build(tmp_path: Path, **overrides):
 
 
 class _Probed:
-    def __init__(self, url: str, ref: str) -> None:
+    def __init__(self, url: str, ref: str, path: str = "") -> None:
         self.slug = "org/demo-app"
         self.ref = ref
+        self.path = path
         self.commit = "c" * 40
         self.repo_url = "https://github.com/org/demo-app.git"
         self.files = {"vpath-app.yaml": "kind: VpathApp\n"}
@@ -788,6 +1219,52 @@ def test_a_manifest_naming_a_different_app_is_refused(tmp_path: Path) -> None:
         pipeline.run(asked, "ops", Role.ADMIN, lambda step: None)
 
 
+def test_the_subtree_named_by_path_is_what_is_sent(tmp_path: Path) -> None:
+    """Shipping a workspace root would put five other apps in the checkout."""
+    packed: list[Path] = []
+
+    def download(slug: str, commit: str, into: Path) -> Path:
+        root = Path(into) / "tree"
+        (root / "examples" / "demo-app").mkdir(parents=True)
+        return root
+
+    pipeline, _ = build(
+        tmp_path,
+        download=download,
+        bundle=lambda path: (packed.append(Path(path)), b"tar")[1],
+    )
+    asked = PublishRequest(
+        url="github.com/org/repo",
+        ref="main",
+        name="demo-app",
+        path="examples/demo-app",
+    )
+
+    pipeline.run(asked, "ops", Role.ADMIN, lambda step: None)
+
+    assert packed
+    assert packed[0].name == "demo-app"
+    assert packed[0].parent.name == "examples"
+
+
+def test_a_path_that_is_not_in_the_repository_is_refused(tmp_path: Path) -> None:
+    def download(slug: str, commit: str, into: Path) -> Path:
+        root = Path(into) / "tree"
+        root.mkdir(parents=True)
+        return root
+
+    pipeline, _ = build(tmp_path, download=download)
+    asked = PublishRequest(
+        url="github.com/org/repo",
+        ref="main",
+        name="demo-app",
+        path="examples/absent",
+    )
+
+    with pytest.raises(PublishError, match="examples/absent"):
+        pipeline.run(asked, "ops", Role.ADMIN, lambda step: None)
+
+
 def test_every_stage_is_emitted_as_a_step(tmp_path: Path) -> None:
     pipeline, _ = build(tmp_path)
     steps: list[str] = []
@@ -865,6 +1342,7 @@ class PublishRequest:
     url: str
     ref: str
     name: str
+    path: str = ""
     generate: Generated | None = None
     replace: bool = False
 
@@ -933,7 +1411,7 @@ class PublishPipeline:
     ) -> Any:
         emit(f"reading {request.url} at {request.ref}")
         try:
-            return self._probe(request.url, request.ref)
+            return self._probe(request.url, request.ref, path=request.path)
         except FetchError as exc:
             raise PublishError(f"preflight: {exc}") from exc
 
@@ -981,6 +1459,7 @@ class PublishPipeline:
                 ref=request.ref,
                 commit=probed.commit,
                 tree=tree,
+                path=request.path,
                 generate=request.generate,
                 replace=request.replace or recorded is not None,
             )
@@ -1011,7 +1490,8 @@ class PublishPipeline:
 
         emit(f"send: downloading {probed.slug} at {probed.commit[:12]}")
         try:
-            payload = self._download(probed.slug, probed.commit, workspace)
+            downloaded = self._download(probed.slug, probed.commit, workspace)
+            payload = self._subtree(downloaded, request.path)
             self._place(request.name, payload)
             archive = self._bundle(payload)
             summary = self._materializer.materialize(
@@ -1026,6 +1506,25 @@ class PublishPipeline:
             raise PublishError(f"send: {exc}") from exc
         emit(f"send: placed {summary.get('file_count')} files in the checkout")
         return DONE
+
+    @staticmethod
+    def _subtree(downloaded: Path, path: str) -> Path:
+        """The directory inside the repository that is the app.
+
+        A repository is often a workspace whose root holds several apps;
+        sending the root would put all of them in one app's directory. The
+        path is operator input, so it is resolved and checked to stay inside
+        the download rather than trusted.
+        """
+        if not path:
+            return downloaded
+        root = downloaded.resolve()
+        target = (downloaded / path).resolve()
+        if not target.is_dir() or root not in target.parents:
+            raise PublishError(
+                f"send: '{path}' is not a directory in this repository"
+            )
+        return target
 
     def _render(
         self, request: PublishRequest, actor: str, role: Role, emit: StepEmitter
@@ -1069,7 +1568,7 @@ class PublishPipeline:
 pytest tests/test_ops_publish.py -v
 ```
 
-Expected: 7 passed. If `PublishPipeline.__init__` exceeds the complexity limit, that is expected to pass — it is assignment only.
+Expected: 9 passed. If `PublishPipeline.__init__` exceeds the complexity limit, that is expected to pass — it is assignment only.
 
 - [ ] **Step 5: Check the file length**
 
@@ -1094,7 +1593,7 @@ git commit -m "feat: walk a repo URL to a running app in five delegated stages"
 
 ---
 
-### Task 4: The publish verb and its guardrails
+### Task 5: The publish verb and its guardrails
 
 **Files:**
 - Modify: `src/vpath_platform_mgmt/ops/model.py:22-58` (`Verb`, `VERB_ROLE`, `lock_scope`), `src/vpath_platform_mgmt/ops/model.py:70-102` (`Job`)
@@ -1102,14 +1601,14 @@ git commit -m "feat: walk a repo URL to a running app in five delegated stages"
 - Test: `tests/test_ops_service.py`
 
 **Interfaces:**
-- Consumes: `PublishPipeline.run(request, actor, role, emit)` and `PublishRequest` (Task 3).
+- Consumes: `PublishPipeline.run(request, actor, role, emit)` and `PublishRequest` (Task 4).
 - Produces:
   - `Verb.PUBLISH = "publish"`, `VERB_ROLE[Verb.PUBLISH] = Role.ADMIN`, `lock_scope(Verb.PUBLISH, app) == f"app:{app}"`.
   - `Job.payload: dict[str, object] | None = None`, included in `to_dict()`.
   - `OpsService.__init__(..., publish: PublishPipeline | None = None)`.
   - `OpsService.submit(verb_name, app, actor, role_name, confirm="", payload=None) -> Job`.
 
-Task 5 calls `submit("publish", name, actor, role, payload={...})`.
+Task 6 calls `submit("publish", name, actor, role, payload={...})`.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1272,6 +1771,7 @@ and add the method:
             url=str(payload.get("url", "")),
             ref=str(payload.get("ref", "") or "main"),
             name=job.app,
+            path=str(payload.get("path", "")),
             generate=payload.get("generate"),  # type: ignore[arg-type]
             replace=bool(payload.get("replace", False)),
         )
@@ -1301,7 +1801,7 @@ git commit -m "feat: publish as a guarded verb spanning both engines"
 
 ---
 
-### Task 5: The publish route and its wiring
+### Task 6: The publish route and its wiring
 
 **Files:**
 - Modify: `src/vpath_platform_mgmt/api/routes_apps.py` (add `_register_publish`, extend `register`)
@@ -1310,9 +1810,9 @@ git commit -m "feat: publish as a guarded verb spanning both engines"
 - Test: `tests/test_api_app_store.py`
 
 **Interfaces:**
-- Consumes: `OpsService.submit(..., payload=...)` (Task 4); `PublishPipeline` (Task 3); `app_preflight.require_publishable` (Task 1); `_place_registered_files` (Task 2).
+- Consumes: `OpsService.submit(..., payload=...)` (Task 5); `PublishPipeline` (Task 4); `app_preflight.require_publishable` (Task 1); `_place_registered_files` (Task 2).
 - Produces:
-  - `POST /api/apps/publish` accepting `{"url", "ref", "name", "generate": {...} | null, "replace": bool}`, returning the job dict with status 202.
+  - `POST /api/apps/publish` accepting `{"url", "ref", "name", "path", "generate": {...} | null, "replace": bool}`, returning the job dict with status 202.
   - `build_publish_pipeline(env: Mapping[str, str]) -> PublishPipeline | None` in `server.py` — returns `None` unless both `VPATH_MGMT_SERVER_CHECKOUT` and the gitops settings are present.
 
 - [ ] **Step 1: Write the failing tests**
@@ -1400,6 +1900,7 @@ def _publish_request(body: dict[str, object]) -> tuple[str, dict[str, object]]:
     return str(body["name"]), {
         "url": str(body["url"]),
         "ref": str(body.get("ref") or "main"),
+        "path": str(body.get("path") or ""),
         "generate": body.get("generate"),
         "replace": bool(body.get("replace", False)),
     }
@@ -1503,7 +2004,7 @@ git commit -m "feat: POST /api/apps/publish, wired only where both halves exist"
 
 ---
 
-### Task 6: The tunnel reaches the box's Ops API
+### Task 7: The tunnel reaches the box's Ops API
 
 The publish job runs on the box. A workstation console must be able to post to it.
 
@@ -1637,15 +2138,15 @@ git commit -m "feat: forward the box's Ops API port through the tunnel"
 
 ---
 
-### Task 7: The console Add-app form
+### Task 8: The console Add-app form
 
 **Files:**
 - Modify: `src/vpath_platform_mgmt/api/console.html`, `src/vpath_platform_mgmt/api/console.js`, `src/vpath_platform_mgmt/api/console.css`
 - Test: `tests/test_api_console.py`
 
 **Interfaces:**
-- Consumes: `POST /api/apps/publish` (Task 5).
-- Produces: no Python interface. The form posts the request body from Task 5 and hands the returned job id to the existing job panel.
+- Consumes: `POST /api/apps/publish` (Task 6).
+- Produces: no Python interface. The form posts the request body from Task 6 and hands the returned job id to the existing job panel.
 
 - [ ] **Step 1: Write the failing tests**
 
@@ -1691,6 +2192,7 @@ In `console.html`, inside the applications section, add:
   <h3>Add an application</h3>
   <input id="add-app-url" name="url" placeholder="github.com/org/repo" required />
   <input id="add-app-ref" name="ref" placeholder="main" value="main" />
+  <input id="add-app-path" name="path" placeholder="examples/my-app (blank = repo root)" />
   <input id="add-app-name" name="name" placeholder="app name" required />
   <details>
     <summary>The repository ships no vpath-app.yaml</summary>
@@ -1724,6 +2226,7 @@ async function publishApp(form) {
     body: JSON.stringify({
       url: value("add-app-url"),
       ref: value("add-app-ref") || "main",
+      path: value("add-app-path"),
       name: value("add-app-name"),
       generate,
     }),
@@ -1767,9 +2270,10 @@ git commit -m "feat: add an application from the console in one action"
 
 ## Verification
 
-After Task 7, the whole chain is exercised by `make check`. The specific guarantees a reviewer should confirm:
+After Task 8, the whole chain is exercised by `make check`. The specific guarantees a reviewer should confirm:
 
 1. `pytest tests/test_ops_app_preflight.py::test_the_recorded_sdk_failure_is_refused` passes — the failure from `07_app_source_delivery.md` is now caught before anything reaches the box. Reverting `app_preflight.py` fails this test.
 2. `pytest tests/test_ops_publish.py::test_preflight_refusal_stops_before_anything_is_written` passes — a refusal writes nothing.
 3. `pytest tests/test_ops_publish.py::test_register_is_skipped_when_provenance_already_records_this_commit` passes — resume works and is keyed to the commit.
-4. `make check` reports coverage at or above 85%.
+4. `pytest tests/test_ops_publish.py::test_the_subtree_named_by_path_is_what_is_sent` passes — a workspace repository ships the app, not its siblings.
+5. `make check` reports coverage at or above 85%.
