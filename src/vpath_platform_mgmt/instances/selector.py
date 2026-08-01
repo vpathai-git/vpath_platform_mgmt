@@ -82,13 +82,20 @@ def deliver_commands(instance: Instance, sha: str, branch: str) -> tuple[str, st
     Verbatim the procedure in the server's README (use case 4b): push the exact
     commit into the box's checkout over SSH, then fast-forward **only** there.
     Never ``reset --hard`` -- the checkout carries box-local state.
+
+    The push carries the register's key explicitly.  Git spawns its own ssh, so
+    a bare ``git push`` reaches the box with a different identity than every
+    other command this tool issues -- which is why delivery to a cloud box died
+    with ``Permission denied (publickey)`` while ``exec`` against the same box
+    worked.
     """
     if not instance.is_server:
         raise TransportError(
             f"{instance.name}: kind {instance.kind!r} is not a delivery target"
         )
     push = (
-        f"git push --no-verify "
+        f"git -c core.sshCommand={shlex.quote(transport.git_ssh_command(instance))} "
+        f"push --no-verify "
         f"{shlex.quote(instance.ssh_target + ':' + instance.checkout)} "
         f"{shlex.quote(sha)}:refs/heads/{branch}"
     )

@@ -13,6 +13,7 @@ They are never worked around, and there is no default target.
 
 from __future__ import annotations
 
+import os
 import shlex
 import subprocess
 from dataclasses import dataclass
@@ -106,13 +107,17 @@ def require_ssh(instance: Instance) -> None:
         )
 
 
-def ssh_argv(
+def ssh_options(
     instance: Instance,
-    remote_command: str,
     *,
     connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
 ) -> list[str]:
-    """Build the ssh invocation for one instance.  Never guesses a target."""
+    """The ssh invocation up to -- but not including -- the target.
+
+    The single place that decides *how* a box is reached: batch mode, connect
+    timeout, and the register's key.  Both callers that spawn ssh build on this,
+    so there is only one idea of the transport, not two.
+    """
     require_ssh(instance)
     argv = [
         "ssh",
@@ -123,8 +128,46 @@ def ssh_argv(
     ]
     if instance.ssh_key:
         argv += ["-i", instance.ssh_key]
-    argv += [instance.ssh_target, remote_command]
     return argv
+
+
+def ssh_argv(
+    instance: Instance,
+    remote_command: str,
+    *,
+    connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
+) -> list[str]:
+    """Build the ssh invocation for one instance.  Never guesses a target."""
+    return ssh_options(instance, connect_timeout=connect_timeout) + [
+        instance.ssh_target,
+        remote_command,
+    ]
+
+
+def git_ssh_command(
+    instance: Instance,
+    *,
+    connect_timeout: int = DEFAULT_CONNECT_TIMEOUT,
+) -> str:
+    """The ssh transport a ``git push`` to this instance must use.
+
+    ``git push`` does not go through :func:`ssh_argv` -- git spawns its own ssh.
+    Without being told, that ssh never sees ``SSH_KEY`` from the register and
+    offers whatever the agent happens to hold: on a cloud box that is
+    ``Permission denied (publickey)`` and the delivery channel is dead.  The
+    string returned here is what ``core.sshCommand`` is set to, built from the
+    same options as every other call, so the two cannot drift apart.
+    """
+    if os.environ.get("GIT_SSH_COMMAND"):
+        raise TransportError(
+            "GIT_SSH_COMMAND is set in this environment and overrides "
+            "core.sshCommand, so the register's key would be ignored -- "
+            "unset it before delivering"
+        )
+    return " ".join(
+        shlex.quote(part)
+        for part in ssh_options(instance, connect_timeout=connect_timeout)
+    )
 
 
 def ssh(
