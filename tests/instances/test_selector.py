@@ -8,6 +8,7 @@ profile.
 
 from __future__ import annotations
 
+import shlex
 import sys
 from pathlib import Path
 
@@ -58,10 +59,60 @@ def test_an_instance_without_a_key_uses_the_ssh_default(register: Path) -> None:
 
 def test_delivery_pushes_then_fast_forwards_and_never_resets(register: Path) -> None:
     push, merge = selector.deliver_commands(load(register).get("boxone"), "abc123", "d")
-    assert push.startswith("git push --no-verify boxuser@10.0.0.1:/workspace ")
+    assert "push --no-verify boxuser@10.0.0.1:/workspace " in push
     assert push.endswith("abc123:refs/heads/d")
     assert merge == "cd /workspace && git merge --ff-only d"
     assert "reset" not in merge
+
+
+def test_the_push_carries_the_registers_key(register: Path, ssh_key: Path) -> None:
+    """S-18: git spawns its own ssh -- the register's key must be handed to it.
+
+    Without this the push authenticates as whatever the agent offers, which on
+    a cloud box is ``Permission denied (publickey)``: the delivery channel dies
+    while every other command against the same box still works.
+    """
+    push, _ = selector.deliver_commands(load(register).get("boxone"), "abc123", "d")
+    argv = shlex.split(push)
+    assert argv[:2] == ["git", "-c"], f"the push does not configure a transport: {push}"
+    transport_option = argv[2]
+    assert transport_option.startswith("core.sshCommand=")
+    ssh_command = shlex.split(transport_option.split("=", 1)[1])
+    assert "-i" in ssh_command, (
+        "the push would reach the box without the register's key -- "
+        f"Permission denied (publickey) on any box that needs one: {push}"
+    )
+    assert ssh_command[ssh_command.index("-i") + 1] == str(ssh_key)
+    assert "BatchMode=yes" in ssh_command
+
+
+def test_the_pushs_transport_is_the_same_one_every_command_uses(
+    register: Path,
+) -> None:
+    """One idea of the transport, not two: same options as ``ssh_argv``."""
+    box = load(register).get("boxone")
+    push, _ = selector.deliver_commands(box, "abc123", "d")
+    from_push = shlex.split(shlex.split(push)[2].split("=", 1)[1])
+    from_ssh = transport.ssh_argv(box, "true")[:-2]
+    assert from_push == from_ssh
+
+
+def test_a_box_without_a_key_still_pushes_in_batch_mode(register: Path) -> None:
+    """No key in the register means the ssh default -- never an interactive
+    prompt that would hang the delivery."""
+    push, _ = selector.deliver_commands(load(register).get("boxtwo"), "abc123", "d")
+    ssh_command = shlex.split(shlex.split(push)[2].split("=", 1)[1])
+    assert "-i" not in ssh_command
+    assert "BatchMode=yes" in ssh_command
+
+
+def test_an_overriding_environment_aborts_instead_of_pushing_with_a_stray_key(
+    register: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """``GIT_SSH_COMMAND`` outranks ``core.sshCommand`` -- refuse, never guess."""
+    monkeypatch.setenv("GIT_SSH_COMMAND", "ssh -i /tmp/somebody-elses-key")
+    with pytest.raises(TransportError, match="GIT_SSH_COMMAND is set"):
+        selector.deliver_commands(load(register).get("boxone"), "abc123", "d")
 
 
 def test_exec_reaches_the_box_and_reports_its_exit(
