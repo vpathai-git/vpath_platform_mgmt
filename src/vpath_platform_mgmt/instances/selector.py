@@ -22,7 +22,8 @@ Commands
     show    <name>              resolved coordinates of one
     exec    <name> -- <cmd>     run a command on the box
     gradle  <name> -- <args>    cd <checkout> && ./gradlew -Penv=<profile> <args>
-    deliver <name> --sha <sha>  push a commit to the box and fast-forward it
+    deliver <name> --sha <sha>  push a commit out of the register's
+                                SOURCE_CHECKOUT to the box, then fast-forward it
 
 Exit codes
 ----------
@@ -83,6 +84,17 @@ def deliver_commands(instance: Instance, sha: str, branch: str) -> tuple[str, st
     commit into the box's checkout over SSH, then fast-forward **only** there.
     Never ``reset --hard`` -- the checkout carries box-local state.
 
+    Both ends of the push come from the register, and neither from the shell.
+    ``-C <SOURCE_CHECKOUT>`` names the repository the commit is *read* from: a
+    ``git push`` without it resolves the sha against the process working
+    directory, so the same command delivered a commit from the server checkout
+    and died with ``fatal: bad object`` / ``remote unpack failed`` from the
+    management checkout -- the very directory the runbook says to run it in
+    (field evidence: ``REPORT-s218-mars12-retest.md:442-446``).  A missing
+    ``SOURCE_CHECKOUT`` aborts here; it never falls back to the shell's idea of
+    where it is, because that fallback is what silently picked the wrong
+    repository.
+
     The push carries the register's key explicitly.  Git spawns its own ssh, so
     a bare ``git push`` reaches the box with a different identity than every
     other command this tool issues -- which is why delivery to a cloud box died
@@ -93,8 +105,24 @@ def deliver_commands(instance: Instance, sha: str, branch: str) -> tuple[str, st
         raise TransportError(
             f"{instance.name}: kind {instance.kind!r} is not a delivery target"
         )
+    source = instance.source_checkout
+    field = f"{instance.name.upper()}_SOURCE_CHECKOUT"
+    if not source:
+        raise RegistryError(
+            f"{instance.name}: {field} is not declared in {instance.source} -- "
+            f"deliver reads the commit from that checkout; without it git would "
+            f"resolve {sha} against whatever directory this command was started "
+            f"in, which is the wrong repository as soon as it is not the server "
+            f"checkout"
+        )
+    if not Path(source).is_dir():
+        raise RegistryError(
+            f"{instance.name}: {field} is {source} in {instance.source}, "
+            f"which is not a directory on this machine"
+        )
     push = (
-        f"git -c core.sshCommand={shlex.quote(transport.git_ssh_command(instance))} "
+        f"git -C {shlex.quote(source)} "
+        f"-c core.sshCommand={shlex.quote(transport.git_ssh_command(instance))} "
         f"push --no-verify "
         f"{shlex.quote(instance.ssh_target + ':' + instance.checkout)} "
         f"{shlex.quote(sha)}:refs/heads/{branch}"

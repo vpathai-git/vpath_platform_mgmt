@@ -62,6 +62,7 @@ prefixed with the upper-cased instance name.
 | `SSH_ALIAS` | server | `~/.ssh/config` alias, informational |
 | `ENV_PROFILE` | server | drives `./gradlew -Penv=<profile>` |
 | `CHECKOUT` | server | server checkout **on the box**: delivery target and Gradle cwd |
+| `SOURCE_CHECKOUT` | server | server checkout **on this machine**: where `deliver` reads the commit from. Required for `deliver` |
 | `APP_ROOT` | standalone | app repository carrying the Electron shell |
 | `HOME` | standalone | `VPATH_STANDALONE_HOME` — runtime state, keys, KPs |
 
@@ -99,6 +100,16 @@ that changes a box.
 `deliver` is the server README's own delivery channel (use case 4b): push the
 commit into the box's checkout over SSH, then fast-forward **only** there. The
 push and the merge are chained; a failed push never leaves the merge to run.
+
+Both ends of that push come from the register: the commit is read from
+`SOURCE_CHECKOUT` (`git -C`) and lands in `CHECKOUT` on the box. That is why
+the call behaves identically from any working directory. Before, it resolved
+the sha against the process working directory, so following the runbook line —
+`cd .../vpath_platform_mgmt && … selector deliver …` — died with
+`fatal: bad object <sha>` / `remote unpack failed`, and only a shell that had
+already `cd`-ed into the server checkout worked. A register without
+`SOURCE_CHECKOUT` aborts with exit `2` naming the field; it never falls back to
+the working directory.
 
 Exit codes: `0` ran and succeeded · `1` ran on the instance and failed there ·
 `2` could not be established (no register, unknown name, missing key,

@@ -28,6 +28,7 @@ BOXONE_SSH_KEY=__KEY__
 BOXONE_SSH_ALIAS=boxone
 BOXONE_ENV_PROFILE=nuc
 BOXONE_CHECKOUT=/workspace
+BOXONE_SOURCE_CHECKOUT=__SOURCE__
 BOXONE_NOTES=first box
 
 BOXTWO_KIND=server-cloud-vm
@@ -36,6 +37,7 @@ BOXTWO_SSH_USER=cloud
 BOXTWO_SSH_KEY_SOURCE=bundle.zip::key.pem
 BOXTWO_ENV_PROFILE=vm5
 BOXTWO_CHECKOUT=/workspace
+BOXTWO_SOURCE_CHECKOUT=__SOURCE__
 
 STANDALONE1_KIND=standalone
 STANDALONE1_APP_ROOT=__APP_ROOT__
@@ -89,14 +91,31 @@ def ssh_key(tmp_path: Path) -> Path:
 
 
 @pytest.fixture()
+def source_checkout(tmp_path: Path) -> Path:
+    """The local checkout a delivery reads its commit from.
+
+    A plain directory here: the tests that only assert the *shape* of the push
+    never run git.  The ones that do run git build their own repository.
+    """
+    checkout = tmp_path / "server_checkout"
+    checkout.mkdir()
+    return checkout
+
+
+@pytest.fixture()
 def register(
-    tmp_path: Path, app_root: Path, standalone_home: Path, ssh_key: Path
+    tmp_path: Path,
+    app_root: Path,
+    standalone_home: Path,
+    ssh_key: Path,
+    source_checkout: Path,
 ) -> Path:
     path = tmp_path / "instances.local.env"
     path.write_text(
         REGISTER.replace("__APP_ROOT__", str(app_root))
         .replace("__HOME__", str(standalone_home))
-        .replace("__KEY__", str(ssh_key)),
+        .replace("__KEY__", str(ssh_key))
+        .replace("__SOURCE__", str(source_checkout)),
         encoding="utf-8",
     )
     return path
