@@ -15,10 +15,19 @@ from pathlib import Path
 import pytest
 
 from vpath_platform_mgmt.instances import selector, transport
-from vpath_platform_mgmt.instances.registry import load
+from vpath_platform_mgmt.instances.registry import RegistryError, load
 from vpath_platform_mgmt.instances.transport import TransportError
 
 from .conftest import recording_runner, runner_returning
+
+
+def ssh_command_of(push: str) -> list[str]:
+    """The ``core.sshCommand`` the push configures, wherever it sits."""
+    for part in shlex.split(push):
+        if part.startswith("core.sshCommand="):
+            return shlex.split(part.split("=", 1)[1])
+    raise AssertionError(f"the push configures no transport: {push}")
+
 
 # --- the invocation is built from the register, not from a default --------
 
@@ -65,6 +74,23 @@ def test_delivery_pushes_then_fast_forwards_and_never_resets(register: Path) -> 
     assert "reset" not in merge
 
 
+def test_the_commit_is_read_from_the_register_not_from_the_working_directory(
+    register: Path, source_checkout: Path
+) -> None:
+    """S-220: without ``-C`` git resolves the sha against the process cwd.
+
+    The field form: following the runbook (``cd .../vpath_platform_mgmt && …
+    selector deliver …``) died with ``fatal: bad object <sha>`` /
+    ``remote unpack failed``, because the sha exists in the server checkout and
+    not in the management checkout the shell happened to stand in.
+    """
+    push, _ = selector.deliver_commands(load(register).get("boxone"), "abc123", "d")
+    argv = shlex.split(push)
+    assert argv[0] == "git"
+    assert "-C" in argv, f"the push names no source repository: {push}"
+    assert argv[argv.index("-C") + 1] == str(source_checkout)
+
+
 def test_the_push_carries_the_registers_key(register: Path, ssh_key: Path) -> None:
     """S-18: git spawns its own ssh -- the register's key must be handed to it.
 
@@ -73,11 +99,7 @@ def test_the_push_carries_the_registers_key(register: Path, ssh_key: Path) -> No
     while every other command against the same box still works.
     """
     push, _ = selector.deliver_commands(load(register).get("boxone"), "abc123", "d")
-    argv = shlex.split(push)
-    assert argv[:2] == ["git", "-c"], f"the push does not configure a transport: {push}"
-    transport_option = argv[2]
-    assert transport_option.startswith("core.sshCommand=")
-    ssh_command = shlex.split(transport_option.split("=", 1)[1])
+    ssh_command = ssh_command_of(push)
     assert "-i" in ssh_command, (
         "the push would reach the box without the register's key -- "
         f"Permission denied (publickey) on any box that needs one: {push}"
@@ -92,16 +114,15 @@ def test_the_pushs_transport_is_the_same_one_every_command_uses(
     """One idea of the transport, not two: same options as ``ssh_argv``."""
     box = load(register).get("boxone")
     push, _ = selector.deliver_commands(box, "abc123", "d")
-    from_push = shlex.split(shlex.split(push)[2].split("=", 1)[1])
     from_ssh = transport.ssh_argv(box, "true")[:-2]
-    assert from_push == from_ssh
+    assert ssh_command_of(push) == from_ssh
 
 
 def test_a_box_without_a_key_still_pushes_in_batch_mode(register: Path) -> None:
     """No key in the register means the ssh default -- never an interactive
     prompt that would hang the delivery."""
     push, _ = selector.deliver_commands(load(register).get("boxtwo"), "abc123", "d")
-    ssh_command = shlex.split(shlex.split(push)[2].split("=", 1)[1])
+    ssh_command = ssh_command_of(push)
     assert "-i" not in ssh_command
     assert "BatchMode=yes" in ssh_command
 
@@ -241,6 +262,47 @@ def test_a_failed_push_never_leaves_the_merge_to_run(
     assert code == selector.EXIT_FAILED
     assert len(calls) == 1, "the merge must not run after a failed push"
     assert "delivery aborted" in capsys.readouterr().err
+
+
+def _register_without_a_source_checkout(tmp_path: Path, source: str = "") -> Path:
+    path = tmp_path / "r.env"
+    path.write_text(
+        "VPATH_INSTANCES=box\n"
+        "BOX_KIND=server-nuc\n"
+        "BOX_SSH_HOST=10.0.0.9\n"
+        "BOX_SSH_USER=u\n"
+        "BOX_ENV_PROFILE=nuc\n"
+        "BOX_CHECKOUT=/workspace\n" + source,
+        encoding="utf-8",
+    )
+    return path
+
+
+def test_a_register_without_a_source_checkout_aborts_instead_of_using_the_cwd(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The defect this replaced was a silent one: git fell back to the cwd.
+
+    So the absence of the field must stop the delivery, name the field and name
+    the file to write it in -- never push whatever the shell's directory holds.
+    """
+    path = _register_without_a_source_checkout(tmp_path)
+    runner, seen = recording_runner()
+    code = selector.main(
+        ["--register", str(path), "deliver", "box", "--sha", "abc123"], runner=runner
+    )
+    assert code == selector.EXIT_UNDETERMINED
+    assert seen == [], "nothing may be pushed when the source repository is unknown"
+    err = capsys.readouterr().err
+    assert "BOX_SOURCE_CHECKOUT" in err and str(path) in err
+
+
+def test_a_source_checkout_that_does_not_exist_is_named(tmp_path: Path) -> None:
+    path = _register_without_a_source_checkout(
+        tmp_path, f"BOX_SOURCE_CHECKOUT={tmp_path}/absent\n"
+    )
+    with pytest.raises(RegistryError, match="which is not a directory"):
+        selector.deliver_commands(load(path).get("box"), "abc123", "d")
 
 
 def test_exec_without_a_command_aborts(register: Path) -> None:

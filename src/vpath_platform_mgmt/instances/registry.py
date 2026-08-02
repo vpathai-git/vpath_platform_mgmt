@@ -65,7 +65,7 @@ ALL_LIFECYCLES = frozenset({LIFECYCLE_LIVE, LIFECYCLE_PLANNED})
 REQUIRED_SERVER_FIELDS = ("SSH_HOST", "SSH_USER", "ENV_PROFILE", "CHECKOUT")
 REQUIRED_STANDALONE_FIELDS = ("APP_ROOT", "HOME")
 
-PATH_FIELDS = frozenset({"SSH_KEY", "CHECKOUT", "APP_ROOT", "HOME"})
+PATH_FIELDS = frozenset({"SSH_KEY", "CHECKOUT", "SOURCE_CHECKOUT", "APP_ROOT", "HOME"})
 
 DEFAULT_REGISTER_NAME = "instances.local.env"
 REGISTER_ENV_VAR = "VPATH_INSTANCES_FILE"
@@ -149,6 +149,19 @@ class Instance:
     def checkout(self) -> str:
         """The server checkout **on the box**: delivery target and Gradle cwd."""
         return self.fields.get("CHECKOUT", "")
+
+    @property
+    def source_checkout(self) -> str:
+        """The checkout **on this machine** a delivery reads the commit from.
+
+        The counterpart of :attr:`checkout`: that one names where the commit
+        lands, this one names where it comes from.  Declaring it is what makes
+        ``deliver`` independent of the directory it is started in -- without it
+        git resolves the sha against the process working directory, which is a
+        different repository whenever the operator follows the runbook line
+        (``cd vpath_platform_mgmt && ... selector deliver``).
+        """
+        return self.fields.get("SOURCE_CHECKOUT", "")
 
     # -- standalone coordinates ---------------------------------------------
 
