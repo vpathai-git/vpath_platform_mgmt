@@ -25,7 +25,7 @@ verb rather than half way through.
 
 ## Install
 
-Prerequisites: Python 3.10+, git, and — for publishing — the GitHub CLI `gh`,
+Prerequisites: Python 3.11+, git, and — for publishing — the GitHub CLI `gh`,
 already authenticated for the organizations you will read (`gh auth status`).
 Repositories are read through `gh` rather than cloned, so its authentication
 is what reaches private and INTERNAL repos. [Trivy](https://trivy.dev) is

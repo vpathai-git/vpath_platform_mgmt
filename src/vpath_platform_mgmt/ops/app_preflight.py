@@ -38,9 +38,9 @@ PYTHON_MANIFEST = "pyproject.toml"
 DEPENDENCY_KEYS = ("dependencies", "devDependencies", "optionalDependencies")
 
 # ponytail: pyproject is scanned line-wise for path dependencies rather than
-# parsed, because tomllib is 3.11+ and this project's floor is 3.10; adding a
-# TOML parser for one check is not worth a dependency.
-# Upgrade trigger: the floor reaching 3.11 — replace with tomllib.
+# parsed, because a finding quotes the offending line verbatim.
+# Upgrade trigger: FIRED — the floor reached 3.11.4 on 2026-08-10, so tomllib
+# is available; the swap changes the finding text and belongs in its own change.
 PATH_DEPENDENCY = re.compile(r"""(?<![\w-])path\s*=\s*["']([^"']+)["']""")
 DEPENDENCY_NAME = re.compile(r"""^\s*["']?([A-Za-z][\w.-]*)["']?\s*=""")
 
