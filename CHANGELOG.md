@@ -11,140 +11,69 @@ package `__init__.py` `__version__` — bump both together (see
 
 ## [Unreleased]
 
-## [0.2.1] - 2026-06-28
-
-### Changed
-- Agent-behaviour rules now state the wanted behaviour positively instead of
-  enumerating prohibitions, so the guidance is smaller and self-enforcing:
-  - `CLAUDE.md` Hard Rule "Never create files unless necessary …" →
-    "Work in the files that exist; create one only when the task needs it —
-    no unsolicited .md docs; deliver exactly the scope asked, nothing more".
-  - `context/RECOMMENDED_WAYS_OF_WORKING.md` §3 "Smallest correct solution" and
-    "Bounded subagents" reworded to lead with the action, not the prohibition.
-
-### Removed
-- `plain-summary` skill: the redundant "Not this" section — the positive
-  "Register" block above it already entails both of its points.
-
-## [0.2.0] - 2026-06-14
-
-### Added (since the field test)
-- fable-team temp substitution + max-effort compensation: with Fable
-  unavailable as the adversary, the judgment seat is held by a SECOND,
-  independent Opus advisor (`advisor--opus`) pinned to `effort: max` — the
-  reasoning-budget compensation for sharing the coordinator's tier. New
-  read-only `advisor-opus` agent vendored at `.claude/agents/advisor-opus.md`
-  (project memory); the skill records the substitution in its machine-checked
-  food-chain block (`judgment_substitution`, `judgment_effort: max`), extends
-  no-silent-downgrade to cover effort, and has the coordinator reinforce
-  per-turn with the `ultrathink` keyword. The dormant `fable` agent def is
-  kept as the restoration target
-- CLAUDE.md self-honesty checks: the Project Structure tree is verified
-  path-by-path at gate time (a stale tree blocks the push naming the
-  missing path — update it in the same commit that changes the
-  structure), and an OntoGate adoption contract — considering OntoGate
-  is recommended and highlighted in CLAUDE.md; once `ontogate:` in the
-  stamp block names a gate, that gate must exist or the push blocks
-- Minimal CLAUDE.md (community-consensus rules, 2026-06 research): trimmed
-  231 → ~125 lines — only per-session facts and hard rules remain; all
-  situational guidance moved verbatim to `context/AGENT_WORKFLOW.md`
-  behind a Must-Know-Map pointer. CLAUDE.md now carries a dated review
-  stamp (180-day horizon) validated by `scripts/check_skill_assumptions.py`
-  alongside the food-chain block: when stale the gate recommends a review;
-  the agent proposes edits, the human approves. Line-limit contradiction
-  resolved: 250 everywhere
-- Mandatory dependency CVE gate (decision 005 on meta): universal
-  `make scan` target (Trivy on the RESOLVED dependency set — frozen env
-  on Python, lockfiles elsewhere), diff-aware pre-commit trigger on
-  manifest changes, always-on CI scan job + weekly cron, CRITICAL/HIGH
-  blocking. Waivers only via `.trivyignore.yaml` entries carrying a
-  justification and ≤90-day expiry; on findings the gate instructs the
-  agent to explain each CVE in plain language so a human can ACTIVELY
-  confirm any accepted risk; `make setup`/init verify the trivy
-  toolchain and hard-fail with install instructions when absent
-- `/fable-team` skill vendored into `.claude/skills/` plus a project-level
-  `fable` agent definition (`.claude/agents/fable.md`) — every project
-  templated or synced from this one inherits the tiered-team protocol
-  (Haiku fast lane / coordinator / Fable judgment), self-contained, with a
-  context-economy rule: interactions expected to exceed ~5k tokens are
-  handed to subagents, recurring same-kind work to one persistent agent
-- fable-team protocol amendments: the Fable teammate stays alive after
-  deliverables (context watched, kept under ~50%, distill-to-memory +
-  respawn when approaching); teammates are named `role--tier` (e.g.
-  `advisor--fable`, `test-runner--haiku`) so the agent list reads at a
-  glance; and the skill challenges at invocation when the coordinator
-  is not Opus-tier (explicit confirmation before inverse mode)
-- Food-chain self-revalidation: the skill carries a dated, machine-checked
-  assumptions block (who sits at the top of the model food chain);
-  `scripts/check_skill_assumptions.py` (exit 0 fresh / 1 review
-  recommended / 2 block broken) runs in the pre-push governance gate, and
-  the skill instructs the coordinator to sanity-check the tier map at
-  every invocation and RECOMMEND — never silently apply — a new food chain
-- `githooks/pre-push` — the synchronous-adoption gate (Flavor Spine axiom
-  F9, decision 004 on meta): in repos carrying a governed meta branch, the
-  OntoGate gate must pass against LOCAL branches before any push, so a
-  universal change and its merges into every flavor travel in one push set;
-  silent no-op in stamped projects
-
-### Changed
-- RECOMMENDED_WAYS_OF_WORKING: OntoGate entry updated for vpath-ontogate
-  0.2.0 — the method now ships as a versioned pip package with the ADOPT.md
-  self-verifying agent runbook; README gains the interpreter-probe note
-  (broken-python3 field case)
-- LICENSE.TXT is now sync-TRACKED (field decision after the vpath_agents
-  migration surfaced a stale 2024 copyright): pristine licenses auto-update;
-  projects with a different license remove the TRACKED entry once
-- README: sync exit-code semantics documented (1 = review pending, not an
-  error); the 1-2 permanent "customized" entries of a personalized project
-  declared normal and by design; `python3` used consistently
-- context/CHECKLIST.md Gate-1 comment generalized (was Python-specific in a
-  universal file — found by the Java field build)
+## [0.2.0] - 2026-08-10
 
 ### Added
-- README "Two Ways to Work With This Repository": consumer mode (stamp +
-  sync, no governance knowledge needed) vs maintainer mode (meta branch,
-  EVOLUTION.md handbook)
-- Enforcement hooks — the gate is now machinery, not discipline: committed
-  `githooks/pre-commit` runs `make check` before every commit (activated by
-  `make setup` / init script); `.claude/settings.json` +
-  `.claude/hooks/post_edit_check.py` quality-check every AI edit immediately
-  (flavor-aware: black/flake8 for .py, spotless for .java) and feed failures
-  back to the assistant; both universal across flavors and synced to derived
-  projects (`githooks/` added to TRACKED)
-- Branch-per-flavor architecture (researched, decision 002 on meta): flavors
-  are branches of this repo; `.template-version` now stamps `<sha> <ref>` and
-  the sync/drift scripts default to the stamped flavor ref; the CI workflow
-  is tracked as a directory so each flavor's workflow syncs correctly
-- `context/FLAVORS.md`: the language-flavor boundary — what is universal
-  (skills, gates, conventions, sync tooling) vs Python-specific, with a
-  per-language substitution table (Java, Rust, C++) for manifest, layout,
-  formatter/linter/test, the `make check` gate, CI matrix, and the
-  TRACKED-list adjustments flavor projects need
-- `context/RECOMMENDED_WAYS_OF_WORKING.md`: promoted-but-not-enforced
-  practices (Gradle for dependency/build orchestration, OntoGate for
-  ontology-gated stabilization), linked from the README; the inline
-  OntoGate section moved there
-- Tests for the template scripts (`tests/test_template_scripts.py`): all five
-  sync classifications, apply behavior, 3-way merge, branch isolation —
-  against a real miniature git history, no network
-- `context/MAIN_META_CONVENTION.md`: two-tier rule for evolution artifacts
-  (libraries: `docs/adr` on main; tree-is-product repos: `meta` orphan
-  branch). This repo's own planning now lives on its `meta` branch.
-- `scripts/sync_from_template.py`: pull template improvements into a derived
-  project — auto-updates files whose content matches any historical template
-  version (exact git-history match, rescues projects that missed many
-  iterations), copies new files, deletes template-removed pristine files,
-  and 3-way merges customized files via the `.template-version` stamp
-- `scripts/check_template_drift.py`: compare a derived project against the
-  current template; reports up-to-date / missing / differing tracked files
-  (`--diff` shows diffs), exit 0 only when fully in sync
-- README recommendation (not enforced) for OntoGate, VPath's
-  ontology-gated engineering method, with repository link
+- Ops control plane: the platform verbs (deploy, uninstall, health-check,
+  publish) behind one guarded service with engine adapters and a job runner —
+  one state, two surfaces, the `vpath` CLI and the console.
+- GitOps engine: deploy and uninstall are commits against the instance's ops
+  repository rather than commands fired at a cluster; ArgoCD reads the result
+  and the console reads it back.
+- Ops console: Server Dashboard and Application Explorer, a connection badge
+  that names the instance and probes its reachability, and an Applications
+  view that lists both catalogs — ours and the platform's — with install state
+  in both directions.
+- Publish pipeline: a repository URL walks to a running application in five
+  delegated stages. `vpath app add` registers a repository by asking GitHub, so
+  INTERNAL repositories work; `vpath app send` ships it at its recorded commit
+  and sends provenance with the source.
+- Preflight: a repository whose SDK path is not where its manifest says is
+  refused before anything is written; an application may be a directory inside
+  its repository.
+- Instances: one register, one selector, one status probe, and a tunnel that
+  forwards the box's Ops API port.
+- Authentication: Keycloak token validation, device-flow login for the CLI,
+  browser sign-in over PKCE through a split-route relay, authorization by realm
+  group.
+- Credential gate (`make credentials`, part of `make check`): no credential
+  value may reach a console, a log or a tracked file.
+- Docs: installing and connecting the console
+  (`docs/INSTALLING_THE_CONSOLE.md`), and how a repository becomes an app
+  (`docs/ADDING_AN_APP.md`).
 
-## [0.1.0] - 2026-06-10
+### Changed
+- Python floor raised to `>=3.11.4` — the fleet standard is 3.11, and 3.11.4 is
+  where `tarfile.extractall(..., filter=...)` lands on that line. CI matrix,
+  classifiers, black target versions and mypy language level follow.
+- Console wording is sentence case throughout, and the engine badge is gone:
+  the connection badge already says what it said.
+- Publish guards, publish stages, job execution, the publish route, the tarball
+  download and the environment-config builders each moved out of the module
+  that had grown around them.
+
+### Fixed
+- The delivery push carries the register's SSH key, and `deliver` resolves the
+  source commit from the register instead of the process working directory.
+- Publish validates its input, refuses a silent overwrite, never strands its
+  lock, and renders network and parse failures instead of swallowing them.
+- An absent namespace is not an empty one and `Succeeded` is not a failure; the
+  pod namespace is derived from ArgoCD, and only the pods an app owns are
+  listed.
+- A dead console backend explains itself instead of going quiet.
+- The Keycloak relay was configured backwards and said so misleadingly; the
+  device flow sends PKCE, as the realm client requires.
+- Registration refuses an unsafe path instead of sanitising it, and describes a
+  refused register line without echoing it.
+- Ports are validated with `int()` rather than `isdigit()`, so every
+  non-numeric value is caught.
+- Cross-platform: the instance registry and selector suites run on Windows, and
+  the completion-chime asset resolves on every platform.
+
+## [0.1.0] - 2026-07-24
 
 ### Added
-- Initial template: src-layout package with placeholder module, pytest suite,
-  strict CI gate (black/flake8/mypy/pytest on Python 3.10-3.13)
-- First-class AI skills under `.claude/skills/` and `CLAUDE.md` agent guide
-- Best-practice references and the canonical checklist under `context/`
+- Initialized from the `vpath_empty_project` template (commit `0390b41`):
+  src-layout package, pytest suite, the strict CI gate
+  (black/flake8/mypy/pytest with a coverage floor), the dependency CVE gate,
+  and the agent governance under `.claude/` and `context/`.
