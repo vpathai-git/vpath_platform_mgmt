@@ -24,9 +24,12 @@ SDK_SOURCE = "apps_infra/sdk"
 
 
 def manifest(
-    app: str, dirs: list[str], sdks: list[dict[str, str]] | None = None
+    app: str,
+    dirs: list[str],
+    sdks: list[dict[str, str]] | None = None,
+    runtime: str = "node",
 ) -> str:
-    build: dict[str, object] = {"runtime": "node", "hash": {"dirs": dirs}}
+    build: dict[str, object] = {"runtime": runtime, "hash": {"dirs": dirs}}
     if sdks is not None:
         build["sdks"] = sdks
     return yaml.safe_dump(
@@ -253,6 +256,50 @@ def pyproject(dependency: str) -> str:
     )
 
 
+REMEDY_FIXTURE_APPS = (
+    ("vpath-agentic-resource-modeling", "node"),
+    ("vpath-agentic-resource-modeling-api", "python"),
+    ("vpath-explorer", "node"),
+    ("vpath-fortune-teller", "node"),
+    ("vpath-fortune-teller-api", "python"),
+    ("vpath-hello-confluence", "node"),
+    ("vpath-hello-confluence-api", "python"),
+    ("vpath-storage-demo", "node"),
+    ("vpath-workflow-demo", "node"),
+)
+
+
+@pytest.fixture
+def remedy_fixture_apps(tmp_path: Path) -> Path:
+    root = tmp_path / "apps"
+    for app, runtime in REMEDY_FIXTURE_APPS:
+        tree = root / app
+        tree.mkdir(parents=True)
+        if runtime == "node":
+            sdk_name = "@vpath/sdk"
+            sdk_source = SDK_SOURCE
+            write(tree, "package.json", package({sdk_name: "file:../../kit/sdk"}))
+        else:
+            sdk_name = "vpath-backend-sdk"
+            sdk_source = PY_SDK
+            write(
+                tree,
+                "pyproject.toml",
+                pyproject("../../../kit/sdk-python/vpath-backend-sdk"),
+            )
+        write(
+            tree,
+            "vpath-app.yaml",
+            manifest(
+                app,
+                [f"apps_infra/apps/{app}", sdk_source],
+                [{"name": sdk_name, "source": sdk_source}],
+                runtime,
+            ),
+        )
+    return root
+
+
 def test_a_declared_python_sdk_pointing_at_the_wrong_place_names_the_fix(
     tmp_path: Path,
 ) -> None:
@@ -332,20 +379,28 @@ def test_a_bare_path_line_is_reported_without_inventing_a_dependency_name(
     assert "declare path in" not in findings[0].remedy
 
 
-def test_every_real_manifest_in_apps_gets_a_remedy_it_can_act_on() -> None:
-    """Nine real apps, node and python; none may be told to do the wrong thing."""
-    root = Path(__file__).resolve().parents[1] / "apps"
+def test_every_fixture_manifest_gets_a_remedy_it_can_act_on(
+    remedy_fixture_apps: Path,
+) -> None:
+    """Nine fixture apps, node and python; every remedy names the real fix."""
+    found_manifests = sorted(remedy_fixture_apps.rglob("vpath-app.yaml"))
+    assert len(found_manifests) == len(REMEDY_FIXTURE_APPS) == 9
+
     seen = 0
-    for found in sorted(root.rglob("vpath-app.yaml")):
+    findings_by_runtime = {"node": 0, "python": 0}
+    for found in found_manifests:
         document = yaml.safe_load(found.read_text(encoding="utf-8"))
         build = document["spec"]["build"]
         declared = {entry["name"]: entry["source"] for entry in build.get("sdks", [])}
-        for finding in inspect(
-            found.parent, document["metadata"]["name"], build["runtime"]
-        ):
+        findings = inspect(found.parent, document["metadata"]["name"], build["runtime"])
+        assert len(findings) == 1
+        for finding in findings:
             seen += 1
+            findings_by_runtime[build["runtime"]] += 1
             named = [name for name in declared if name in finding.value]
-            if named:
-                assert "declare" not in finding.remedy, finding.text
-                assert declared[named[0]] in finding.remedy, finding.text
+            assert len(named) == 1, finding.text
+            assert "declare" not in finding.remedy, finding.text
+            assert declared[named[0]] in finding.remedy, finding.text
+
+    assert findings_by_runtime == {"node": 6, "python": 3}
     assert seen == 9

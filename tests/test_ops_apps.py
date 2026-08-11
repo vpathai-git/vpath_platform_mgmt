@@ -110,11 +110,7 @@ def test_missing_and_broken_dirs_are_skipped(tmp_path: Path) -> None:
     assert len(AppCatalog(tmp_path, tmp_path / "nope").entries()) == 1
 
 
-def test_shipped_apps_folder_is_discoverable() -> None:
-    """The repo's own apps/ folder must parse — it is what the console shows."""
+def test_repository_does_not_ship_app_source_copies() -> None:
+    """App source is fetched from its registered Git repository at send time."""
     apps_dir = Path(__file__).resolve().parents[1] / "apps"
-    entries = AppCatalog(apps_dir).entries()
-    assert len(entries) >= 5
-    names = {entry.name for entry in entries}
-    assert "vpath-explorer" in names
-    assert all(entry.title for entry in entries)
+    assert not apps_dir.exists()
