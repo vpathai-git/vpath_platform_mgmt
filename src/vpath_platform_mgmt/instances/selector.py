@@ -47,7 +47,7 @@ from typing import Sequence
 
 from . import transport
 from .registry import Instance, Registry, RegistryError, load
-from .transport import Runner, TransportError
+from .transport import Runner, TransportError, require_live_ops
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -144,6 +144,8 @@ def cmd_list(registry: Registry, mask: bool) -> int:
         if instance.is_server:
             where = _masked(instance.ssh_target, mask)
             detail = f"{where}  -Penv={instance.env_profile}"
+        elif instance.is_remote:
+            detail = "[unproven]"
         else:
             detail = _masked(instance.app_root, mask)
         planned = "  [planned]" if instance.is_planned else ""
@@ -160,6 +162,8 @@ def cmd_show(instance: Instance, mask: bool) -> int:
         print(f"ssh key    {_masked(instance.ssh_key, mask) or '<ssh default>'}")
         print(f"profile    {instance.env_profile}")
         print(f"checkout   {_masked(instance.checkout, mask)}")
+    elif instance.is_remote or not instance.allows_live_ops:
+        print("ops        unproven (live ops refused)")
     else:
         print(f"app root   {_masked(instance.app_root, mask)}")
         print(f"home       {_masked(instance.home, mask)}")
@@ -281,6 +285,8 @@ def main(argv: Sequence[str] | None = None, runner: Runner = transport.run) -> i
         instance = registry.get(parsed.name)
         if parsed.command == "show":
             return cmd_show(instance, parsed.mask)
+
+        require_live_ops(instance)
 
         if parsed.command == "exec":
             args = _strip_separator(parsed.args)

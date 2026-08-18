@@ -53,7 +53,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Sequence
 
-from . import transport
+from . import history, standalone_status, transport
 from .registry import Instance, Registry, RegistryError, load
 from .transport import Runner, TransportError
 
@@ -68,6 +68,7 @@ UNREACHABLE = "UNREACHABLE"
 STOPPED = "STOPPED"
 PLANNED = "PLANNED"
 DRIFT = "DRIFT"
+UNPROVEN = "UNPROVEN"
 
 # The one remote payload.  Every line it prints is `key=value`; every value is
 # accompanied by the path or command it came from, so the caller can quote a
@@ -298,9 +299,7 @@ def _read_server(instance: Instance, timeout: int, runner: Runner) -> Reading:
     return reading
 
 
-def _read_standalone(instance: Instance, timeout: int, runner: Runner) -> Reading:
-    reading = Reading(instance.name, instance.kind, STOPPED)
-
+def _note_standalone_local(reading: Reading, instance: Instance) -> None:
     kit_version = Path(instance.app_root) / "kit" / "VERSION"
     if kit_version.is_file():
         sha = ""
@@ -321,34 +320,63 @@ def _read_standalone(instance: Instance, timeout: int, runner: Runner) -> Readin
     else:
         reading.gap("last activity", f"no runtime state at {state_db}", instance.source)
 
-    processes = runner(["ps", "-Ao", "pid=,command="], timeout)
-    if processes.ok:
-        needles = [n for n in (instance.home, instance.app_root) if n]
-        hits = [
-            line
-            for line in processes.stdout.splitlines()
-            if any(needle in line for needle in needles)
-        ]
-        if hits:
-            reading.verdict = HEALTHY
-            reading.add("running", f"{len(hits)} process(es)", processes.command)
-        else:
-            reading.add("running", "no process found", processes.command)
-    else:
-        reading.gap("running", "process table unreadable", processes.command)
 
-    # The structural gap.  Named, not guessed and not conflated with "down".
-    reading.gap(
-        "health / running version",
-        "a standalone allocates every port through listen(0); a running "
-        "instance has no address that can be known from outside",
-        "vpath_server/standalone/src/main/supervisor.ts allocatePort()",
-    )
+def _note_ps_running(
+    reading: Reading, instance: Instance, timeout: int, runner: Runner
+) -> None:
+    processes = runner(["ps", "-Ao", "pid=,command="], timeout)
+    if not processes.ok:
+        reading.gap("running", "process table unreadable", processes.command)
+        return
+    needles = [n for n in (instance.home, instance.app_root) if n]
+    hits = [
+        line
+        for line in processes.stdout.splitlines()
+        if any(needle in line for needle in needles)
+    ]
+    if hits:
+        reading.verdict = HEALTHY
+        reading.add("running", f"{len(hits)} process(es)", processes.command)
+    else:
+        reading.add("running", "no process found", processes.command)
+
+
+def _apply_supervisor_status(reading: Reading, status: Path, data: dict) -> Reading:
+    reading.verdict = HEALTHY
+    reading.add("pid", str(data["pid"]), str(status))
+    if "port" in data:
+        reading.add("port", str(data["port"]), str(status))
+    else:
+        reading.add("ports", str(data["ports"]), str(status))
+    reading.add("started_at", str(data["started_at"]), str(status))
+    version = data.get("version") or data.get("build_id")
+    reading.add("version", str(version)[:12], str(status))
+    reading.add("running", "supervisor status file", str(status))
     return reading
+
+
+def _read_standalone(instance: Instance, timeout: int, runner: Runner) -> Reading:
+    reading = Reading(instance.name, instance.kind, STOPPED)
+    _note_standalone_local(reading, instance)
+    status = standalone_status.status_path(instance.home)
+    try:
+        data = standalone_status.parse_status(status)
+    except standalone_status.StatusFileError as exc:
+        _note_ps_running(reading, instance, timeout, runner)
+        reading.gap(
+            "health / running version",
+            f"{exc}; a standalone allocates every port through listen(0) "
+            "unless the supervisor writes "
+            f"{standalone_status.STATUS_REL}",
+            str(status),
+        )
+        return reading
+    return _apply_supervisor_status(reading, status, data)
 
 
 def read_instance(instance: Instance, timeout: int, runner: Runner) -> Reading:
     if instance.is_planned:
+
         reading = Reading(instance.name, instance.kind, PLANNED)
         existing = Path(instance.home) if instance.home else None
         if existing is not None and existing.exists():
@@ -358,6 +386,14 @@ def read_instance(instance: Instance, timeout: int, runner: Runner) -> Reading:
             )
         else:
             reading.add("state", "declared, not built yet", instance.source)
+        return reading
+    if not instance.allows_live_ops:
+        reading = Reading(instance.name, instance.kind, UNPROVEN)
+        reading.gap(
+            "ops",
+            f"kind {instance.kind!r} is declared, unproven -- live ops refused",
+            f"instances/templates/{instance.kind}.yaml",
+        )
         return reading
     if instance.is_server:
         return _read_server(instance, timeout, runner)
@@ -410,6 +446,9 @@ def main(argv: Sequence[str] | None = None, runner: Runner = transport.run) -> i
         return EXIT_UNDETERMINED
 
     readings = [read_instance(i, parsed.timeout, runner) for i in targets]
+    hist = history.history_path(registry.path)
+    for reading in readings:
+        history.append_reading(hist, reading)
     print(render(registry, readings))
     return exit_code(readings)
 

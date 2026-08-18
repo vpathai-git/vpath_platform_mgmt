@@ -106,3 +106,4 @@ platform-admin-credentials*.zip
 # THE instance register. Its template (instances.example.env) is tracked and
 # carries placeholders only; the filled-in file never is.
 instances.local.*
+*.history.jsonl

@@ -10,14 +10,15 @@
 <header>
   <h1>VPath Console</h1>
   <span id="conn" class="badge q">Connecting…</span>
+  <span id="ops-drive" class="chip q">Ops drive: —</span>
   <button id="connect" onclick="connectNow()" hidden>Connect</button>
   <button id="tunnel" onclick="startTunnel()" hidden>Start tunnel</button>
   <span id="conn-detail" class="dim"></span>
   <div class="role" id="dev-identity">Acting as
     <select id="role">
-      <option value="app-dev">App-Entwickler</option>
+      <option value="app-dev">App developer</option>
       <option value="admin">Administrator</option>
-      <option value="server-dev">Serverprojekt-Entwickler</option>
+      <option value="server-dev">Server developer</option>
     </select>
     <input id="actor" value="you" size="8" aria-label="actor name">
   </div>
@@ -30,6 +31,8 @@
 
 <div class="shell">
   <nav>
+    <div class="grp">Instances</div>
+    <div id="instancelist"></div>
     <div class="grp">Server</div>
     <div class="nav-item sel" id="nav-dash" onclick="showDash()">
       <span>▤</span><span>Server Dashboard</span>
@@ -42,8 +45,12 @@
     <!-- Server dashboard -->
     <div class="view on" id="view-dash">
       <section>
-        <h2>Applications</h2>
-        <div class="row">
+        <h2>Operate</h2>
+        <p class="hint" id="catalog-hint">
+          Sidebar and Deploy use this console’s catalogue. Running applications
+          come from the platform InstalledSet — the counts below explain gaps.
+        </p>
+        <div class="row operate-row">
           <select id="verb">
             <option value="deploy">Deploy</option>
             <option value="build">Build</option>
@@ -54,8 +61,7 @@
           <select id="app" aria-label="application">
             <option value="">Loading applications…</option>
           </select>
-          <button onclick="submitJob()">Run</button>
-          <button class="danger" onclick="reinstall()">Reinstall server…</button>
+          <button class="primary" onclick="submitJob()">Run</button>
         </div>
         <div id="msg" aria-live="polite"></div>
         <div id="catalog-state" class="meta"></div>
@@ -67,7 +73,7 @@
             placeholder="examples/my-app (blank = repo root)">
           <input id="add-app-name" name="name" placeholder="app name" required>
           <details>
-            <summary>The repository ships no vpath-app.yaml</summary>
+            <summary>Generate manifest (no vpath-app.yaml)</summary>
             <input id="add-app-port" name="port" type="number" placeholder="port">
             <input id="add-app-base-path" name="base_path" placeholder="/app">
             <input id="add-app-title" name="title" placeholder="sidebar title">
@@ -75,6 +81,10 @@
           <button type="submit">Publish</button>
           <p id="add-app-error" class="error" hidden></p>
         </form>
+      </section>
+      <section class="danger-zone">
+        <h3>Danger zone</h3>
+        <button class="danger" onclick="reinstall()">Reinstall server…</button>
       </section>
       <section>
         <div class="title-row">
@@ -89,19 +99,22 @@
         <h2>Recent jobs</h2>
         <table id="jobs"></table>
       </section>
-      <section>
-        <h2>Platform health</h2>
-        <div id="healthline" class="dim">No health run yet</div>
-        <div class="gates" id="gates"></div>
-      </section>
-      <section>
-        <h2>Locks</h2>
-        <ul id="locks"><li class="dim">None held</li></ul>
-      </section>
-      <section>
-        <h2>Audit trail</h2>
-        <ul id="audit"></ul>
-      </section>
+      <details class="secondary-panel">
+        <summary>Platform health, locks, audit</summary>
+        <section>
+          <h2>Platform health</h2>
+          <div id="healthline" class="dim">No health run yet</div>
+          <div class="gates" id="gates"></div>
+        </section>
+        <section>
+          <h2>Locks</h2>
+          <ul id="locks"><li class="dim">None held</li></ul>
+        </section>
+        <section>
+          <h2>Audit trail</h2>
+          <ul id="audit"></ul>
+        </section>
+      </details>
     </div>
 
     <!-- Application explorer -->
@@ -130,11 +143,16 @@
         <pre class="file" id="f-body">Pick a file on the left to inspect it.</pre>
       </section>
     </div>
+
+    <div class="view" id="view-instance">
+      <div id="instance-detail">Select an instance in the list.</div>
+    </div>
   </main>
 </div>
 <script src="/auth.js"></script>
 <script src="/console.js"></script>
 <script src="/store.js"></script>
 <script src="/runtime.js"></script>
+<script src="/instances.js"></script>
 </body>
 </html>

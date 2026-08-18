@@ -4,7 +4,20 @@
 
 Sprache: Deutsch (Dateinamen, Code, Bezeichner Englisch) · Angelegt: 2026-07-27 12:52
 Projekt: `vpath_platform_mgmt` (dieses Repository)
-Status: **Zielbild verankert (README) — Umsetzung nicht begonnen**
+Status: **MVP-Umsetzung auf Branch `feature/mgmt-console-mvp-phase1`**
+(Phasen 1–6 laut `implementation-plan.md`; Live-Explorer-Deploy braucht
+Operator-Box)
+
+### Phasenstand
+
+| Phase | Inhalt | Stand |
+|---|---|---|
+| 1 | Templates + Register-CRUD + `remote` refuse | done |
+| 2 | Fleet API + History + Console Master-Detail | done |
+| 3 | Standalone status-file probe | done (consumer; shell writes file) |
+| 4 | Explorer deploy demo | protocol + THROWAWAY; vm5 running proof; healthz curl open |
+| 5 | OntoGate-Link (`ONTOGATE_URL`) | done |
+| 6 | Docs sync | done |
 
 Vorbereitet vom zuarbeitenden Agenten. Selbst-Containment ist hier Anforderung:
 Dieser Strang und der README-Abschnitt müssen ohne den Koordinations-Workspace
@@ -18,7 +31,8 @@ verständlich sein.
    (Status, Apps, State, Operationen) + typspezifische Panels (Server: Stack-
    Status, Load …; Standalone: Login, Size-on-Disk …) + OntoGate-Viewer-Link.
 2. **Instanzen: CRUD + Health** — Anlage aus **versionierten Typ-Templates**
-   (`nuc` | `standalone` | `remote`/win-claas), Instanz-Daten bleiben gitignored;
+   (Produkt: `nuc` | `standalone` | `remote`/win-claas → Register-KINDs
+   `server-nuc` | `server-cloud-vm` | `standalone` | `remote`), Instanz-Daten bleiben gitignored;
    Fehlerlogs, Uptime, State, History. Vier Ortsfragen je Instanz: Host +
    Filesystem? Build-Prozess? Quell-Repos des App-Builds? Container-Images?
 3. **Apps: CRUD + Health** — build/deploy/undeploy/update (forceful), koexistente
@@ -31,8 +45,9 @@ verständlich sein.
 
 - `src/vpath_platform_mgmt/instances/` — Register, Selektor, Transport, Probe
   (gemergt 2026-07-27, `aed0003`/`5e0cebe`; Tests in `tests/instances/`). Das
-  ist der Unterbau von Achse 2: Health und Register laufen; **Templates, CRUD
-  der Typen, Logs/History fehlen.**
+  ist der Unterbau von Achse 2. Auf diesem Branch: Templates, CRUD, History,
+  Fleet-API, Console-Liste, Statusdatei-Probe, OntoGate-Feld — siehe
+  `implementation-plan.md`.
 - `analysis/instance-management/` + `analysis/instance-status/` — die beiden
   abgeschlossenen Vorgänger-Stränge (Registerumzug, Namensschema, Probe,
   Uptime-Definition: Plattformdienste als Hauptzahl, Detail alle vier Uhren).
@@ -109,6 +124,8 @@ MVP (drei Achsen, Ziel Ende der Woche):
 
 - `raw/2026-07-27_1252_three-axes.md` — Wortlaut + Dekodierung
 - README-Abschnitt „Primary goals — the three axes" — der verbindliche Zieltext
+- `implementation-plan.md` — phasenweiser Umsetzungsplan (MVP, 2026-08-10)
+- `explorer-deploy-demo.notes.md` — Explorer Deploy-Runbook (Phase 4)
 - `explorer-quick-extraction.issue.md` — Iteration 1 von Achse 3, dispatchbar
 - `remote-type-survey.issue.md` — Erhebung des win-claas-Typs
 - Vorgänger: `../instance-management/`, `../instance-status/`
@@ -129,3 +146,6 @@ MVP (drei Achsen, Ziel Ende der Woche):
   Zielbild als Block „Stand 27.07.2026" in der Beschreibung von **EIP-222**;
   Umsetzungs-To-do als **EIP-248** („Management-Konsole MVP", unter EIP-163,
   Andre); der Run-Folder-Fund als **EIP-249** (unter EIP-134).
+- 10.08.: Electron-Modell geklärt (**C**: Control Plane managed Standalones;
+  platform-mgmt ist keine Electron-App). Umsetzungsplan:
+  `implementation-plan.md`.

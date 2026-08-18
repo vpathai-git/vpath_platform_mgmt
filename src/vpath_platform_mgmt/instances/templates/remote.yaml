@@ -1,0 +1,10 @@
+# Declared, unproven (M2). Live ops refused until remote-type-survey closes.
+kind: remote
+ops: unproven
+required: []
+optional:
+  - NOTES
+  - SSH_HOST
+  - SSH_USER
+  - ONTOGATE_URL
+path_fields: []

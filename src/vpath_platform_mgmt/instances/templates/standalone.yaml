@@ -1,0 +1,15 @@
+kind: standalone
+ops: live
+required:
+  - APP_ROOT
+  - HOME
+optional:
+  - NOTES
+  - ONTOGATE_URL
+  - PLACE_HOST_FS
+  - PLACE_BUILD
+  - PLACE_APP_SOURCES
+  - PLACE_IMAGES
+path_fields:
+  - APP_ROOT
+  - HOME

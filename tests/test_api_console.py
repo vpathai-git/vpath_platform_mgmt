@@ -32,6 +32,22 @@ def test_console_page_serves(client: TestClient) -> None:
     assert page.status_code == 200
     assert "VPath Console" in page.text
     assert 'id="engine"' not in page.text  # the conn badge names the instance now
+    assert 'id="instancelist"' in page.text
+    assert 'id="view-instance"' in page.text
+    assert 'id="instance-detail"' in page.text
+    assert "instances.js" in page.text
+    assert 'id="ops-drive"' in page.text
+    assert 'id="catalog-hint"' in page.text
+    assert 'class="danger-zone"' in page.text or "danger-zone" in page.text
+    assert "secondary-panel" in page.text
+    assert "Generate manifest (no vpath-app.yaml)" in page.text
+    assert 'class="primary" onclick="submitJob()"' in page.text
+    assert "reinstall" not in page.text.lower().split("danger zone")[0]
+    console_js = client.get("/console.js").text
+    assert "signInFailureLabel" in console_js
+    assert "setOpsDrive" in console_js
+    assert "Reload to retry" in console_js
+    assert "authNeedsReload" in console_js
 
 
 def test_header_shows_connection_status_with_synced_connect_button(

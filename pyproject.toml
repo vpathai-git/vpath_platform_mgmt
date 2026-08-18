@@ -55,7 +55,12 @@ where = ["src"]
 # Every console asset, not just the page: console.js/css and auth.js are
 # served by the same _asset() reader and are missing from a built wheel if
 # they are not listed here.
-vpath_platform_mgmt = ["api/*.html", "api/*.css", "api/*.js"]
+vpath_platform_mgmt = [
+    "api/*.html",
+    "api/*.css",
+    "api/*.js",
+    "instances/templates/*.yaml",
+]
 
 [tool.black]
 line-length = 88

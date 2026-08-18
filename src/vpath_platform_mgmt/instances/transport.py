@@ -84,17 +84,27 @@ def run(argv: Sequence[str], timeout: int = DEFAULT_TIMEOUT) -> CommandResult:
     )
 
 
-def require_ssh(instance: Instance) -> None:
-    """Raise unless this instance can be reached over SSH right now."""
-    if not instance.is_server:
-        raise TransportError(
-            f"{instance.name}: kind {instance.kind!r} has no SSH access -- "
-            f"a standalone is a local process, not a box"
-        )
+def require_live_ops(instance: Instance) -> None:
+    """Raise unless this instance may be driven (exec/gradle/deliver)."""
     if instance.is_planned:
         raise TransportError(
             f"{instance.name}: declared as planned in {instance.source}; "
             f"it does not exist yet"
+        )
+    if not instance.allows_live_ops:
+        raise TransportError(
+            f"{instance.name}: kind {instance.kind!r} is declared, unproven -- "
+            f"live ops refused until its template ops is live"
+        )
+
+
+def require_ssh(instance: Instance) -> None:
+    """Raise unless this instance can be reached over SSH right now."""
+    require_live_ops(instance)
+    if not instance.is_server:
+        raise TransportError(
+            f"{instance.name}: kind {instance.kind!r} has no SSH access -- "
+            f"a standalone is a local process, not a box"
         )
     if instance.ssh_key and not Path(instance.ssh_key).is_file():
         hint = (

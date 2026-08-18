@@ -45,14 +45,21 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Mapping
 
+from .templates import (
+    kinds as _template_kinds,
+    load_template,
+    path_fields as _template_path_fields,
+)
+
 # --- the two classes of environment ---------------------------------------
 
 KIND_SERVER_NUC = "server-nuc"
 KIND_SERVER_CLOUD_VM = "server-cloud-vm"
 KIND_STANDALONE = "standalone"
+KIND_REMOTE = "remote"
 
 SERVER_KINDS = frozenset({KIND_SERVER_NUC, KIND_SERVER_CLOUD_VM})
-ALL_KINDS = frozenset(SERVER_KINDS | {KIND_STANDALONE})
+ALL_KINDS = frozenset(_template_kinds())
 
 # `live` = expected to exist now.  `planned` = named, agreed, not built yet;
 # probing it is expected to find nothing, and finding something is a drift.
@@ -60,12 +67,10 @@ LIFECYCLE_LIVE = "live"
 LIFECYCLE_PLANNED = "planned"
 ALL_LIFECYCLES = frozenset({LIFECYCLE_LIVE, LIFECYCLE_PLANNED})
 
-# Fields required per kind.  A `planned` instance is exempt: its coordinates
-# are not knowable before it exists.
-REQUIRED_SERVER_FIELDS = ("SSH_HOST", "SSH_USER", "ENV_PROFILE", "CHECKOUT")
-REQUIRED_STANDALONE_FIELDS = ("APP_ROOT", "HOME")
-
-PATH_FIELDS = frozenset({"SSH_KEY", "CHECKOUT", "SOURCE_CHECKOUT", "APP_ROOT", "HOME"})
+PATH_FIELDS = (
+    frozenset({"SSH_KEY", "CHECKOUT", "SOURCE_CHECKOUT", "APP_ROOT", "HOME"})
+    | _template_path_fields()
+)
 
 DEFAULT_REGISTER_NAME = "instances.local.env"
 REGISTER_ENV_VAR = "VPATH_INSTANCES_FILE"
@@ -104,8 +109,19 @@ class Instance:
         return self.kind == KIND_STANDALONE
 
     @property
+    def is_remote(self) -> bool:
+        return self.kind == KIND_REMOTE
+
+    @property
     def is_planned(self) -> bool:
         return self.lifecycle == LIFECYCLE_PLANNED
+
+    @property
+    def allows_live_ops(self) -> bool:
+        """False for planned instances and for unproven kinds (``remote``)."""
+        if self.is_planned:
+            return False
+        return load_template(self.kind).allows_live_ops
 
     @property
     def notes(self) -> str:
@@ -290,11 +306,7 @@ def _instance_from(name: str, values: Mapping[str, str], source: str) -> Instanc
         )
 
     if lifecycle == LIFECYCLE_LIVE:
-        required = (
-            REQUIRED_SERVER_FIELDS
-            if kind in SERVER_KINDS
-            else REQUIRED_STANDALONE_FIELDS
-        )
+        required = load_template(kind).required
         missing = [key for key in required if not fields.get(key)]
         if missing:
             raise RegistryError(

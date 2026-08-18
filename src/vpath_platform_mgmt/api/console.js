@@ -7,23 +7,21 @@ const esc = (s) =>
   String(s ?? "").replace(/[&<>"]/g, (c) =>
     ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"})[c]);
 
-/* APPS, PLATFORM and selectedApp live in store.js, which owns the catalog. */
-
-/* ---------- navigation ---------- */
 function showDash() {
   $("view-dash").classList.add("on");
   $("view-app").classList.remove("on");
+  if ($("view-instance")) $("view-instance").classList.remove("on");
   $("nav-dash").classList.add("sel");
-  document.querySelectorAll(".app-row").forEach((e) => e.classList.remove("sel"));
+  document.querySelectorAll(".app-row,.inst-row").forEach((e) => e.classList.remove("sel"));
 }
 function showApp() {
   collapsePods();
   $("view-app").classList.add("on");
   $("view-dash").classList.remove("on");
+  if ($("view-instance")) $("view-instance").classList.remove("on");
   $("nav-dash").classList.remove("sel");
 }
 
-/* ---------- jobs ---------- */
 async function post(body) {
   const r = await fetch("/api/jobs",
     {method: "POST", headers: hdrs(), body: JSON.stringify(body)});
@@ -44,14 +42,8 @@ function reinstall() {
   if (c !== null) post({verb: "reinstall", app: "server", confirm: c || ""});
 }
 
-/* Install/uninstall of a selected app live in store.js. */
 const fmt = (ts) => new Date(ts * 1000).toLocaleTimeString();
 
-/* ---------- add an application ---------- */
-/* generate is only sent when a port was given: the registry refuses
-   generation flags for a repository that already ships its own
-   vpath-app.yaml, which is the common case. On success the job just
-   shows up in Recent jobs on the next poll — no second poll loop here. */
 async function publishApp(event) {
   event.preventDefault();
   const value = (id) => $(id).value.trim();
@@ -93,16 +85,18 @@ async function publishApp(event) {
 $("add-app").addEventListener("submit", publishApp);
 
 function render(s) {
-  $("jobs").innerHTML =
-    "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>engine</th>" +
-    "<th>state</th><th>step</th></tr>" +
-    s.jobs.map((j) =>
-      `<tr><td class="mono dim">${esc(j.id)}</td><td class="mono">${esc(j.verb)}</td>` +
-      `<td>${esc(j.app)}</td><td>${esc(j.actor)}</td>` +
-      `<td><span class="chip ${j.engine === "simulated" ? "q" : "err"}">` +
-      `${esc(j.engine)}</span></td>` +
-      `<td><span class="chip ${chip(j.state)}">${esc(j.state)}</span></td>` +
-      `<td class="dim">${esc(j.step)}</td></tr>`).join("");
+  const jobs = s.jobs || [];
+  $("jobs").innerHTML = jobs.length
+    ? "<tr><th>id</th><th>verb</th><th>app</th><th>actor</th><th>engine</th>" +
+      "<th>state</th><th>step</th></tr>" +
+      jobs.map((j) =>
+        `<tr><td class="mono dim">${esc(j.id)}</td><td class="mono">${esc(j.verb)}</td>` +
+        `<td>${esc(j.app)}</td><td>${esc(j.actor)}</td>` +
+        `<td><span class="chip ${j.engine === "simulated" ? "q" : "err"}">` +
+        `${esc(j.engine)}</span></td>` +
+        `<td><span class="chip ${chip(j.state)}">${esc(j.state)}</span></td>` +
+        `<td class="dim">${esc(j.step)}</td></tr>`).join("")
+    : '<tr><td class="dim">No jobs yet — Run a verb above</td></tr>';
   if (s.health) {
     $("healthline").innerHTML =
       `<span class="chip ${s.health.verdict === "healthy" ? "ok" : "err"}">` +
@@ -122,12 +116,8 @@ function render(s) {
     || '<li class="dim">Empty</li>';
 }
 
-/* ---------- connection ---------- */
 const POLL_MS = 1000;
 const RETRY_MS = 5000;
-/* label, chip class, and the fallback detail for states the server cannot
-   explain — when the backend itself is gone there is no /api/state to carry
-   a diagnosis, and that is the failure an operator hits most often. */
 const CONN = {
   connecting: ["Connecting…", "q", ""],
   connected: ["Connected", "ok", ""],
@@ -138,12 +128,11 @@ const CONN = {
 };
 let connTimer = 0;
 
-/* Badge, detail and buttons are all halves of one state machine: they are
-   set together, so they cannot drift. `connected`/`unreachable` speak about
-   the instance (named next to the status); `disconnected` means this
-   console's own backend is gone. The detail says WHY, because a dead tunnel,
-   an expired token and a stopped platform are one red badge and three
-   different fixes — "Start tunnel" is offered only for the one it fixes. */
+function setOpsDrive(name) {
+  const el = $("ops-drive");
+  if (el) el.textContent = name ? `Ops drive: ${name}` : "Ops drive: —";
+}
+
 function setConn(state, instance, detail, reason) {
   const down = state === "disconnected" || state === "unreachable";
   $("conn").textContent =
@@ -152,6 +141,7 @@ function setConn(state, instance, detail, reason) {
   $("conn-detail").textContent = down ? (detail || CONN[state][2]) : "";
   $("connect").hidden = !down;
   $("tunnel").hidden = reason !== "no-route";
+  if (instance) setOpsDrive(instance);
 }
 
 async function tick(fresh) {
@@ -168,7 +158,7 @@ async function tick(fresh) {
       inst = s.instance || {};
       next = inst.reachable ? "connected" : "unreachable";
     }
-  } catch (e) { /* backend gone or restarting; the badge reports it */ }
+  } catch (e) {}
   setConn(next, inst.name || "", inst.detail || "", inst.reason || "");
   connTimer = setTimeout(tick, next === "disconnected" ? RETRY_MS : POLL_MS);
 }
@@ -179,8 +169,6 @@ function connectNow() {
   tick(true);
 }
 
-/* Starting a tunnel spawns ssh on the console's host, so it is a deliberate
-   second click — never something a failed poll does by itself. */
 async function startTunnel() {
   const button = $("tunnel");
   button.disabled = true;
@@ -201,27 +189,41 @@ async function startTunnel() {
   }
 }
 
-/* ---------- sign-in ---------- */
-function signIn() { VpathAuth.signIn().catch((e) => fatal(e)); }
+let authNeedsReload = false;
+
+function signIn() {
+  if (authNeedsReload) { location.reload(); return; }
+  VpathAuth.signIn().catch((e) => fatal(e));
+}
 function signOut() { VpathAuth.signOut(); signedOut("Signed out"); }
 
 function signedOut(why) {
   $("whoami").textContent = why;
-  $("signin").hidden = false;
-  $("signout").hidden = true;
-  setConn("signed-out");
+  $("signin").hidden = false; $("signout").hidden = true;
+  $("signin").disabled = false; setConn("signed-out");
 }
-
 function signedIn(who) {
   $("whoami").textContent = `${who.actor} · ${who.role}`;
-  $("signin").hidden = true;
-  $("signout").hidden = false;
+  $("signin").hidden = true; $("signout").hidden = false;
+}
+
+function signInFailureLabel(err) {
+  const m = String(err || "");
+  if (m.startsWith("signed in")) return "Token rejected";
+  if (/token exchange failed/i.test(m)) return "Token exchange failed";
+  if (/sign-in refused/i.test(m)) return "Sign-in refused";
+  if (/state mismatch|verifier missing/i.test(m)) return "Sign-in interrupted";
+  if (/OIDC discovery failed|cannot reach Keycloak/i.test(m)) return "Keycloak unreachable";
+  return "Sign-in failed";
 }
 
 function fatal(err) {
-  $("conn").textContent = "Sign-in failed";
+  const message = String(err.message || err);
+  const label = signInFailureLabel(message);
+  $("conn").textContent = label;
   $("conn").className = "badge err";
-  $("msg").textContent = String(err.message || err);
+  $("msg").textContent = label;
+  $("conn-detail").textContent = message.slice(0, 220);
 }
 
 VpathAuth.init().then((session) => {
@@ -229,11 +231,10 @@ VpathAuth.init().then((session) => {
     $("dev-identity").hidden = true;
     $("oidc-identity").hidden = false;
     if (session.error) {
-      const rejected = session.error.startsWith("signed in");
-      signedOut(rejected ? "Token rejected" : "Cannot reach Keycloak");
-      // A rejected token is worth retrying after a fix; an unreachable
-      // Keycloak is not, so only that one disables the button.
-      $("signin").disabled = !rejected;
+      const label = signInFailureLabel(session.error);
+      authNeedsReload = label !== "Token rejected" && label !== "Sign-in refused";
+      signedOut(label);
+      if (authNeedsReload) $("signin").textContent = "Reload to retry";
       fatal(new Error(session.error));
       return;
     }

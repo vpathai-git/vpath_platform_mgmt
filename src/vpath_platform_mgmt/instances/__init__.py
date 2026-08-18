@@ -14,6 +14,7 @@ Entry points::
 
 from .registry import (
     ALL_KINDS,
+    KIND_REMOTE,
     KIND_SERVER_CLOUD_VM,
     KIND_SERVER_NUC,
     KIND_STANDALONE,
@@ -25,6 +26,7 @@ from .registry import (
 
 __all__ = [
     "ALL_KINDS",
+    "KIND_REMOTE",
     "KIND_SERVER_CLOUD_VM",
     "KIND_SERVER_NUC",
     "KIND_STANDALONE",

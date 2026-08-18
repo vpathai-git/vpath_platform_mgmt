@@ -1,0 +1,18 @@
+kind: server-cloud-vm
+ops: live
+required:
+  - SSH_HOST
+  - SSH_USER
+  - ENV_PROFILE
+  - CHECKOUT
+optional:
+  - NOTES
+  - ONTOGATE_URL
+  - PLACE_HOST_FS
+  - PLACE_BUILD
+  - PLACE_APP_SOURCES
+  - PLACE_IMAGES
+path_fields:
+  - SSH_KEY
+  - CHECKOUT
+  - SOURCE_CHECKOUT

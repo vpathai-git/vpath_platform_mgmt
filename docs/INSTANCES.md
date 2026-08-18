@@ -11,6 +11,7 @@ the schema and the boundary; the working template is
 |---|---|
 | the schema (this file) | your addresses, users, key paths |
 | the template `instances.example.env` | your `instances.local.env` |
+| kind templates `instances/templates/*.yaml` | — |
 | the mechanism (`src/vpath_platform_mgmt/instances/`) | the boxes themselves |
 
 Verify the second column stays out:
@@ -39,6 +40,36 @@ That is why the server field list is as short as it is:
 <NAME>_ENV_PROFILE  <NAME>_CHECKOUT
 ```
 
+## Kind templates
+
+Required fields per `KIND` are declared in versioned YAML under
+`src/vpath_platform_mgmt/instances/templates/`. Programmatic create / update /
+remove of register entries lives in `vpath_platform_mgmt.instances.crud`
+(same `KEY=VALUE` format; atomic rewrite). Templates with `ops: unproven`
+(today: `remote`) may be listed but selector exec/gradle/deliver and live
+probe refuse them until the
+[remote-type survey](../analysis/mgmt-console/remote-type-survey.issue.md)
+closes.
+
+Optional place fields (Axis 2 — may be empty until filled):
+
+| Field | Question |
+|---|---|
+| `PLACE_HOST_FS` | Where does the instance live (host + filesystem)? |
+| `PLACE_BUILD` | Where does its build process live? |
+| `PLACE_APP_SOURCES` | Which source repositories does the build pull apps from? |
+| `PLACE_IMAGES` | Where do the container images live? |
+| `ONTOGATE_URL` | OntoGate UI link for this instance (honestly absent if unset) |
+
+### Standalone supervisor status file
+
+When present, the probe reads
+`<HOME>/runtime/vpath-standalone.status.json` (JSON object) with required
+keys `pid`, `started_at`, `port` **or** `ports`, and `version` **or**
+`build_id`. Missing or invalid file → named gap, never a fake healthy
+verdict. The Electron supervisor (app-template / shell) writes this file;
+platform-mgmt only consumes it.
+
 ## Schema
 
 `KEY=VALUE`, one per line. `#` starts a comment **only at the start of a
@@ -52,7 +83,7 @@ prefixed with the upper-cased instance name.
 
 | Field | Kinds | Meaning |
 |---|---|---|
-| `KIND` | all | `server-nuc`, `server-cloud-vm` or `standalone` |
+| `KIND` | all | `server-nuc`, `server-cloud-vm`, `standalone`, or `remote` (*declared, unproven* — live ops refused) |
 | `LIFECYCLE` | all | `live` (default) or `planned` — named, not built yet |
 | `NOTES` | all | one line of free text |
 | `SSH_HOST` | server | address the dev machine connects to |

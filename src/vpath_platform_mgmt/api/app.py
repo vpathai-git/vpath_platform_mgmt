@@ -8,13 +8,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from importlib import resources
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from pydantic import BaseModel
 
 from vpath_platform_mgmt.api import kc_proxy as kc_proxy_module
-from vpath_platform_mgmt.api import routes_apps, routes_runtime
+from vpath_platform_mgmt.api import routes_apps, routes_instances, routes_runtime
 from vpath_platform_mgmt.api.kc_proxy import KeycloakProxy
 from vpath_platform_mgmt.api.auth import (
     DEV_ACTOR_HEADER,
@@ -43,6 +44,7 @@ ASSET_TYPES = {
     "auth.js": "application/javascript",
     "store.js": "application/javascript",
     "runtime.js": "application/javascript",
+    "instances.js": "application/javascript",
 }
 
 
@@ -175,6 +177,8 @@ def create_app(
     kc_proxy: KeycloakProxy | None = None,
     served_catalog: ServedCatalogReader | None = None,
     runtime: RuntimeReader | None = None,
+    instances_register: Path | None = None,
+    instances_probe_timeout: int = 12,
 ) -> FastAPI:
     """Build the API around a service; refuses unsafe auth/engine pairings."""
     validate_auth_mode(auth_mode, service.engine_name, oidc_validator is not None)
@@ -192,6 +196,12 @@ def create_app(
         app, identity, service, catalog, materializer, platform_url, served_catalog
     )
     routes_runtime.register(app, identity, service, runtime)
+    routes_instances.register(
+        app,
+        identity,
+        instances_register,
+        probe_timeout=instances_probe_timeout,
+    )
     # Ahead of the console's catch-all asset route, which would swallow it.
     if kc_proxy is not None:
         kc_proxy_module.register(app, kc_proxy)
