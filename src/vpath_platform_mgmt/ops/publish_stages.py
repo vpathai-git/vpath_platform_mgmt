@@ -136,6 +136,7 @@ def run_register(
 
 
 def run_send(
+    registry: Any,
     materializer: Any,
     download: Callable[..., Path],
     bundle: Callable[[Path], bytes],
@@ -149,7 +150,21 @@ def run_send(
     try:
         target = materializer.target_for(request.name)
         existing = provenance_of(target)
-        if str(existing.get("commit", "")) == probed.commit:
+        registered: dict[str, object] = next(
+            (
+                entry
+                for entry in registry.entries()
+                if entry.get("name") == request.name
+            ),
+            {},
+        )
+        existing_tree = str(existing.get("tree_sha", ""))
+        registered_tree = str(registered.get("tree_sha", ""))
+        if (
+            str(existing.get("commit", "")) == probed.commit
+            and existing_tree
+            and existing_tree == registered_tree
+        ):
             emit(f"send: the checkout already holds {probed.commit[:12]}")
             return SKIPPED
         if target.exists():
@@ -160,6 +175,7 @@ def run_send(
         emit(f"send: downloading {probed.slug} at {probed.commit[:12]}")
         downloaded = download(probed.slug, probed.commit, workspace)
         payload = subtree(downloaded, probed.path)
+        registry.stamp_tree(request.name, payload)
         place(request.name, payload)
         archive = bundle(payload)
         summary = materializer.materialize(

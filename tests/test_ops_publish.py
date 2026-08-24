@@ -51,6 +51,13 @@ class FakeRegistry:
 
         return Registration("demo-app", target, "upstream", commit)
 
+    def stamp_tree(self, name: str, tree: Path) -> str:
+        provenance = self.root / name / "vpath-source.yaml"
+        recorded = yaml.safe_load(provenance.read_text(encoding="utf-8")) or {}
+        recorded["tree_sha"] = "d" * 40
+        provenance.write_text(yaml.safe_dump(recorded), encoding="utf-8")
+        return "d" * 40
+
 
 class FakeMaterializer:
     """Stands in for the checkout, provenance file and all.
@@ -80,6 +87,7 @@ class FakeMaterializer:
                     "commit": provenance.commit,
                     "repo": provenance.repo,
                     "path": self.path,
+                    "tree_sha": "d" * 40,
                 }
             ),
             encoding="utf-8",

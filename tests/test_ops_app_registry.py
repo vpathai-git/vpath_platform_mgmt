@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -17,6 +18,7 @@ from vpath_platform_mgmt.ops.app_registry import (
     RegistryError,
     detect_runtime,
 )
+from vpath_platform_mgmt.ops.tree_hash import git_tree_sha
 
 COMMIT = "08f7f9e8c753a2ad2f71ecea43dabbc5ac58b0eb"
 REPO = "https://github.com/vpathai-git/example.git"
@@ -119,6 +121,61 @@ def test_provenance_records_where_it_came_from(tmp_path: Path) -> None:
     assert recorded["commit"] == COMMIT
     assert recorded["manifest_origin"] == GENERATED
     assert recorded["added_at"].endswith("Z")
+
+
+def test_source_stamp_records_the_git_tree_and_changes_with_its_content(
+    tmp_path: Path,
+) -> None:
+    repository = tmp_path / "source-repository"
+    source = repository / "apps" / "vpath-authored"
+    source.mkdir(parents=True)
+    (source / MANIFEST_NAME).write_text(UPSTREAM_MANIFEST, encoding="utf-8")
+    (source / "src").mkdir()
+    payload = source / "src" / "index.ts"
+    payload.write_text("export const value = 1;\n", encoding="utf-8")
+    subprocess.run(["git", "init", "--quiet", str(repository)], check=True)
+    subprocess.run(["git", "-C", str(repository), "add", "."], check=True)
+    subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.invalid",
+            "commit",
+            "--quiet",
+            "-m",
+            "fixture",
+        ],
+        check=True,
+    )
+    store = registry(tmp_path)
+    result = store.register(REPO, "main", COMMIT, source)
+
+    expected = subprocess.run(
+        [
+            "git",
+            "-C",
+            str(repository),
+            "rev-parse",
+            "HEAD:apps/vpath-authored",
+        ],
+        check=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+    ).stdout.strip()
+    assert git_tree_sha(source) == expected
+    assert store.stamp_tree(result.name, source) == expected
+    recorded = yaml.safe_load(
+        (result.directory / PROVENANCE_NAME).read_text(encoding="utf-8")
+    )
+    assert recorded["tree_sha"] == expected
+
+    payload.write_text("export const value = 2;\n", encoding="utf-8")
+    assert git_tree_sha(source) != recorded["tree_sha"]
 
 
 def test_a_second_registration_needs_replace(tmp_path: Path) -> None:

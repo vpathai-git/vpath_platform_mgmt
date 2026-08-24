@@ -98,6 +98,7 @@ class PublishPipeline:
                 self._registry, self._materialise, request, probed, emit
             )
             stages["send"] = run_send(
+                self._registry,
                 self._materializer,
                 self._download,
                 self._bundle,

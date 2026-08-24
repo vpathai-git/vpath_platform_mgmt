@@ -30,6 +30,7 @@ from vpath_platform_mgmt.ops.publish import PublishError, PublishPipeline
 from vpath_platform_mgmt.ops.publish_stages import PublishRequest
 from vpath_platform_mgmt.ops.repo_probe import Probed, materialise
 from vpath_platform_mgmt.ops.source import SourceMaterializer
+from vpath_platform_mgmt.ops.tree_hash import git_tree_sha
 
 APP = "vpath-demo-app"
 COMMIT = "a" * 40
@@ -140,6 +141,12 @@ def test_a_repository_that_ships_a_manifest_walks_to_a_populated_checkout(
     )
     assert registered["commit"] == COMMIT
     assert registered["manifest_origin"] == "upstream"
+    assert registered["tree_sha"] == git_tree_sha(
+        repository(
+            tmp_path / "hash",
+            {"vpath-app.yaml": manifest_text(APP), "package.json": PACKAGE},
+        )
+    )
     assert (materialized / APP / "vpath-app.yaml").is_file()
     assert (materialized / APP / "vpath-source.yaml").is_file()
     assert (materialized / APP / "src" / "index.ts").is_file()

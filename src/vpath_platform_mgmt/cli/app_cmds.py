@@ -202,6 +202,7 @@ def send(
     workspace = Path(tempfile.mkdtemp(prefix="vpath-send-"))
     try:
         tree = repo_tarball.download_tree(slug, commit, workspace)
+        AppRegistry(apps_root()).stamp_tree(name, tree)
         _place_registered_files(name, tree)
         archive = bundle(tree)
     except (repo_fetch.FetchError, BundleError, RegistryError) as exc:

@@ -28,6 +28,7 @@ from pathlib import Path
 import yaml
 
 from vpath_platform_mgmt.ops.apps import AppCatalog
+from vpath_platform_mgmt.ops.tree_hash import TreeHashError, git_tree_sha
 
 MANIFEST_NAME = "vpath-app.yaml"
 PROVENANCE_NAME = "vpath-source.yaml"
@@ -224,6 +225,26 @@ class AppRegistry:
         )
         self._verify_readable(name, target)
         return Registration(name, target, origin, commit)
+
+    def stamp_tree(self, name: str, tree: Path) -> str:
+        """Bind a registered source record to its complete fetched tree."""
+        provenance = self._root / name / PROVENANCE_NAME
+        if not provenance.is_file():
+            raise RegistryError(f"'{name}' is not registered here")
+        recorded = yaml.safe_load(provenance.read_text(encoding="utf-8")) or {}
+        if not isinstance(recorded, dict):
+            raise RegistryError(f"'{name}' has unreadable {PROVENANCE_NAME}")
+        try:
+            tree_sha = git_tree_sha(tree)
+        except TreeHashError as exc:
+            raise RegistryError(
+                f"cannot hash the source tree for '{name}': {exc}"
+            ) from exc
+        recorded["tree_sha"] = tree_sha
+        provenance.write_text(
+            yaml.safe_dump(recorded, sort_keys=False), encoding="utf-8"
+        )
+        return tree_sha
 
     def _name_from(self, manifest_text: str, repo: str) -> str:
         parsed = yaml.safe_load(manifest_text) or {}
