@@ -11,6 +11,19 @@ package `__init__.py` `__version__` — bump both together (see
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-24
+
+### Added
+- **publish:** the provenance stamp binds to the source tree — `vpath-source.yaml`
+  gains `tree_sha` (the git tree object of the published subtree at its source
+  commit, computed via a temporary index), so a landed app directory can be
+  verified against its origin instead of trusted (`ops/tree_hash.py`, wired into
+  the `send` stage and the registry writer).
+
+### Removed
+- **apps:** the bundled source copies leave the repository — apps are published
+  through the provenance-stamped landing door, not carried as second homes.
+
 ## [0.2.0] - 2026-08-10
 
 ### Added
