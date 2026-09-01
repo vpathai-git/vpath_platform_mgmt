@@ -3,7 +3,7 @@
 
 Universal `make scan` implementation, flavor-aware by manifest detection
 (same pattern as .claude/hooks/post_edit_check.py): Python scans the
-frozen environment, Java the committed gradle.lockfile, Rust Cargo.lock,
+committed uv.lock export, Java the committed gradle.lockfile, Rust Cargo.lock,
 C++ conan/vcpkg manifests. Blocks CRITICAL and HIGH severities, unfixed
 included. Exceptions only via .trivyignore.yaml entries carrying a
 justification and an expiry date no more than 90 days out.
@@ -78,17 +78,18 @@ def detect_ecosystem(root: Path) -> str:
 
 def prepare_target(ecosystem: str, root: Path, workdir: Path) -> Path:
     if ecosystem == "python":
+        if not (root / "uv.lock").is_file():
+            raise ScanError(4, f"{root}: uv.lock missing. Fix: uv lock (and commit it)")
         result = subprocess.run(
-            [sys.executable, "-m", "pip", "freeze", "--exclude-editable"],
+            ["uv", "export", "--format", "requirements-txt", "--frozen"],
+            cwd=root,
             capture_output=True,
             text=True,
         )
         if result.returncode != 0 or not result.stdout.strip():
             raise ScanError(
                 4,
-                "could not resolve the installed dependency set "
-                f"(pip freeze via {sys.executable}). "
-                "Fix: make setup && make install-dev",
+                f"{root}: uv export failed. Fix: uv lock (and commit it)",
             )
         frozen = workdir / "requirements.txt"
         frozen.write_text(result.stdout, encoding="utf-8")

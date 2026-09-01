@@ -69,6 +69,7 @@ credentials:
 
 # Full quality gate — identical to CI; all steps must pass
 check:
+	uv lock --check
 	python3 scripts/check_no_logged_credentials.py
 	black --check src/ tests/ config/ scripts/
 	flake8 src/ tests/ config/ scripts/ --max-line-length=88 --extend-ignore=E203 --max-complexity=10

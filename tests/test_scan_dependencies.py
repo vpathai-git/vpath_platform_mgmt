@@ -44,6 +44,46 @@ def test_detect_ecosystem_none_exits_4(tmp_path: Path) -> None:
     assert err_code(excinfo) == 4
 
 
+def test_python_without_lockfile_exits_4(tmp_path: Path) -> None:
+    with pytest.raises(sd.ScanError) as excinfo:
+        sd.prepare_target("python", tmp_path, tmp_path)
+    assert err_code(excinfo) == 4
+    assert str(excinfo.value) == (
+        f"{tmp_path}: uv.lock missing. Fix: uv lock (and commit it)"
+    )
+
+
+def test_python_exports_frozen_lock(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = tmp_path / "project"
+    workdir = tmp_path / "scan"
+    root.mkdir()
+    workdir.mkdir()
+    (root / "uv.lock").write_text("version = 1\n", encoding="utf-8")
+    recorded: list[str] = []
+
+    def fake_run(
+        cmd: list[str], **kwargs: object
+    ) -> "subprocess.CompletedProcess[str]":
+        recorded.extend(cmd)
+        assert kwargs["cwd"] == root
+        return subprocess.CompletedProcess(cmd, 0, stdout="example==1.2.3\n")
+
+    monkeypatch.setattr(sd.subprocess, "run", fake_run)
+    assert sd.prepare_target("python", root, workdir) == workdir
+    assert recorded == [
+        "uv",
+        "export",
+        "--format",
+        "requirements-txt",
+        "--frozen",
+    ]
+    assert (workdir / "requirements.txt").read_text(encoding="utf-8") == (
+        "example==1.2.3\n"
+    )
+
+
 def test_java_without_lockfile_exits_4(tmp_path: Path) -> None:
     with pytest.raises(sd.ScanError) as excinfo:
         sd.prepare_target("java", tmp_path, tmp_path)
