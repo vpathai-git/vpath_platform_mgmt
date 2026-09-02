@@ -1,5 +1,7 @@
 """Tests for the placeholder package (replace as real code lands)."""
 
+from importlib.metadata import version
+
 import pytest
 
 from vpath_platform_mgmt import __version__, hello, main
@@ -14,7 +16,5 @@ def test_main_prints_greeting(capsys: pytest.CaptureFixture[str]) -> None:
     assert "hello from vpath_platform_mgmt" in capsys.readouterr().out
 
 
-def test_version_is_semver() -> None:
-    parts = __version__.split(".")
-    assert len(parts) == 3
-    assert all(part.isdigit() for part in parts)
+def test_version_matches_distribution_metadata() -> None:
+    assert __version__ == version("vpath-platform-mgmt")

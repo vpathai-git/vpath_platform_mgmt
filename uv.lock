@@ -1459,7 +1459,6 @@ wheels = [
 
 [[package]]
 name = "vpath-platform-mgmt"
-version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "fastapi" },

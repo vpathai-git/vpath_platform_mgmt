@@ -4,7 +4,7 @@ Placeholder package: replace with the real platform-management pipeline and
 console (see AGENTS.md and the EIP-222 concept linked from README.md).
 """
 
-__version__ = "0.3.0"
+from ._version import __version__
 
 
 def hello() -> str:

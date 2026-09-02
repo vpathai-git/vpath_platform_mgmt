@@ -1,12 +1,12 @@
 # pyproject.toml - single source of project configuration (PEP 621)
 
 [build-system]
-requires = ["setuptools>=61", "wheel"]
+requires = ["setuptools>=64", "setuptools-scm>=8", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
 name = "vpath-platform-mgmt"
-version = "0.3.0"
+dynamic = ["version"]
 description = "App build/deploy/health-check/uninstall pipeline and admin console for VPath server instances"
 readme = "README.md"
 requires-python = ">=3.11.4"
@@ -50,6 +50,10 @@ vpath = "vpath_platform_mgmt.cli.main:run"
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools_scm]
+version_file = "src/vpath_platform_mgmt/_version.py"
+git_describe_command = ["git", "describe", "--dirty", "--tags", "--long", "--match", "v[0-9]*"]
 
 [tool.setuptools.package-data]
 # Every console asset, not just the page: console.js/css and auth.js are

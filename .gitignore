@@ -22,6 +22,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+src/vpath_platform_mgmt/_version.py
 
 # Virtual environments
 .env
