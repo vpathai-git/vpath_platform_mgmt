@@ -9,7 +9,7 @@ name = "vpath-platform-mgmt"
 dynamic = ["version"]
 description = "App build/deploy/health-check/uninstall pipeline and admin console for VPath server instances"
 readme = "README.md"
-requires-python = ">=3.11.4"
+requires-python = ">=3.11"
 authors = [
     { name = "Andre Fischer", email = "andre.fischer@vpathai.com" },
 ]
