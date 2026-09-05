@@ -1,0 +1,28 @@
+# THE repository's fleet check — the one mechanism, called from the house.
+#
+# The reusable workflow lives in vpathai-git/vpath_wheelhouse and lays the
+# package house down as a SIBLING of this checkout, so the relative binding
+# this repository already declares resolves on a hosted runner exactly as it
+# resolves on a developer's disk. `secrets: inherit` passes the organisation
+# secret WHEELHOUSE_TOKEN, which is the only way a runner can read the
+# (private) house: GITHUB_TOKEN is scoped to this repository alone.
+
+name: fleet-suite
+
+on:
+  push:
+    branches: [ main, develop, dev ]
+  pull_request:
+    branches: [ main, develop, dev ]
+
+jobs:
+  suite:
+    uses: vpathai-git/vpath_wheelhouse/.github/workflows/fleet-suite.yml@main
+    with:
+      unit: "."
+      install: "sync"
+      groups: "--all-extras"
+      verb: "make check"
+      node: false
+      ontogate: false
+    secrets: inherit
