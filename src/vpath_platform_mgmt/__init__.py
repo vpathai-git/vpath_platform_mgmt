@@ -6,6 +6,8 @@ console (see AGENTS.md and the EIP-222 concept linked from README.md).
 
 from ._version import __version__
 
+__all__ = ["__version__", "hello"]
+
 
 def hello() -> str:
     """Return the placeholder greeting (replace with real code)."""

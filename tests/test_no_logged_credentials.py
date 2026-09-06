@@ -328,3 +328,56 @@ def test_unparsable_python_is_undetermined_never_a_pass(tmp_path: Path) -> None:
     root = make_repo(tmp_path, {"broken.py": "def (\n"})
     with pytest.raises(gate.CheckError):
         gate.scan(root, gate.tracked_files(root), [])
+
+
+# --- red drill: GitHub Actions passes secrets by reference ----------------
+#
+# ``secrets: inherit`` names no value, so the LITERAL rule must not fire on it.
+# The exemption is one keyword wide and every neighbouring shape is shown still
+# going red: an exemption without a green test is just a new blind spot with
+# better manners.
+
+WORKFLOW_CALL = (
+    "on: [push]\n"
+    "jobs:\n"
+    "  suite:\n"
+    "    uses: org/repo/.github/workflows/suite.yml@main\n"
+    "    with:\n"
+    '      verb: "make check"\n'
+)
+
+
+def test_workflow_secrets_inherit_is_a_reference_not_a_literal(
+    tmp_path: Path,
+) -> None:
+    root = make_repo(
+        tmp_path,
+        {".github/workflows/fleet.yml": WORKFLOW_CALL + "    secrets: inherit\n"},
+    )
+    assert gate.scan(root, gate.tracked_files(root), []) == []
+
+
+@pytest.mark.parametrize(
+    "shape, line",
+    [
+        ("quoted scalar", '    secrets: "inherit"\n'),
+        ("a longer word", "    secrets: inheritance\n"),
+        ("another credential key", "    SECRET_TOKEN: inherit\n"),
+        ("upper-case key", "    SECRETS: inherit\n"),
+    ],
+)
+def test_red_drill_only_the_bare_inherit_keyword_is_exempt(
+    tmp_path: Path, shape: str, line: str
+) -> None:
+    root = make_repo(tmp_path, {".github/workflows/fleet.yml": WORKFLOW_CALL + line})
+    assert run_gate(root) != 0, shape
+
+
+def test_red_drill_inherit_outside_a_workflow_directory_still_fails(
+    tmp_path: Path,
+) -> None:
+    root = make_repo(
+        tmp_path,
+        {"deploy.sh": "secrets: inherit\n", "compose.yml": "secrets: inherit\n"},
+    )
+    assert run_gate(root) != 0

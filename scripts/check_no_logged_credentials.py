@@ -33,7 +33,11 @@ secret in order to detect one, so it never has to store one.
 ``LITERAL``
     A credential-named symbol must not be assigned a quoted literal -- the
     classic hardcoded secret.  Checked in Python via the AST and in
-    shell/env/yaml text via a strict ``KEY=VALUE`` shape.
+    shell/env/yaml text via a strict ``KEY=VALUE`` shape.  One shape under this
+    rule points instead of holding: the bare ``secrets: inherit`` keyword in a
+    ``.github/workflows`` file is GitHub Actions' by-reference pass of the
+    caller's secrets to a reusable workflow, so no value is present -- quoted,
+    renamed or moved elsewhere, it fails again.
 
 ``URL``
     A password must not sit inside a connection string.  The userinfo shape
@@ -328,6 +332,29 @@ def _scan_python_literals(path: Path, tree: ast.AST) -> Iterator[Violation]:
             )
 
 
+def _is_inherited_workflow_secrets(path: Path, match: re.Match[str]) -> bool:
+    """Is this GitHub Actions' by-reference ``secrets: inherit``?
+
+    A job that calls a reusable workflow passes the caller's secrets on by
+    reference with the bare keyword ``inherit``.  No value is present in the
+    file, so the LITERAL shape rule must not fire on it.  Deliberately narrow,
+    and case-sensitive: the key must be exactly ``secrets`` and the value
+    exactly ``inherit``, unquoted, in a ``.github/workflows`` YAML file.
+    ``SECRETS: inherit``, ``secrets: "inherit"``, ``secrets: inheritance`` and
+    the same line in a shell or non-workflow file all stay violations -- a
+    quoted scalar is indistinguishable here from a literal that happens to read
+    ``inherit``, and the guard keeps the safer verdict.
+    """
+    return (
+        match.group("key") == "secrets"
+        and not match.group("quote")
+        and match.group("value") == "inherit"
+        and path.suffix in {".yml", ".yaml"}
+        and path.parent.name == "workflows"
+        and path.parent.parent.name == ".github"
+    )
+
+
 def _scan_shell_literals(path: Path, text: str) -> Iterator[Violation]:
     for number, line in enumerate(text.splitlines(), start=1):
         match = SHELL_LITERAL_RE.match(line)
@@ -335,6 +362,8 @@ def _scan_shell_literals(path: Path, text: str) -> Iterator[Violation]:
             continue
         key = match.group("key")
         if not names_a_credential(key):
+            continue
+        if _is_inherited_workflow_secrets(path, match):
             continue
         if PLACEHOLDER_RE.match(match.group("value")):
             continue
