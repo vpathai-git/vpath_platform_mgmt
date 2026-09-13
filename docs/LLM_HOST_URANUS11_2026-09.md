@@ -8,7 +8,8 @@ be followed. The date is in the filename for that reason.
 
 Sources: the strand `vpath_release_management/analysis/uranus11-local-llm/`
 (`summary.md`, and the lane reports `URANUS-LLM-BUILD-1` = BUILD,
-`URANUS-LLM-MEASURE-1` = MEASURE, `LLM-TRICKS-1`, `LLM-QUANT-1`). Each number
+`URANUS-LLM-MEASURE-1` = MEASURE, `LLM-TRICKS-1`, `LLM-QUANT-1`; for the
+afternoon `VLM-PICK-1`, `VLM-FIT-1`, `VLM-FAST-1`, `VLM-ROUTER-1`). Each number
 names its report; what is not in the strand is not in this document.
 
 ## 1. What was built, and what for
@@ -18,6 +19,10 @@ One NUC of the fleet became a local, OpenAI-compatible LLM server:
 `/v1/chat/completions` over the LAN on port 8080, with tool calling and image
 understanding, under a systemd unit that survives a reboot. Explicitly not
 Ollama-based, and without an API key — a LAN-internal service, not an exposed one.
+
+Since the same afternoon it carries **four** operating modes and a second, small
+model: in the fourth mode the model is chosen **per request** through the `model`
+field of the OpenAI API (`summary.md` STATUS 18:05).
 
 ## 2. The hardware, as measured
 
@@ -71,6 +76,36 @@ context, self-speculation on, vision off) or `team` (8 slots, shared 32k pool,
 vision on, speculation off). `team` is the default, and both were measured, not
 just configured (`summary.md`, 04:50 and STATUS 08:57).
 
+**A second, small model — for smoke tests, not for quality.** uranus11 is a test
+box. At 16:15 Andre reset the criteria in one sentence: *"Das Ergebnis ist sowieso
+egal, es muss nur ungefähr richtig im Schema sein … Das ist wertvoller, dass es
+schnell zurückkommt."* (`raw/2026-09-13_1045-…`). The small model exists so a
+smoke test of the infrastructure comes back quickly; time decides, not quality.
+
+**The fastest, not the best — and what that costs.** Two gates first (tool calls
+≥ 8/10 schema-valid, image subject named in ≥ 3/4), then the cycle time alone
+decided — image and tool call back to back, median of three, numbers in section 4.
+The winner is the **weakest of the three that passed** on argument content — 0/10
+fully correct arguments against 10/10 for both others, from two recurring slips —
+which under this purpose is explicitly not a criterion, and its schema held in all
+20 measured calls (`VLM-FAST-1`). **If the purpose ever changes to work that depends
+on those arguments, Gemma 4 E2B is the switch**: the best all-rounder of the field,
+0.17 s per cycle dearer, file already on the box.
+
+**Gemma 3 out, Gemma 4 in its mobile E2B form.** Gemma 3 4B-it failed gate 1 with
+**0/10 valid tool calls** in ten runs — measured on this build with `--jinja` on,
+as for the others, not inferred from a tracker; images it named 4/4. Of Gemma 4 the
+mobile E2B was taken, not E4B: E4B is 8B total, its smallest 4-bit quantisation
+4.72 GB of weights alone against the 5738 MiB of usable VRAM (`VLM-PICK-1`), while
+E2B's own pre-load arithmetic came to ≈4562 MiB (`VLM-FAST-1`).
+
+**Model choice per request is not the automatism that was ruled out.** In the
+morning Andre required the *operating modes* to be switched by hand, and automatic
+model swapping was rejected on that ground (`VLM-FIT-1` §2 D). At 17:00 he asked
+for the other end himself — *"Kann man die Umschaltung von außen machen … über die
+openai api"* — so the fourth mode is a dictated wish, not a mechanism that grew
+back; the modes themselves are still switched by a human.
+
 **Secure Boot stays off.** The NVIDIA driver is DKMS-built and the box carries a
 WMI-driven skull-lighting module too; off, neither needs a signing enrolment at
 the console (BUILD step 2a).
@@ -118,6 +153,21 @@ the console (BUILD step 2a).
    256×256 image → *"Blue square in middle."*; 4 parallel sessions all answered,
    12.2–15.2 t/s each; thinking on per request → 981 characters of reasoning;
    `/slots` → 8.
+9. **16:18–16:51** four small candidates measured against the two gates, each
+   through the same driver, the page cache dropped before every cold load
+   (`VLM-FAST-1`): Qwen3-VL-2B 0.55 s · Gemma 4 E2B 0.72 s · Qwen3-VL-4B 1.03 s ·
+   Gemma 3 4B **0/10 tool calls, out**. Mode `fast` then installed as a third row of
+   the existing table — three literal edits in `llm-serve`/`llm-mode` plus a new
+   `fast.env`, **no unit change** — five red drills, and a reboot with the switch
+   file on `fast`: back in 37 s, `NRestarts=0`, the mode survived.
+10. **17:47–17:58** mode `router` (`VLM-ROUTER-1`): one preset file with four
+    entries — the big model in its team and in its solo shape, Qwen3-VL-2B,
+    Gemma 4 E2B — `--models-max 1`, no model preloaded. Both its gates green
+    (section 6). Reboot with the switch file on `router`: back in 35 s, `NRestarts=0`.
+11. **18:03** acceptance from the Mac: `/v1/models` → four names · a wrong name →
+    HTTP 400 · small-model cycle 2.09 s including the load, 0.55 s when it is
+    already resident · Gemma 4 E2B 5.62 s including the load · switch to the big
+    model 3.23 s to the answer *"Copenhagen"* (`summary.md` STATUS 18:05).
 
 ## 5. The traps we hit
 
@@ -147,6 +197,17 @@ the console (BUILD step 2a).
   **`NRestarts=0`**, journal `Initialized nvidia-drm` → `Started
   llama-server.service`. One reboot is a sample, but that order shows the start
   now hangs off the device event rather than off luck.
+- **Gemma 3 sees images, but its tool calls did not arrive as calls.** 0/10 in ten
+  runs on this build: `finish=stop`, `n_calls=0`, prose instead. The literature had
+  flagged the risk, the probe settled it — at the cost of a measured candidate and
+  of the hypothesis the search started from.
+- **Router arguments outrank the per-model settings.** The router passes its own
+  command line and environment down to every child, so one stray inference parameter
+  in the router config would have silently overwritten all four measured
+  configurations; `router.env` therefore carries none at all (`VLM-ROUTER-1`).
+- **Router operation is not recognisable by a switch but by the missing `-m`** —
+  `tools/server/server.cpp:135`, `is_router_server = params.model.path.empty()`. The
+  start verb always passed `-m`, so `router` needed a branch, not a fourth literal.
 
 What the measurements refuted (MEASURE, findings) — the part most worth keeping,
 because assumptions age faster than numbers:
@@ -198,6 +259,26 @@ Measured behaviour, UD-Q4_K_XL (MEASURE, comparison table):
 | VRAM peak (of 5738 MiB) | 5006 MiB | 5090 MiB |
 | host RAM (server RSS) | ~23.5 GiB | 22.8–25.7 GiB |
 
+The small models, measured the same way (`VLM-FAST-1`, `VLM-ROUTER-1`):
+
+| | Qwen3-VL-2B (`fast`) | Gemma 4 E2B |
+|---|---|---|
+| smoke cycle, image + tool call · decode | 0.55 s · 141.1 t/s | 0.72 s · 93.7 t/s |
+| tool calls · arguments fully correct | 10/10 · 0/10 | 10/10 · 10/10 |
+| VRAM loaded (of 5738 MiB) | 4070 MiB at 32k context | 2958 MiB at 8k |
+
+State after the afternoon, accepted 18:03 (`summary.md` STATUS 18:05;
+`VLM-ROUTER-1`): four modes `solo|team|fast|router`, the unit still untouched. In
+`router` nothing is preloaded, so the box idles at 4 MiB of VRAM, and `/v1/models`
+lists `qwen3.6-35b-a3b`, `qwen3.6-35b-a3b-solo`, `qwen3-vl-2b-instruct`,
+`gemma-4-e2b-it`. A switch releases its predecessor's VRAM completely — after each
+of eight switches the card held exactly the target's own footprint, and no two of
+those fit on it together. Cost of a switch, first answer after it: warm
+**1.4–1.5 s** to a small model, **3.1 s** to the big one; cold after a reboot 2.3 s
+small and **18.2 s** big (22.85 GB off disk). Red drill: an unknown model name is
+answered `HTTP 400 model '…' not found` — no substitution, no default, a name one
+character off rejected rather than corrected.
+
 The commands this state was checked with, and that check it again:
 
 ```bash
@@ -205,12 +286,15 @@ The commands this state was checked with, and that check it again:
 systemctl is-enabled llama-server.service; systemctl show -p NRestarts llama-server
 swapon --show                   # /optane/swapfile 23G prio 10 must be there
 curl -s http://<host>:8080/v1/models   # from another machine on the LAN
+curl -s http://<host>:8080/v1/chat/completions -d '{"model":"nope"}'   # → HTTP 400
 ```
 
 Since 08:43 the box has rebooted four times and come back without a hand on it
-every time, `nouveau` at 0.
+every time, `nouveau` at 0 — two more in the afternoon (16:43, 17:55), each
+carrying the mode the switch file held, `NRestarts=0`.
 
 ---
 
 Written 2026-09-13 from the strand named at the top, which stays the source of
-truth. A record of one day, not maintained against later change.
+truth, and extended the same evening with that afternoon's work. A record of one
+day, not maintained against later change.
